@@ -32,14 +32,37 @@ const publicChar = (id, c) => ({
   id, name: c.name, look: c.look, job: c.job, jobName: D.JOB_NAME[c.job] || c.job, level: c.level,
 });
 
+// ---------------- คีย์ Service Account ----------------
+// อ่านได้ 2 ทาง: Secret File ของ Render (/etc/secrets/firebase-key.json — แนะนำ) หรือ env FIREBASE_SERVICE_ACCOUNT
+const SECRET_FILE = "/etc/secrets/firebase-key.json";
+function rawServiceAccount() {
+  const fs = require("fs");
+  if (fs.existsSync(SECRET_FILE)) return { raw: fs.readFileSync(SECRET_FILE, "utf8"), from: "Secret File firebase-key.json" };
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) return { raw: process.env.FIREBASE_SERVICE_ACCOUNT, from: "env FIREBASE_SERVICE_ACCOUNT" };
+  return null;
+}
+function readServiceAccount() {
+  const { raw, from } = rawServiceAccount();
+  let text = raw.trim().replace(/^\uFEFF/, "");
+  if (/^['"]/.test(text) && text.endsWith(text[0])) text = text.slice(1, -1); // วางมาพร้อมเครื่องหมายคำพูดครอบ
+  const tries = [text, () => Buffer.from(text, "base64").toString("utf8")];
+  for (const t of tries) {
+    try {
+      const sa = JSON.parse(typeof t === "function" ? t() : t);
+      if (sa && sa.private_key && sa.client_email && sa.project_id) return sa;
+    } catch {}
+  }
+  // บอกลักษณะค่าที่ได้ (ไม่พิมพ์เนื้อหาคีย์) เพื่อช่วยหาสาเหตุ
+  throw new Error(`คีย์ Service Account จาก ${from} อ่านไม่ได้ (ยาว ${text.length} ตัว, ขึ้นต้นด้วย "${text.slice(0, 1)}", ` +
+    `ลงท้ายด้วย "${text.slice(-1)}") — ต้องเป็นเนื้อหาไฟล์ .json ทั้งไฟล์ ตั้งแต่ { ถึง }`);
+}
+
 // ---------------- Firebase ----------------
 function firebaseStore() {
   const { initializeApp, cert } = require("firebase-admin/app");
   const { getAuth } = require("firebase-admin/auth");
   const { getFirestore } = require("firebase-admin/firestore");
-  let sa;
-  try { sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); }
-  catch { throw new Error("FIREBASE_SERVICE_ACCOUNT ไม่ใช่ JSON ที่ถูกต้อง — ก๊อปเนื้อหาไฟล์คีย์ทั้งไฟล์มาวาง"); }
+  const sa = readServiceAccount();
   if (!process.env.FIREBASE_API_KEY) throw new Error("ยังไม่ได้ตั้ง FIREBASE_API_KEY ใน Render");
   projectId = sa.project_id;
   initializeApp({ credential: cert(sa) });
@@ -140,17 +163,25 @@ function memoryStore() {
   };
 }
 
-let store, projectId = null;
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  store = firebaseStore();
-  console.log("🔐 Using Firebase (accounts are saved)");
+let store, projectId = null, configError = null;
+if (rawServiceAccount()) {
+  try {
+    store = firebaseStore();
+    console.log("🔐 Using Firebase (accounts are saved)");
+  } catch (e) {
+    // ตั้งค่าผิด → ไม่ให้เซิร์ฟเวอร์ล่มทั้งตัว เปิดเกมในโหมดทดสอบไปก่อน และบอกสาเหตุใน log
+    configError = e.message;
+    console.error("❌ Firebase setup error: " + e.message);
+    store = memoryStore();
+    console.warn("⚠️  Falling back to DEV MODE until the Firebase settings are fixed");
+  }
 } else {
   store = memoryStore();
-  console.warn("⚠️  FIREBASE_SERVICE_ACCOUNT not set — DEV MODE: data is kept in memory only");
+  console.warn("⚠️  No Firebase key found — DEV MODE: data is kept in memory only");
 }
 
 function webConfig() {
-  if (store.mode !== "firebase") return { mode: "dev", domain: LOGIN_DOMAIN };
+  if (store.mode !== "firebase") return { mode: "dev", domain: LOGIN_DOMAIN, configError: !!configError };
   // ค่าที่หน้าเว็บต้องใช้ล็อกอิน — ใช้แค่ API key + ชื่อโปรเจกต์ (ไม่ใช่ความลับ)
   return { mode: "firebase", domain: LOGIN_DOMAIN, firebase: {
     apiKey: process.env.FIREBASE_API_KEY, authDomain: `${projectId}.firebaseapp.com`, projectId } };

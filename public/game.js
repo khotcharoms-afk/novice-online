@@ -61,6 +61,7 @@ async function initAuth() {
   $("idInput").value = storeGet("pn_id") || "";
   if (cfg.mode === "dev") {
     $("devNote").hidden = false;
+    if (cfg.configError) $("devNote").textContent = "โหมดทดสอบ: ตั้งค่า Firebase ใน Render ไม่ถูกต้อง (ดูสาเหตุใน Logs) — ข้อมูลยังไม่ถูกบันทึก";
     if (sessionStorage.getItem("pn_dev_id")) return openSelect();
     return showScreen("scrAuth");
   }
