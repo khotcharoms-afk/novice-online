@@ -116,7 +116,7 @@ class WorldRoom extends Room {
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
-        items: I.ITEMS, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
+        items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs,
         mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) });
 
@@ -140,6 +140,23 @@ class WorldRoom extends Room {
     this.onMessage("buy", (client, m) => this.withBag(client, m, (p, b) => this.buy(p, b, String(m.id), Number(m.n) || 1)));
     this.onMessage("sell", (client, m) => this.withBag(client, m, (p, b) => this.sell(p, b, Number(m.idx), Number(m.n) || 1)));
     this.onMessage("refine", (client, m) => this.withBag(client, m, (p, b) => this.refine(client, p, b, m)));
+    this.onMessage("fuseStone", (client, m) => this.withBag(client, m, (p, b) => {
+      if (!this.nearNpc(p, "smith")) return "เดินเข้าใกล้ช่างตีบวกก่อน";
+      const to = String(m.to), f = I.STONE_FUSE[to];
+      if (!f) return;
+      const times = Math.max(1, Math.min(99, Math.floor(Number(m.times) || 1)));
+      const can = Math.min(times, Math.floor(Bag.countOf(b, f.from) / f.n), Math.floor(b.gold / f.gold));
+      if (can < 1) return Bag.countOf(b, f.from) < f.n ? `ต้องมี ${I.ITEMS[f.from].name} ${f.n} ก้อน` : "gold ไม่พอ";
+      if (!Bag.canFit(b, to, can) && !Bag.canFit(b, to, 1)) return "กระเป๋าเต็ม";
+      let need = can * f.n;
+      for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) {
+        const s = b.inv[i];
+        if (s && s.id === f.from) { const k = Math.min(need, s.n); Bag.removeAt(b, i, k); need -= k; }
+      }
+      b.gold -= can * f.gold;
+      Bag.addItem(b, to, can);
+      client.send("toast", `รวมหินสำเร็จ: ได้ ${I.ITEMS[to].name} ×${can}`);
+    }));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
     this.onMessage("pickup", (client, m) => {
       const r = this.alive(client);

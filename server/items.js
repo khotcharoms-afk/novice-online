@@ -50,6 +50,10 @@ const ITEMS = {
   pet_sparrow:  { name: "นกกระจอกน้อย", type: "pet", lv: 1, price: 300, pet: { range: 160, speed: 210 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 5 ช่อง" },
   pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
   pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
+  // ---------- หินตีบวก (ใช้ที่ลุงเหล็กกล้า) · frame = สีกรอบในกระเป๋า ----------
+  stone_1: { name: "หินตีบวกขั้นต้น", type: "material", price: 30, frame: "#a9c29b", desc: "ใช้ตีบวก +1 ถึง +4" },
+  stone_2: { name: "หินตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
+  stone_3: { name: "หินตีบวกขั้นสูง", type: "material", sell: 200, frame: "#d08bff", desc: "ใช้ตีบวก +8 ถึง +10" },
   // ---------- ของดรอป (ขายที่ร้าน) ----------
   goblin_ear: { name: "หูก็อบลิน", type: "material", sell: 4 },
   wolf_fang:  { name: "เขี้ยวหมาป่า", type: "material", sell: 10 },
@@ -60,15 +64,15 @@ const ITEMS = {
 
 // ของที่ร้านค้าขาย (เรียงตามที่แสดง)
 const SHOP = ["potion_s", "potion_m", "potion_sp", "mace", "dagger", "kite", "bandana", "hood", "leather", "chain",
-  "gloves", "cape", "boots", "ring_copper", "pet_sparrow", "pet_canary", "pet_bluebird"];
+  "gloves", "cape", "boots", "ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"];
 
 // ของดรอปจากมอน: [itemId, โอกาส 0–1, จำนวนต่ำสุด, สูงสุด]
 const DROPS = {
-  goblin:   [["goblin_ear", 0.6, 1, 2], ["potion_s", 0.08, 1, 1], ["bandana", 0.015, 1, 1], ["gloves", 0.01, 1, 1]],
-  wolf:     [["wolf_fang", 0.55, 1, 2], ["potion_s", 0.1, 1, 2], ["fang_necklace", 0.02, 1, 1], ["dagger", 0.01, 1, 1]],
-  boar:     [["boar_tusk", 0.55, 1, 1], ["potion_m", 0.06, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.01, 1, 1]],
-  skeleton: [["old_bone", 0.55, 1, 2], ["potion_m", 0.08, 1, 1], ["glasses", 0.02, 1, 1], ["plate", 0.008, 1, 1]],
-  orc:      [["orc_scrap", 0.55, 1, 2], ["potion_m", 0.1, 1, 2], ["waraxe", 0.01, 1, 1], ["plate", 0.01, 1, 1]],
+  goblin:   [["goblin_ear", 0.6, 1, 2], ["stone_1", 0.08, 1, 1], ["potion_s", 0.08, 1, 1], ["bandana", 0.015, 1, 1], ["gloves", 0.01, 1, 1]],
+  wolf:     [["wolf_fang", 0.55, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.02, 1, 1], ["potion_s", 0.1, 1, 2], ["fang_necklace", 0.02, 1, 1], ["dagger", 0.01, 1, 1]],
+  boar:     [["boar_tusk", 0.55, 1, 1], ["stone_1", 0.1, 1, 2], ["stone_2", 0.05, 1, 1], ["potion_m", 0.06, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.01, 1, 1]],
+  skeleton: [["old_bone", 0.55, 1, 2], ["stone_2", 0.07, 1, 1], ["stone_3", 0.015, 1, 1], ["potion_m", 0.08, 1, 1], ["glasses", 0.02, 1, 1], ["plate", 0.008, 1, 1]],
+  orc:      [["orc_scrap", 0.55, 1, 2], ["stone_2", 0.08, 1, 2], ["stone_3", 0.03, 1, 1], ["potion_m", 0.1, 1, 2], ["waraxe", 0.01, 1, 1], ["plate", 0.01, 1, 1]],
 };
 // เงินที่ได้ต่อการฆ่า 1 ตัว (แบ่งตามดาเมจเหมือน EXP)
 const goldDrop = (mobLv) => Math.round(mobLv * 2.5 + Math.random() * mobLv * 2);
@@ -78,7 +82,7 @@ const goldDrop = (mobLv) => Math.round(mobLv * 2.5 + Math.random() * mobLv * 2);
 //  mult = คูณค่าพลังพื้นฐานของไอเทม · extras = จำนวนค่าพิเศษสุ่ม · weight = โอกาสดรอป (ส่วนต่อ 1000)
 // =============================================================
 const RARITY = [
-  { name: "ธรรมดา", color: "#e8e8e8", mult: 1, extras: 0, weight: 600, sell: 1 },
+  { name: "ธรรมดา", color: "#cfd3dd", mult: 1, extras: 0, weight: 600, sell: 1 },
   { name: "ดี", color: "#7dff9a", mult: 1.1, extras: 1, weight: 250, sell: 1.5 },
   { name: "หายาก", color: "#6fb6ff", mult: 1.25, extras: 2, weight: 110, sell: 2.5 },
   { name: "มหากาพย์", color: "#c38bff", mult: 1.45, extras: 3, weight: 32, sell: 4 },
@@ -110,22 +114,25 @@ function makeGear(id, r) {
 
 // =============================================================
 //  ตีบวก (+1 ถึง +10) ที่ NPC ช่างตีบวก — ใช้ได้กับอาวุธ/ของที่มีค่าป้องกัน
-//  rate = โอกาสสำเร็จ · mats = วัตถุดิบที่ใช้ · ล้มเหลวตั้งแต่ +5 ขึ้นไป ระดับลด 1 (ของไม่แตก)
+//  rate = โอกาสสำเร็จ · mats = หินตีบวกที่ใช้ (ขั้นสูงขึ้น = หินขั้นสูงขึ้น + ใช้จำนวนมากขึ้น)
+//  ล้มเหลวตั้งแต่ +5 ขึ้นไป ระดับลด 1 (ของไม่แตก)
 // =============================================================
 const MAX_REFINE = 10;
 const REFINE = [null,
-  { rate: 1.0, mats: [["goblin_ear", 2]] },
-  { rate: 1.0, mats: [["goblin_ear", 3]] },
-  { rate: 1.0, mats: [["goblin_ear", 4]] },
-  { rate: 0.9, mats: [["wolf_fang", 3]] },
-  { rate: 0.75, mats: [["wolf_fang", 4]] },
-  { rate: 0.6, mats: [["boar_tusk", 3]] },
-  { rate: 0.45, mats: [["boar_tusk", 4]] },
-  { rate: 0.35, mats: [["old_bone", 4]] },
-  { rate: 0.25, mats: [["orc_scrap", 4]] },
-  { rate: 0.15, mats: [["orc_scrap", 6]] },
+  { rate: 1.0, mats: [["stone_1", 1]] },
+  { rate: 1.0, mats: [["stone_1", 2]] },
+  { rate: 1.0, mats: [["stone_1", 3]] },
+  { rate: 0.9, mats: [["stone_1", 5]] },
+  { rate: 0.75, mats: [["stone_2", 2]] },
+  { rate: 0.6, mats: [["stone_2", 3]] },
+  { rate: 0.45, mats: [["stone_2", 5]] },
+  { rate: 0.35, mats: [["stone_3", 2]] },
+  { rate: 0.25, mats: [["stone_3", 3]] },
+  { rate: 0.15, mats: [["stone_3", 5]] },
 ];
-const SAFE_REFINE = 4; // ตีถึง +4 ไม่มีวันลดระดับ
+const SAFE_REFINE = 4;
+// รวมหิน: หินขั้นต่ำกว่า 5 ก้อน + gold → หินขั้นสูงกว่า 1 ก้อน
+const STONE_FUSE = { stone_2: { from: "stone_1", n: 5, gold: 100 }, stone_3: { from: "stone_2", n: 5, gold: 500 } }; // ตีถึง +4 ไม่มีวันลดระดับ
 const canRefine = (it) => !!(it && it.type === "equip" && it.bonus && (it.bonus.atk || it.bonus.def));
 const refineGold = (it, to) => Math.round(((40 + (it.lv || 1) * 15) * Math.pow(to, 1.6)) / 10) * 10;
 // ค่าที่ได้จากการตีบวก: อาวุธ +ATK, ของป้องกัน +DEF ต่อระดับ
@@ -153,4 +160,4 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
-module.exports = { RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

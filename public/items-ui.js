@@ -15,6 +15,9 @@ const itemOf = (id) => gameData && gameData.items[id];
 const isGear = (g) => !!(g && itemOf(g.id) && itemOf(g.id).type === "equip");
 const rarOf = (g) => (isGear(g) && gameData.rarity ? gameData.rarity[g.r || 0] : null);
 const gearName = (g) => (g && g.up ? `+${g.up} ` : "") + (itemOf(g && g.id)?.name || (g && g.id) || "");
+// สีกรอบไอเทม: อุปกรณ์ = สีตามระดับ (ทุกระดับ) · ของที่มีกำหนดสี (หินตีบวก) = สีของมัน
+const frameOf = (s) => { if (!s) return null; const r = rarOf(s); if (r) return r.color; const it = itemOf(s.id); return (it && it.frame) || null; };
+const applyFrame = (el, s) => { const c = frameOf(s); el.classList.toggle("rr", !!c); el.style.setProperty("--rc", c || ""); };
 const nameHtml = (g) => { const r = rarOf(g); return `<span style="color:${r && g.r > 0 ? r.color : "inherit"}">${gearName(g)}</span>`; };
 const myPlayer = () => room && room.state.players.get(room.sessionId);
 
@@ -66,9 +69,7 @@ function renderInv() {
     b.draggable = !!s;
     if (s) used++;
     b.innerHTML = s ? `<img src="${ICON(s.id)}" alt="">${s.up ? `<span class="up">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
-    const rr = rarOf(s);
-    b.classList.toggle("rr", !!(rr && s.r > 0));
-    b.style.setProperty("--rc", rr ? rr.color : "");
+    applyFrame(b, s);
     b.setAttribute("aria-label", s ? `${itemOf(s.id)?.name || s.id} ×${s.n}` : "ช่องว่าง");
   });
   $("goldTxt").textContent = INV.gold.toLocaleString();
@@ -100,8 +101,7 @@ function renderPaperDoll() {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "eq-slot" + (id ? " filled" : "");
-      const rr = rarOf(g);
-      if (rr && g.r > 0) { b.classList.add("rr"); b.style.setProperty("--rc", rr.color); }
+      if (id) applyFrame(b, g);
       b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${nameHtml(g)}</span>` : `<span>${gameData.slotName[slot]}</span>`;
       b.onclick = (e) => { if (id) openCard(g, { where: "eq", slot }, e); };
       b.ondblclick = () => id && room.send("unequip", { slot });
@@ -357,14 +357,14 @@ function renderSmith() {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "smith-item" + (same(x.key, smithSel) ? " sel" : "");
-    const rr = rarOf(x.g);
-    if (rr && x.g.r > 0) { b.classList.add("rr"); b.style.setProperty("--rc", rr.color); }
+    applyFrame(b, x.g);
     b.title = gearName(x.g) + (x.eq ? " (สวมอยู่)" : "");
     b.innerHTML = `<img src="${ICON(x.g.id)}" alt="">${x.g.up ? `<span class="up">+${x.g.up}</span>` : ""}${x.eq ? '<span class="eqm">สวม</span>' : ""}`;
     b.onclick = () => { smithSel = x.key; renderSmith(); };
     $("smithList").appendChild(b);
   }
   if (!list.length) $("smithList").innerHTML = `<p class="ap-note">ไม่มีอาวุธหรือชุดเกราะที่ตีบวกได้</p>`;
+  renderFuse();
   const g = smithGear(), info = $("smithInfo");
   if (!g) { info.innerHTML = `<p class="ap-note">เลือกอุปกรณ์ที่จะตีบวก</p>`; return; }
   if (!g.nx) { info.innerHTML = `<h4>${nameHtml(g)}</h4><p class="ok">ตีบวกสูงสุดแล้ว (+${gameData.maxRefine})</p>`; return; }
@@ -390,4 +390,20 @@ function onRefined(res) {
   clearTimeout(onRefined.t); onRefined.t = setTimeout(() => fx.classList.remove("show"), 1400);
   const me = scene && scene.views.get(room.sessionId);
   if (me && res.ok) scene.sparkle(me.root.x, me.root.y - 20, 0xffd36b);
+}
+
+// รวมหิน 5 ก้อน → ขั้นสูงขึ้น 1 ก้อน
+function renderFuse() {
+  const box = $("smithFuse");
+  if (!box || !gameData.stoneFuse) return;
+  const have = (id) => INV.inv.reduce((t, s) => t + (s && s.id === id ? s.n : 0), 0);
+  box.innerHTML = `<div class="ap-note" style="margin:0 0 4px">รวมหิน (${Object.values(gameData.stoneFuse)[0].n} ก้อน → ขั้นสูงขึ้น 1 ก้อน)</div>` +
+    Object.entries(gameData.stoneFuse).map(([to, f]) => {
+      const h = have(f.from), max = Math.min(Math.floor(h / f.n), Math.floor(INV.gold / f.gold));
+      return `<div class="fuse-row"><img src="${ICON(f.from)}" alt="" width="20" height="20"><span>${h}/${f.n}</span><span>→</span>
+        <img src="${ICON(to)}" alt="" width="20" height="20"><span class="muted">${f.gold} g</span>
+        <button type="button" class="btn-ghost small" data-to="${to}" data-t="1" ${max >= 1 ? "" : "disabled"}>รวม</button>
+        <button type="button" class="btn-ghost small" data-to="${to}" data-t="${max}" ${max >= 2 ? "" : "disabled"}>ทั้งหมด${max >= 2 ? " (" + max + ")" : ""}</button></div>`;
+    }).join("");
+  box.querySelectorAll("button").forEach((b) => (b.onclick = () => room.send("fuseStone", { to: b.dataset.to, times: Number(b.dataset.t) })));
 }
