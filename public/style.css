@@ -518,3 +518,8 @@ input, textarea { cursor: text; }
   background: rgba(20, 40, 70, .92); border: 1px solid #7fd1ff; color: #dff4ff; white-space: nowrap; }
 #travelBar b { color: #fff; font-weight: 500; }
 #travelBar span { margin-left: 8px; color: #ff9a9a; font-size: 12px; }
+
+/* ---------- ไม่ให้ลากคลุม (เลือกข้อความ) ในเกม — ยกเว้นช่องพิมพ์ ---------- */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
+img { -webkit-user-drag: none; user-drag: none; }

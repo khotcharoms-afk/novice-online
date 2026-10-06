@@ -9,6 +9,9 @@ const CUR = {
   sword: "url(/assets/cursors/sword.png) 2 2, crosshair",
   talk: "url(/assets/cursors/talk.png) 2 2, pointer",
 };
+// กันการลากคลุม/ลากรูปติดเมาส์ (ยกเว้นช่องพิมพ์)
+document.addEventListener("selectstart", (e) => { if (!e.target.closest || !e.target.closest("input, textarea")) e.preventDefault(); });
+document.addEventListener("dragstart", (e) => { if (e.target.tagName === "IMG") e.preventDefault(); });
 const isTyping = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement && document.activeElement.tagName) || "");
 const SERVER_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
 const T = 32;
