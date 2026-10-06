@@ -141,14 +141,25 @@
       <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="goldTxt">0</b> gold</span><span id="invCount">0/40</span></div>
     </section>
     <section id="shopPanel" class="frame" hidden aria-label="ร้านค้า">
-      <div class="ap-head"><b>ร้านค้าลุงสมปอง</b><button id="shopClose" type="button" aria-label="ปิด">✕</button></div>
-      <div class="tabs shop-tabs" role="tablist">
-        <button class="tab active" data-shop="buy">ซื้อ</button>
-        <button class="tab" data-shop="sell">ขาย</button>
+      <div class="shop-head"><b>ร้านค้าลุงสมปอง</b>
+        <span class="shop-gold"><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="shopGold">0</b> gold</span>
+        <button id="shopClose" type="button" class="x" aria-label="ปิด">✕</button></div>
+      <div class="shop-modes" role="tablist">
+        <button type="button" class="shop-mode" data-shop="buy" role="tab"><img src="/assets/icons/potion_s.png" alt=""> ซื้อ</button>
+        <button type="button" class="shop-mode" data-shop="sell" role="tab"><img src="/assets/icons/gold.png" alt=""> ขาย</button>
       </div>
-      <div id="shopList" class="shop-list"></div>
-      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="shopGold">0</b> gold</span>
-        <button id="sellJunk" type="button" class="btn-ghost small" hidden>ขายของดรอปทั้งหมด</button></div>
+      <div id="shopCats" class="shop-cats"></div>
+      <button type="button" id="shopBulk" class="shop-bulk" hidden></button>
+      <div class="shop-body">
+        <div id="shopList" class="shop-list"></div>
+        <div class="shop-cart">
+          <div class="cart-head"><b id="cartTitle">ตะกร้า</b> <span id="cartCount" class="muted">0 รายการ</span>
+            <button type="button" id="cartClear" class="link small">ล้าง</button></div>
+          <div id="cartList" class="cart-list"></div>
+          <div class="cart-foot"><span id="cartTotalLbl">รวม</span><b id="cartTotal">0 gold</b></div>
+          <button type="button" id="cartGo" class="btn-gold cart-go" disabled>ตรวจสอบและซื้อ</button>
+        </div>
+      </div>
     </section>
     <section id="smithPanel" class="frame" hidden aria-label="ตีบวก">
       <div class="ap-head"><b>ลุงเหล็กกล้า · ตีบวกอุปกรณ์</b><button id="smithClose" type="button" aria-label="ปิด">✕</button></div>
@@ -184,5 +195,6 @@
   <script src="/lib/colyseus.js"></script>
   <script src="/game.js"></script>
   <script src="/items-ui.js"></script>
+  <script src="/shop-ui.js"></script>
 </body>
 </html>

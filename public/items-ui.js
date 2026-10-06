@@ -3,7 +3,6 @@
 //  (ใช้ตัวแปร room, scene, gameData, $ จาก game.js)
 // =============================================================
 let INV = { inv: [], equip: {}, gold: 0 };
-let shopTab = "buy";
 const ICON = (id) => `/assets/icons/${id}.png`;
 const BAR_KEYS = ["q", "e", "r", "f", "z", "x", "v", "b"];
 const DOLL_L = ["head", "face", "armor", "gloves", "acc1"];
@@ -83,7 +82,7 @@ function quickUse(idx) {
   if (!s) return;
   const it = itemOf(s.id);
   if (moveFrom !== null) return;
-  if (!$("shopPanel").hidden && shopTab === "sell") return sellAt(idx);
+  if (!$("shopPanel").hidden && shopTab === "sell") return addSell(idx, s.n);
   if (it && it.type === "equip") room.send("equip", { idx });
   else if (it && it.type === "pet") room.send("useItem", { idx });
   else if (it && it.type === "use") room.send("useItem", { idx });
@@ -171,7 +170,7 @@ function openCard(g, ctx, ev) {
     if (it.type === "equip") acts.push(`<button class="btn-gold" data-a="equip">สวม</button>`);
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
     if (it.type === "pet") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
-    if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ขาย (${sell * INV.inv[ctx.idx].n} g)</button>`);
+    if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ใส่ตะกร้าขาย</button>`);
     acts.push(`<button class="btn-ghost" data-a="move">ย้ายช่อง</button>`, `<button class="btn-ghost danger" data-a="discard">ทิ้ง</button>`);
     if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
   } else if (ctx.where === "eq") {
@@ -189,7 +188,7 @@ function openCard(g, ctx, ev) {
     if (a === "equip") room.send("equip", { idx: ctx.idx });
     if (a === "use") room.send("useItem", { idx: ctx.idx });
     if (a === "unequip") room.send("unequip", { slot: ctx.slot });
-    if (a === "sell") sellAt(ctx.idx);
+    if (a === "sell") { shopTab = "sell"; addSell(ctx.idx, INV.inv[ctx.idx].n); }
     if (a === "discard") discardAt(ctx.idx);
     if (a === "move") startMove(ctx.idx);
     if (a === "bar") assignBar(id);
@@ -265,61 +264,14 @@ function renderItemBar() {
   });
 }
 
-// ---------- ร้านค้า ----------
-function openShop() { $("shopPanel").hidden = false; shopTab = "buy"; setShopTab(); toggleInv(true); }
-function closeShop() { $("shopPanel").hidden = true; hideCard(); }
-function setShopTab() {
-  document.querySelectorAll("[data-shop]").forEach((t) => t.classList.toggle("active", t.dataset.shop === shopTab));
-  $("sellJunk").hidden = shopTab !== "sell";
-  renderShop();
-}
-function renderShop() {
-  if ($("shopPanel").hidden || !gameData) return;
-  $("shopGold").textContent = INV.gold.toLocaleString();
-  const list = $("shopList");
-  list.innerHTML = "";
-  if (shopTab === "buy") {
-    for (const id of gameData.shop) {
-      const it = itemOf(id);
-      const row = document.createElement("div");
-      row.className = "shop-row";
-      const sub = it.desc || Object.entries(it.bonus || {}).map(([k, v]) => `${BONUS_NAME[k]} +${v}`).join(", ");
-      row.innerHTML = `<img src="${ICON(id)}" alt=""><div>${it.name}<small>${sub}${it.lv > 1 ? ` · Lv.${it.lv}` : ""}</small></div>` +
-        `<span class="price">${it.price} g</span><span>` +
-        `<button class="btn-gold" data-n="1" ${INV.gold < it.price ? "disabled" : ""}>ซื้อ</button>` +
-        (it.type === "use" ? ` <button class="btn-ghost" data-n="10" ${INV.gold < it.price * 10 ? "disabled" : ""}>×10</button>` : "") + `</span>`;
-      row.querySelectorAll("button").forEach((b) => (b.onclick = () => room.send("buy", { id, n: Number(b.dataset.n) })));
-      list.appendChild(row);
-    }
-  } else {
-    INV.inv.forEach((s, idx) => {
-      if (!s) return;
-      const it = itemOf(s.id);
-      const each = s.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
-      const row = document.createElement("div");
-      row.className = "shop-row";
-      const rr = rarOf(s);
-      row.innerHTML = `<img src="${ICON(s.id)}" alt=""><div>${nameHtml(s)}${s.n > 1 ? " ×" + s.n : ""}<small>${TYPE_NAME[it.type]}${rr ? " · " + rr.name : ""}</small></div>` +
-        `<span class="price">${each * s.n} g</span><span><button class="btn-ghost">ขาย</button></span>`;
-      row.querySelector("button").onclick = () => sellAt(idx);
-      list.appendChild(row);
-    });
-    if (!list.children.length) list.innerHTML = `<p class="ap-note">กระเป๋าว่าง</p>`;
-  }
-}
+// ---------- ร้านค้า → อยู่ในไฟล์ shop-ui.js ----------
 
 // ---------- ผูกปุ่ม (เรียกหลังโหลดแผนที่) ----------
 function setupItemsUI() {
   $("invBtn").onclick = () => toggleInv();
   $("invClose").onclick = () => toggleInv(false);
-  $("shopClose").onclick = closeShop;
+  setupShop();
   $("smithClose").onclick = closeSmith;
-  document.querySelectorAll("[data-shop]").forEach((t) => (t.onclick = () => { shopTab = t.dataset.shop; setShopTab(); }));
-  $("sellJunk").onclick = () => {
-    // ขายของดรอปทั้งหมด (เรียงจากช่องท้ายสุด เพื่อไม่ให้ลำดับช่องเลื่อน)
-    INV.inv.map((s, i) => [s, i]).filter(([s]) => s && itemOf(s.id)?.type === "material").reverse()
-      .forEach(([s, i]) => room.send("sell", { idx: i, n: s.n }));
-  };
   $("apLoot").checked = autoCfg.loot !== false;
   $("apPotion").checked = autoCfg.potion !== false;
   $("apLoot").onchange = (e) => { autoCfg.loot = e.target.checked; sendAutoCfg(); };
@@ -438,16 +390,6 @@ function askConfirm(html, { okText = "ยืนยัน", max = 1, danger = fal
     $("cbYes").onclick = () => done(max > 1 ? Math.max(1, Math.min(max, Math.floor(Number($("cbN").value) || 1))) : 1);
     $("cbYes").focus();
   });
-}
-async function sellAt(idx) {
-  const s = INV.inv[idx];
-  if (!s) return;
-  if (precious(s)) {
-    const r = rarOf(s), price = (s.sell ?? 0) * s.n;
-    const ok = await askConfirm(`ขาย <b style="color:${r.color}">${gearName(s)}</b> (ระดับ${r.name}) ได้ ${price.toLocaleString()} gold?<br><small>ขายแล้วซื้อคืนไม่ได้</small>`, { okText: "ขาย", danger: true });
-    if (!ok) return;
-  }
-  room.send("sell", { idx, n: s.n });
 }
 async function discardAt(idx) {
   const s = INV.inv[idx];

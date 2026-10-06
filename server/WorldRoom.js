@@ -138,6 +138,8 @@ class WorldRoom extends Room {
     this.onMessage("moveItem", (client, m) => this.withBag(client, m, (p, b) => Bag.moveSlot(b, Number(m.from), Number(m.to))));
     this.onMessage("useItem", (client, m) => this.withBag(client, m, (p, b) => this.useItem(client.sessionId, p, b, Number(m.idx))));
     this.onMessage("buy", (client, m) => this.withBag(client, m, (p, b) => this.buy(p, b, String(m.id), Number(m.n) || 1)));
+    this.onMessage("buyMany", (client, m) => this.withBag(client, m, (p, b) => this.buyMany(client, p, b, m.items)));
+    this.onMessage("sellMany", (client, m) => this.withBag(client, m, (p, b) => this.sellMany(client, p, b, m.items)));
     this.onMessage("sell", (client, m) => this.withBag(client, m, (p, b) => this.sell(p, b, Number(m.idx), Number(m.n) || 1)));
     this.onMessage("refine", (client, m) => this.withBag(client, m, (p, b) => this.refine(client, p, b, m)));
     this.onMessage("fuseStone", (client, m) => this.withBag(client, m, (p, b) => {
@@ -845,6 +847,45 @@ class WorldRoom extends Room {
     b.gold -= cost;
     Bag.addItem(b, id, n);
     if (cost >= 500) this.saveSoon(p.sid);
+  }
+  // ซื้อหลายอย่างพร้อมกัน (ตะกร้าซื้อ): items = [{ id, n }] — ทำทั้งหมดหรือไม่ทำเลย
+  buyMany(client, p, b, items) {
+    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+    if (!Array.isArray(items) || !items.length) return;
+    const list = items.slice(0, 40).map((x) => ({ id: String(x.id), n: Math.max(1, Math.min(999, Math.floor(Number(x.n) || 1))) }));
+    let cost = 0;
+    for (const x of list) {
+      if (!I.ITEMS[x.id] || !I.SHOP.includes(x.id)) return "ร้านไม่มีของนี้";
+      cost += I.ITEMS[x.id].price * x.n;
+    }
+    if (b.gold < cost) return `gold ไม่พอ (ต้องใช้ ${cost.toLocaleString()})`;
+    // ลองใส่ในกระเป๋าจำลองก่อน ถ้าไม่พอ = ไม่ซื้อเลย
+    const test = { inv: b.inv.map((s) => (s ? { ...s } : null)), equip: {}, gold: 0 };
+    for (const x of list) if (Bag.addItem(test, x.id, x.n) > 0) return "กระเป๋าไม่พอใส่ของทั้งหมด";
+    b.gold -= cost;
+    for (const x of list) Bag.addItem(b, x.id, x.n);
+    client.send("toast", `ซื้อ ${list.length} รายการ · จ่าย ${cost.toLocaleString()} gold`);
+    client.send("bought", { cost });
+    if (cost >= 500) this.saveSoon(client.sessionId);
+  }
+  // ขายหลายอย่างพร้อมกัน (ตะกร้าขาย): items = [{ idx, id, n }] — ตรวจว่าช่องยังเป็นของเดิม
+  sellMany(client, p, b, items) {
+    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+    if (!Array.isArray(items) || !items.length) return;
+    const seen = new Set();
+    const list = [];
+    for (const x of items.slice(0, 60)) {
+      const idx = Math.floor(Number(x.idx)), s = b.inv[idx];
+      if (seen.has(idx) || !s || s.id !== String(x.id)) return "ของในกระเป๋าเปลี่ยนไป ลองใหม่อีกครั้ง";
+      seen.add(idx);
+      list.push({ idx, n: Math.max(1, Math.min(s.n, Math.floor(Number(x.n) || s.n))), price: I.sellPrice(s.id, s) });
+    }
+    let total = 0;
+    for (const x of list) { Bag.removeAt(b, x.idx, x.n); total += x.price * x.n; }
+    b.gold += total;
+    client.send("toast", `ขาย ${list.length} รายการ · ได้ ${total.toLocaleString()} gold`);
+    client.send("sold", { total });
+    this.saveSoon(client.sessionId);
   }
   sell(p, b, idx, n) {
     if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
