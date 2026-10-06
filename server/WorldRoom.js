@@ -13,7 +13,6 @@ const SPEED = 170;           // ความเร็วเดินผู้เ
 const TICK_MS = 50;          // อัปเดตโลก 20 ครั้ง/วินาที
 const BODY = 9;              // ครึ่งความกว้างเท้า (เช็คชน)
 const MELEE_RANGE = 44;      // ระยะตีใกล้
-const PLAYER_ATK_MS = 800;   // ตีทุก ๆ 0.8 วินาที
 const MOB_ATK_MS = 1500;
 const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
@@ -29,6 +28,7 @@ defineTypes(Player, {
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean", autoState: "string", autoX: "number", autoY: "number", autoR: "uint16",
   level: "uint16", exp: "uint32", expNext: "uint32",
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
+  str: "uint16", agi: "uint16", vit: "uint16", int: "uint16", dex: "uint16", statPoints: "uint16",
 });
 class Monster extends Schema {}
 defineTypes(Monster, {
@@ -83,10 +83,15 @@ class WorldRoom extends Room {
     this.mobSeq = 0;
     this.spawnMonsters();
 
-    this.onMessage("getMap", (client) =>
+    this.onMessage("getMap", (client) => {
+      const me = this.state.players.get(client.sessionId);
+      if (me) this.clock.setTimeout(() => this.sendDerived(me), 50);
+      sendMap(client);
+    });
+    const sendMap = (client) =>
       client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
-        mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) })
-    );
+        statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
+        mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) });
 
     this.onMessage("moveTo", (client, m) => {
       const r = this.alive(client); if (!r || !m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -100,6 +105,8 @@ class WorldRoom extends Room {
     });
     this.onMessage("auto", (client, on) => { if (this.alive(client)) this.setAuto(client.sessionId, !!on); });
     // ตั้งค่า AUTO: ขอบเขต + ชนิดมอนที่จะตี (ว่าง = ตีทุกชนิดที่เลเวลไม่เกินเรา +2)
+    this.onMessage("addStat", (client, m) => m && this.addStat(client.sessionId, String(m.stat), m.n));
+    this.onMessage("recommendStats", (client) => this.recommendStats(client.sessionId));
     this.onMessage("autoCfg", (client, c) => {
       const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
       if (!r || !c) return;
@@ -134,7 +141,8 @@ class WorldRoom extends Room {
     const dead = p.dead || p.hp <= 0;
     const spot = dead ? this.townSpawn() : p;
     return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp,
-      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job };
+      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job,
+      stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])) };
   }
   save(pid) {
     const p = this.state.players.get(pid), r = this.pr.get(pid);
@@ -158,6 +166,15 @@ class WorldRoom extends Room {
     p.level = Math.max(1, Math.min(D.MAX_LEVEL, c.level || 1));
     p.expNext = D.expToNext(p.level);
     p.exp = Math.min(c.exp || 0, Math.max(0, p.expNext - 1));
+    // สเตตัส: โหลดค่าที่บันทึกไว้ (ตัวละครเก่าที่ยังไม่มี = เริ่มที่ 1 ทุกค่า) แล้วคืนแต้มที่เหลือตามเลเวล
+    const st = D.baseStats();
+    for (const k of D.STAT_KEYS) {
+      const v = Number(c.stats && c.stats[k]);
+      if (Number.isInteger(v) && v >= 1 && v <= D.STAT_MAX) st[k] = v;
+    }
+    if (D.spentPoints(st) > D.totalPoints(p.level)) Object.assign(st, D.baseStats()); // ข้อมูลผิดปกติ → คืนแต้มทั้งหมด
+    for (const k of D.STAT_KEYS) p[k] = st[k];
+    p.statPoints = D.totalPoints(p.level) - D.spentPoints(st);
     this.applyStats(p, true);
     if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
     if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
@@ -193,10 +210,51 @@ class WorldRoom extends Room {
   }
 
   applyStats(p, refill) {
-    const s = D.playerStats(p.level);
+    const s = D.playerStats(p.level, p);
+    const dHp = s.maxHp - (p.maxHp || 0), dSp = s.maxSp - (p.maxSp || 0);
     p.maxHp = s.maxHp; p.maxSp = s.maxSp;
     if (refill) { p.hp = p.maxHp; p.sp = p.maxSp; }
-    p.atk = s.atk; p.def = s.def; // ไม่ซิงก์ (ไม่ได้ประกาศใน schema)
+    else { // ลงแต้ม VIT/INT แล้ว HP/SP ปัจจุบันเพิ่มตามด้วย
+      p.hp = Math.max(1, Math.min(p.maxHp, p.hp + Math.max(0, dHp)));
+      p.sp = Math.max(0, Math.min(p.maxSp, p.sp + Math.max(0, dSp)));
+    }
+    // ค่าเหล่านี้ใช้ในเซิร์ฟเวอร์เท่านั้น (ไม่ได้ประกาศใน schema จึงไม่ถูกส่งไป client)
+    p.atk = s.atk; p.def = s.def; p.atkDelay = s.atkDelay; p.flee = s.flee;
+    p.hitBonus = s.hitBonus; p.crit = s.crit; p.healBonus = s.healBonus;
+    this.sendDerived(p);
+  }
+  // ส่งค่าที่คำนวณแล้ว (ATK DEF ความเร็วตี ฯลฯ) ให้เจ้าของตัวละครดูในหน้าสเตตัส
+  sendDerived(p) {
+    let id = null;
+    this.state.players.forEach((pp, sid) => { if (pp === p) id = sid; });
+    const client = id && this.clients.find((c) => c.sessionId === id);
+    if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, atkDelay: p.atkDelay,
+      flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus });
+  }
+
+  // ================= ลงแต้มสเตตัส =================
+  addStat(pid, stat, n) {
+    const p = this.state.players.get(pid);
+    if (!p || !D.STAT_KEYS.includes(stat)) return;
+    n = Math.max(1, Math.min(Number(n) || 1, p.statPoints, D.STAT_MAX - p[stat]));
+    if (!(n > 0)) return;
+    p[stat] += n; p.statPoints -= n;
+    this.applyStats(p, false);
+  }
+  recommendStats(pid) {
+    const p = this.state.players.get(pid);
+    if (!p || p.statPoints <= 0) return;
+    const pts = p.statPoints;
+    const keys = D.STAT_KEYS.filter((k) => D.RECOMMEND[k] > 0);
+    for (const k of keys) {
+      const n = Math.floor(pts * D.RECOMMEND[k]);
+      const add = Math.min(n, D.STAT_MAX - p[k], p.statPoints);
+      p[k] += add; p.statPoints -= add;
+    }
+    // เศษที่เหลือ → ตามลำดับความสำคัญ
+    for (const k of keys.sort((a, b) => D.RECOMMEND[b] - D.RECOMMEND[a]))
+      while (p.statPoints > 0 && p[k] < D.STAT_MAX) { p[k]++; p.statPoints--; }
+    this.applyStats(p, false);
   }
 
   // ================= มอนสเตอร์ =================
@@ -277,7 +335,7 @@ class WorldRoom extends Room {
       p.dir = dirOf(mob.x - p.x, mob.y - p.y);
       if (r.pending) { const sk = r.pending; r.pending = null; this.castSkill(id, p, r, sk, r.target); return; }
       if (t >= r.atkReady) {
-        r.atkReady = t + PLAYER_ATK_MS;
+        r.atkReady = t + p.atkDelay;
         this.broadcast("atk", { id, dir: p.dir });
         this.hitMob(id, p, r.target, 1);
       }
@@ -396,11 +454,13 @@ class WorldRoom extends Room {
   }
 
   // ================= การต่อสู้ =================
-  calcDamage(atk, atkLv, def, defLv, mult) {
-    const missChance = Math.min(0.4, 0.05 + Math.max(0, defLv - atkLv) * 0.03);
-    if (Math.random() < missChance) return { dmg: 0, miss: true };
-    const crit = Math.random() < 0.05;
-    let dmg = atk * rand(0.9, 1.1) * mult - def * 0.5;
+  // a = ผู้ตี {atk, lv, crit?, hitBonus?}, d = ผู้โดน {def, lv, flee?}
+  calcDamage(a, d, mult) {
+    const missChance = Math.min(0.4, 0.05 + Math.max(0, d.lv - a.lv) * 0.03);
+    if (Math.random() < Math.max(0, missChance - (a.hitBonus || 0))) return { dmg: 0, miss: true };
+    if (d.flee && Math.random() < d.flee) return { dmg: 0, miss: true };
+    const crit = Math.random() < (a.crit ?? 0.05);
+    let dmg = a.atk * rand(0.9, 1.1) * mult - d.def * 0.5;
     if (crit) dmg *= 1.5;
     return { dmg: Math.max(1, Math.round(dmg)), crit };
   }
@@ -408,7 +468,8 @@ class WorldRoom extends Room {
   hitMob(pid, p, mid, mult) {
     const m = this.state.monsters.get(mid), r = this.mr.get(mid);
     if (!m || m.dead) return;
-    const res = this.calcDamage(p.atk, p.level, r.stats.def, m.level, mult);
+    const res = this.calcDamage({ atk: p.atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus },
+      { def: r.stats.def, lv: m.level }, mult);
     this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return;
     m.hp = Math.max(0, m.hp - res.dmg);
@@ -431,7 +492,7 @@ class WorldRoom extends Room {
   hitPlayer(mid, m, r, pid) {
     const p = this.state.players.get(pid), pr = this.pr.get(pid);
     if (!p || p.dead || !pr) return;
-    const res = this.calcDamage(r.stats.atk, m.level, p.def, p.level, 1);
+    const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def, lv: p.level, flee: p.flee }, 1);
     this.broadcast("hit", { tgt: pid, src: mid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return;
     p.hp = Math.max(0, p.hp - res.dmg);
@@ -455,6 +516,7 @@ class WorldRoom extends Room {
     while (p.expNext > 0 && p.exp >= p.expNext) {
       p.exp -= p.expNext;
       p.level += 1;
+      p.statPoints += D.POINTS_PER_LEVEL;
       p.expNext = D.expToNext(p.level);
       leveled = true;
     }
@@ -558,7 +620,7 @@ class WorldRoom extends Room {
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("cd", { skill: key, until: sk.cooldown });
     if (key === "firstaid") {
-      const amt = Math.max(20, Math.round(p.maxHp * 0.25));
+      const amt = Math.max(20, Math.round(p.maxHp * 0.25) + (p.healBonus || 0));
       p.hp = Math.min(p.maxHp, p.hp + amt);
       this.broadcast("cast", { id: pid, skill: key });
       this.broadcast("heal", { id: pid, amount: amt });
@@ -566,7 +628,7 @@ class WorldRoom extends Room {
       this.broadcast("skillfx", { id: pid, skill: key, dir: p.dir });
       this.hitMob(pid, p, tid, 0.95);
       this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, 0.95); }, 180);
-      r.atkReady = now() + PLAYER_ATK_MS;
+      r.atkReady = now() + p.atkDelay;
     }
   }
 

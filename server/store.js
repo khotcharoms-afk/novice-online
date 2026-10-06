@@ -23,7 +23,7 @@ const nameKey = (n) => n.toLowerCase();
 function newCharData(uid, name, look) {
   const stats = D.playerStats(1);
   return {
-    uid, name, nameKey: nameKey(name), look: D.sanitizeLook(look), job: "villager",
+    uid, name, nameKey: nameKey(name), look: D.sanitizeLook(look), job: "villager", stats: D.baseStats(),
     level: 1, exp: 0, hp: stats.maxHp, sp: stats.maxSp, x: null, y: null,
     createdAt: Date.now(), updatedAt: Date.now(),
   };

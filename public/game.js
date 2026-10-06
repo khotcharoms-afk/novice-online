@@ -319,6 +319,7 @@ class WorldScene extends Phaser.Scene {
     room.onMessage("map", (data) => {
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
       $("apClose").onclick = () => toggleAutoPanel(false);
+      setupStats();
     });
     // วงขอบเขต AUTO บนพื้น
     this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.08).setStrokeStyle(3, 0xffd36b, 0.85)
@@ -363,6 +364,7 @@ class WorldScene extends Phaser.Scene {
     });
     room.onMessage("lvup", ({ id }) => this.levelUpFx(id));
     room.onMessage("cd", ({ skill, until }) => { this.cdEnd[skill] = performance.now() + until; });
+    room.onMessage("derived", (d) => { derived = d; renderStats(); });
 
     // ---------- คลิก ----------
     this.input.on("pointerdown", (p, over) => {
@@ -708,6 +710,7 @@ function updateStatus(p) {
   $("spFill").style.width = (100 * p.sp) / p.maxSp + "%";
   $("hpTxt").textContent = `${p.hp}/${p.maxHp}`;
   $("spTxt").textContent = `${p.sp}/${p.maxSp}`;
+  renderStats();
   const pct = p.expNext ? (100 * p.exp) / p.expNext : 100;
   $("expFill").style.width = pct + "%";
   $("expTxt").textContent = pct.toFixed(1) + "%";
@@ -796,6 +799,62 @@ function renderCooldowns() {
       cd.textContent = Math.ceil(left / 1000);
     } else if (cd) cd.remove();
   });
+}
+
+// ---------- หน้าสเตตัส ----------
+let derived = null;
+function setupStats() {
+  $("statBtn").onclick = () => toggleStats();
+  $("spClose").onclick = () => toggleStats(false);
+  $("spRecommend").onclick = () => room.send("recommendStats");
+  window.addEventListener("keydown", (e) => {
+    if (document.activeElement === $("chatInput")) return;
+    if (e.key === "c" || e.key === "C") toggleStats();
+  });
+  const box = $("spStats");
+  box.innerHTML = "";
+  for (const k of gameData.statKeys) {
+    const info = gameData.statInfo[k];
+    const row = document.createElement("div");
+    row.className = "sp-row";
+    row.title = info.desc;
+    row.innerHTML = `<b>${info.name}</b><span>${info.th} · ${info.desc}</span><em data-v="${k}">1</em>` +
+      `<button type="button" data-k="${k}" data-n="1" aria-label="เพิ่ม ${info.name} 1 แต้ม">+</button>` +
+      `<button type="button" data-k="${k}" data-n="5" aria-label="เพิ่ม ${info.name} 5 แต้ม">+5</button>`;
+    row.querySelectorAll("button").forEach((b) => (b.onclick = () => room.send("addStat", { stat: b.dataset.k, n: Number(b.dataset.n) })));
+    box.appendChild(row);
+  }
+  renderStats();
+}
+function toggleStats(force) {
+  const p = $("statPanel"), open = force ?? p.hidden;
+  p.hidden = !open;
+  if (open) renderStats();
+}
+function renderStats() {
+  const me = room && room.state.players.get(room.sessionId);
+  if (!me || !gameData || !gameData.statKeys) return;
+  const pts = me.statPoints || 0;
+  $("statBadge").hidden = pts <= 0;
+  $("statBadge").textContent = pts;
+  if ($("statPanel").hidden) return;
+  $("spPoints").textContent = pts;
+  for (const k of gameData.statKeys) {
+    const v = $("spStats").querySelector(`[data-v="${k}"]`);
+    if (v) v.textContent = me[k];
+    $("spStats").querySelectorAll(`button[data-k="${k}"]`).forEach((b) => (b.disabled = pts <= 0 || me[k] >= gameData.statMax));
+  }
+  $("spRecommend").disabled = pts <= 0;
+  if (!derived) return;
+  const pc = (x) => (x * 100).toFixed(1) + "%";
+  const rows = [
+    ["พลังโจมตี", derived.atk], ["ป้องกัน", derived.def],
+    ["HP สูงสุด", me.maxHp], ["SP สูงสุด", me.maxSp],
+    ["ตีทุก", (derived.atkDelay / 1000).toFixed(2) + " วิ"], ["หลบ", pc(derived.flee)],
+    ["คริติคอล", pc(derived.crit)], ["แม่นยำ", "+" + pc(derived.hitBonus)],
+    ["ฮีลเพิ่ม", "+" + derived.healBonus],
+  ];
+  $("spDerived").innerHTML = rows.map(([l, v]) => `<div>${l} <b>${v}</b></div>`).join("");
 }
 
 // ---------- ตั้งค่า AUTO ----------
