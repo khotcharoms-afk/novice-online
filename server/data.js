@@ -88,6 +88,16 @@ const playerStats = (lv, st = baseStats()) => ({
 // sprite = ภาพที่ใช้ (assets/mobs/<sprite>.png) · tint = ย้อมสี (0xRRGGBB) · scale = ขนาด · จุดเกิดอยู่ใน maps.js
 const MONSTERS = {
   goblin:      { name: "ก็อบลินป่า",          level: 2,  sprite: "goblin",   speed: 70,  aggressive: false },
+  rabbit:      { name: "กระต่ายป่า",          level: 3,  sprite: "rabbit",   speed: 90,  aggressive: false },
+  rat:         { name: "หนูยักษ์",            level: 5,  sprite: "rat",      speed: 85,  aggressive: false },
+  sheep:       { name: "แกะเขาโค้ง",          level: 7,  sprite: "sheep",    speed: 70,  aggressive: false },
+  lizard:      { name: "มนุษย์กิ้งก่า",          level: 11, sprite: "lizard",   speed: 85,  aggressive: true },
+  jack:        { name: "หุ่นไล่กาฟักทอง",       level: 12, sprite: "jack",     speed: 70,  aggressive: true },
+  zombie:      { name: "ผีดิบ",               level: 16, sprite: "zombie",   speed: 60,  aggressive: true },
+  vampire:     { name: "แวมไพร์",             level: 21, sprite: "vampire",  speed: 95,  aggressive: true },
+  troll:       { name: "โทรลล์",              level: 24, sprite: "troll",    speed: 75,  aggressive: true,  scale: 1.12 },
+  minotaur:    { name: "มิโนทอร์",             level: 27, sprite: "minotaur", speed: 90,  aggressive: true,  scale: 1.18 },
+  snowtroll:   { name: "โทรลล์หิมะ",           level: 32, sprite: "snowtroll", speed: 75, aggressive: true,  scale: 1.15 },
   wolfpup:     { name: "ลูกหมาป่า",          level: 4,  sprite: "wolf",     speed: 85,  aggressive: false, tint: 0xd8c8b0, scale: 0.85 },
   wolf:        { name: "หมาป่าเร่ร่อน",       level: 6,  sprite: "wolf",     speed: 95,  aggressive: false },
   goblinchief: { name: "ก็อบลินหัวหน้า",       level: 8,  sprite: "goblin",   speed: 75,  aggressive: true,  tint: 0xff9a80, scale: 1.12 },

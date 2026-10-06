@@ -224,3 +224,101 @@
 - **weapon/sword/dagger** — bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
   - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
   - https://opengameart.org/content/lpc-extended-weapon-animations
+
+## มอนสเตอร์ชุดใหม่ (`mobs/rabbit|rat|sheep|lizard|jack|zombie|vampire|troll|minotaur|snowtroll.png`)
+
+ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** (สัญญาอนุญาตตามแต่ละชิ้นด้านล่าง) — ไอคอนของดรอปใหม่วาดขึ้นใหม่สำหรับเกมนี้
+
+- **body/bodies/child** — bluecarrot16, Benjamin K. Smith (BenCreating), ElizaWy, MuffinElZangano, Durrani, Nila122, kheftel, Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-child-standing-template
+  - https://opengameart.org/content/lpc-children-walk-animation
+  - https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+  - https://opengameart.org/content/lpc-jump-expanded
+- **body/bodies/male** — bluecarrot16, Benjamin K. Smith (BenCreating), Evert, Eliza Wyatt (ElizaWy), TheraHedwig, MuffinElZangano, Durrani, Johannes Sj?lund (wulax), Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+  - https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+  - https://opengameart.org/content/lpc-revised-character-basics
+  - https://opengameart.org/content/lpc-be-seated
+  - https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+  - https://opengameart.org/content/lpc-jump-expanded
+  - https://opengameart.org/content/lpc-character-bases
+- **body/bodies/muscular** — bluecarrot16, Evert, TheraHedwig, MuffinElZangano, Durrani, Sander Frenken (castelonia), Benjamin K. Smith (BenCreating), Eliza Wyatt (ElizaWy), dalonedrau, Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-barbarian-sprite-base
+  - https://opengameart.org/content/lpc-muscular-swing-animation
+  - https://opengameart.org/content/lpc-muscular-hurt-animation
+  - https://opengameart.org/content/lpc-jump-expanded
+  - https://opengameart.org/content/lpc-revised-character-basics
+  - https://opengameart.org/content/lpc-be-seated
+  - https://opengameart.org/content/lpc-character-bases
+  - https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+  - https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+  - https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+- **body/bodies/zombie** — Stephen Challener (Redshrike), Johannes Sj?lund (wulax), Sander Frenken (castelonia), Benjamin K. Smith (BenCreating), bluecarrot16; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-zombie
+  - https://opengameart.org/content/lpc-character-bases
+- **body/tail/lizard** — Nila122, bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+- **body/wings/bat** — ElizaWy, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-revised-ulpc-wings
+- **cape/solid/male** — Nila122, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+  - https://opengameart.org/content/lpc-roman-armor
+- **cape/solid_behind** — Nila122, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+  - https://opengameart.org/content/lpc-roman-armor
+- **feet/boots** — bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-and-hair
+- **head/heads/jack** — bluecarrot16, Joshua Taylor; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/fruit-and-veggie-inventory
+  - https://opengameart.org/content/lpc-folk
+- **head/heads/lizard/male** — bluecarrot16, Benjamin K. Smith (BenCreating), Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+  - https://opengameart.org/content/lpc-character-bases
+- **head/heads/minotaur** — Evert, Nila122, Daniel Eddeland (daneeklu); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-style-farm-animals
+  - https://opengameart.org/content/lpc-lizard-headgear
+  - https://opengameart.org/content/lpc-faun-and-minotaur
+- **head/heads/rabbit/child** — bluecarrot16, Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/bunny-rabbit-lpc-style-for-pixelfarm
+  - http://opengameart.org/content/lpc-folk
+- **head/heads/rat/child** — bluecarrot16, Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/bunny-rabbit-lpc-style-for-pixelfarm
+  - http://opengameart.org/content/lpc-folk
+- **head/heads/sheep** — bluecarrot16, Daniel Eddeland (daneeklu); CC-BY 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-style-farm-animals
+  - http://opengameart.org/content/lpc-folk
+- **head/heads/troll** — bluecarrot16, AntumDeluge, Tuomo Untinen (reemax); CC-BY 3.0
+  - https://opengameart.org/content/musclemanogreminotaur
+  - https://opengameart.org/content/trolls-0
+  - https://opengameart.org/content/lpc-folk
+- **head/heads/vampire** —  gaunt version by bluecarrot16;  vampire fangs by bluecarrot16
+  - Stephen Challener (Redshrike), bluecarrot16
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-folk
+- **head/heads/zombie** — bluecarrot16, Benjamin K. Smith (BenCreating), Sander Frenken (castelonia), Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-zombie
+  - https://opengameart.org/content/lpc-character-bases
+- **legs/pants/child** — Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-for-children
+- **legs/pants/male** — bluecarrot16, JaidynReiman, ElizaWy, Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, GPL 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-pants
+- **legs/pants/muscular** — ElizaWy, JaidynReiman, dalonedrau, Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-muscular-pants
+  - https://opengameart.org/content/lpc-muscular-swing-animation
+  - https://opengameart.org/content/lpc-muscular-hurt-animation
+- **torso/clothes/longsleeve/longsleeve/male** — JaidynReiman, Johannes Sjölund (wulax); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **hair/plain** — Manuel Riecke (MrBeast), Joe White; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/ponytail-and-plain-hairstyles

@@ -343,7 +343,7 @@ class WorldScene extends Phaser.Scene {
       for (const [h] of LOOK_OPTS.hair[sex]) for (const [c] of LOOK_OPTS.color) paths.add(`look/hair_${h}_${c}`);
     }
     paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
-    MOB_KINDS.forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
+    (MANIFEST.mobs || MOB_KINDS).forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
     MANIFEST.equip.forEach((k) => this.load.image("equip/" + k, `/assets/equip/${k}.png`));
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
     (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
@@ -363,7 +363,7 @@ class WorldScene extends Phaser.Scene {
     cam.setZoom(ZOOMS[this.zoomIdx]).setBackgroundColor("#22401f").setRoundPixels(true);
     $("zoomTxt").textContent = ZOOMS[this.zoomIdx] * 100 + "%";
 
-    MOB_KINDS.forEach((k) => this.buildSheet("mob_" + k, ["mobsrc_" + k]));
+    (MANIFEST.mobs || MOB_KINDS).forEach((k) => this.buildSheet("mob_" + k, ["mobsrc_" + k]));
     this.targetRing = this.add.ellipse(0, 0, 34, 14).setStrokeStyle(2, 0xff5a5a, 0.9).setDepth(-9000).setVisible(false);
 
     room.onMessage("map", (data) => {
@@ -490,11 +490,20 @@ class WorldScene extends Phaser.Scene {
   }
 
   // ---------- ประกอบภาพตัวละครจากหลายชั้น (ตัว + ชุด + ผม) ----------
-  buildSheet(key, layerKeys) {
+  // tint = ย้อมสีมอน (อบสีลงภาพเลย — ใช้ได้ทั้งโหมด WebGL และ Canvas)
+  buildSheet(key, layerKeys, tint) {
     if (this.textures.exists(key)) return key;
     const tex = this.textures.createCanvas(key, 576, 832);
     const ctx = tex.getContext();
     for (const k of layerKeys) ctx.drawImage(this.textures.get(k).getSourceImage(), 0, 0);
+    if (tint && tint !== 0xffffff) {
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = "#" + tint.toString(16).padStart(6, "0");
+      ctx.fillRect(0, 0, 576, 832);
+      ctx.globalCompositeOperation = "destination-in";
+      for (const k of layerKeys) ctx.drawImage(this.textures.get(k).getSourceImage(), 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+    }
     for (let i = 0; i < COLS * 13; i++) tex.add(i, 0, (i % COLS) * 64, Math.floor(i / COLS) * 64, 64, 64);
     tex.refresh();
     const seq = (row, from, to) => { const f = []; for (let c = from; c <= to; c++) f.push({ key, frame: row * COLS + c }); return f; };
@@ -596,7 +605,8 @@ class WorldScene extends Phaser.Scene {
   // ---------- ตัวละคร / มอนสเตอร์ ----------
   createView(e, id, isMob) {
     const isMe = id === room.sessionId;
-    const key = isMob ? "mob_" + (e.sprite || e.kind) : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
+    const mobSprite = e.sprite || e.kind;
+    const key = isMob ? (e.tint && e.tint !== 0xffffff ? this.buildSheet(`mob_${mobSprite}_${e.tint}`, ["mobsrc_" + mobSprite], e.tint) : "mob_" + mobSprite) : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
@@ -606,7 +616,6 @@ class WorldScene extends Phaser.Scene {
     }).setOrigin(0.5, 1);
     const bars = this.add.graphics();
     root.add([shadow, sprite, bars, label]);
-    if (isMob && e.tint && e.tint !== 0xffffff) sprite.setTint(e.tint);
     if (isMob && e.scale && e.scale !== 1) { sprite.setScale(e.scale); shadow.setScale(e.scale); label.y = -58 * e.scale; }
     if (isMob) {
       sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
