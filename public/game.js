@@ -353,6 +353,7 @@ class WorldScene extends Phaser.Scene {
   preload() {
     const season = (WORLD && WORLD.maps.find((m) => m.id === room.mapId) || {}).season || "summer";
     this.tKey = "terrain_" + season; this.oKey = "obj_" + season;
+    this.load.on("progress", (v) => setTravelProgress(35 + v * 45, "โหลดภาพแผนที่…"));
     this.load.image(this.tKey, `/assets/terrain_${season}.png`);
     this.load.atlas(this.oKey, `/assets/objects_${season}.png`, `/assets/objects_${season}.json`);
     const paths = new Set();
@@ -386,9 +387,12 @@ class WorldScene extends Phaser.Scene {
     (MANIFEST.mobs || MOB_KINDS).forEach((k) => this.buildSheet("mob_" + k, ["mobsrc_" + k]));
     this.targetRing = this.add.ellipse(0, 0, 34, 14).setStrokeStyle(2, 0xff5a5a, 0.9).setDepth(-9000).setVisible(false);
 
+    setTravelProgress(82, "รับข้อมูลแผนที่…");
     room.onMessage("map", (data) => {
+      setTravelProgress(90, "สร้างแผนที่…");
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
-      setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 300);
+      setTravelProgress(100, "พร้อมแล้ว");
+      setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 350);
       setTimeout(continueTravel, 600); // เดินทางอัตโนมัติไปแผนที่ปลายทางต่อ
       $("apClose").onclick = () => toggleAutoPanel(false);
       if (!window._statsUI) { window._statsUI = 1; setupStats(); } else renderStats();
@@ -1186,9 +1190,11 @@ async function travelTo(c, w) {
   showTravel(w.map, w.name);
   hideCard(); hideTip();
   try { await room.leave(true); } catch {}
+  setTravelProgress(20, "เชื่อมต่อแผนที่ใหม่…");
   for (let i = 0; i < 4; i++) {
     try {
       room = await joinMap(gameClient, c, w.map, 0, true);
+      setTravelProgress(35, "โหลดภาพแผนที่…");
       bindRoom(room);
       leavingForWarp = false;
       scene.scene.restart();
@@ -1208,8 +1214,22 @@ function showTravel(mapId, name) {
   if (!o) { o = document.createElement("div"); o.id = "travel"; document.body.appendChild(o); }
   const m = WORLD && WORLD.maps.find((x) => x.id === mapId);
   const nm = name || (m && m.name) || "";
-  o.innerHTML = `<div><small>กำลังเดินทางไป</small><b>${esc(nm)}</b>${m && m.lv ? `<span>Lv.${m.lv[0]}–${m.lv[1]}</span>` : ""}</div>`;
+  o.innerHTML = `<div><small>กำลังเดินทางไป</small><b>${esc(nm)}</b>${m && m.lv ? `<span>Lv.${m.lv[0]}–${m.lv[1]}</span>` : ""}
+    <div class="tv-bar"><i id="tvFill"></i></div><div class="tv-pct"><em id="tvStep">เตรียมตัว…</em><b id="tvPct">0%</b></div></div>`;
   o.classList.add("show");
+  travelPct = 0;
+  setTravelProgress(5, "ออกจากแผนที่เดิม…");
+}
+// แถบความคืบหน้าตอนย้ายแผนที่ (ค่าไม่ถอยหลัง)
+let travelPct = 0;
+function setTravelProgress(pct, step) {
+  const o = $("travel");
+  if (!o || !o.classList.contains("show")) return;
+  travelPct = Math.max(travelPct, Math.min(100, Math.round(pct)));
+  const f = $("tvFill"), t = $("tvPct"), st = $("tvStep");
+  if (f) f.style.width = travelPct + "%";
+  if (t) t.textContent = travelPct + "%";
+  if (st && step) st.textContent = step;
 }
 // เก็บแชทไว้ข้ามการโหลดหน้า
 function saveChat() { try { sessionStorage.setItem("pn_chat", $("chatLog").innerHTML.slice(-20000)); } catch {} }
