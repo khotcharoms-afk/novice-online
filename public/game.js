@@ -353,7 +353,10 @@ class WorldScene extends Phaser.Scene {
     } else {
       v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
-      if (v.isMe) updateStatus(e);
+      if (v.isMe) {
+        updateStatus(e);
+        if (v.auto !== e.auto) { v.auto = e.auto; renderAuto(e.auto); if (e.auto) toast("เปิด AUTO — ตีมอนรอบ ๆ จุดนี้"); }
+      }
     }
     this.drawBars(v);
   }
@@ -551,6 +554,25 @@ function buildSkillBar() {
     bar.appendChild(el);
   }
   for (let i = 0; i < 8; i++) items.insertAdjacentHTML("beforeend", `<div class="slot"></div>`);
+  const auto = document.createElement("button");
+  auto.id = "autoBtn";
+  auto.className = "auto-btn";
+  auto.setAttribute("aria-pressed", "false");
+  auto.title = "ตีมอนอัตโนมัติรอบ ๆ จุดที่ยืนอยู่ (คลิกเดินเองเพื่อหยุด)";
+  auto.innerHTML = `AUTO<small>ปิด</small>`;
+  auto.onclick = () => {
+    const me = room.state.players.get(room.sessionId);
+    room.send("auto", !(me && me.auto));
+  };
+  bar.appendChild(auto);
+  const me = room.state.players.get(room.sessionId);
+  if (me) renderAuto(me.auto);
+}
+function renderAuto(on) {
+  const b = $("autoBtn");
+  if (!b) return;
+  b.setAttribute("aria-pressed", String(!!on));
+  b.querySelector("small").textContent = on ? "เปิด" : "ปิด";
 }
 function castSkill(key, el) {
   if (!key) return;

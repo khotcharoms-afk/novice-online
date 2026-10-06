@@ -17,12 +17,13 @@ const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
 const LEASH = 420;           // มอนไล่ไกลเกินนี้จะกลับบ้าน
 const RESPAWN_PLAYER_MS = 4000;
+const AUTO_RADIUS = 360;     // ระบบ AUTO หามอนในรัศมีนี้รอบจุดที่เปิด AUTO
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
 class Player extends Schema {}
 defineTypes(Player, {
   name: "string", look: "string", job: "string", jobName: "string",
-  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean",
+  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean",
   level: "uint16", exp: "uint32", expNext: "uint32",
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
 });
@@ -59,12 +60,14 @@ class WorldRoom extends Room {
     this.onMessage("moveTo", (client, m) => {
       const r = this.alive(client); if (!r || !m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
       r.moveTarget = { x: m.x, y: m.y }; r.dx = r.dy = 0; r.target = null; r.pending = null;
+      this.setAuto(client.sessionId, false);
     });
     this.onMessage("dir", (client, m) => {
       const r = this.alive(client); if (!r || !m) return;
       r.dx = Math.sign(Number(m.dx) || 0); r.dy = Math.sign(Number(m.dy) || 0);
-      if (r.dx || r.dy) { r.moveTarget = null; r.target = null; r.pending = null; }
+      if (r.dx || r.dy) { r.moveTarget = null; r.target = null; r.pending = null; this.setAuto(client.sessionId, false); }
     });
+    this.onMessage("auto", (client, on) => { if (this.alive(client)) this.setAuto(client.sessionId, !!on); });
     this.onMessage("attack", (client, m) => {
       const r = this.alive(client); if (!r || !m) return;
       const mob = this.state.monsters.get(String(m.id));
@@ -91,13 +94,13 @@ class WorldRoom extends Room {
     p.name = sanitizeName(options && options.name) || "ชาวบ้าน" + Math.floor(Math.random() * 1000);
     p.look = D.sanitizeLook(options && options.look);
     p.job = "villager"; p.jobName = D.JOB_NAME.villager;
-    p.dir = "down"; p.moving = false; p.dead = false;
+    p.dir = "down"; p.moving = false; p.dead = false; p.auto = false;
     p.level = 1; p.exp = 0; p.expNext = D.expToNext(1);
     this.applyStats(p, true);
     const s = this.townSpawn(); p.x = s.x; p.y = s.y;
     this.state.players.set(client.sessionId, p);
     this.pr.set(client.sessionId, {
-      moveTarget: null, dx: 0, dy: 0, target: null, pending: null,
+      moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0,
     });
     this.broadcast("system", `${p.name} เข้าสู่เกม`);
@@ -176,6 +179,7 @@ class WorldRoom extends Room {
       return;
     }
     const step = (SPEED * dt) / 1000;
+    if (p.auto) this.autoThink(id, p, r);
 
     // มีเป้าหมาย: เดินเข้าไปจนถึงระยะ แล้วตี
     if (r.target) {
@@ -315,7 +319,7 @@ class WorldRoom extends Room {
     p.hp = Math.max(0, p.hp - res.dmg);
     pr.lastHurt = now();
     if (p.hp <= 0) {
-      p.dead = true; p.moving = false;
+      p.dead = true; p.moving = false; p.auto = false;
       pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0;
       pr.deadUntil = now() + RESPAWN_PLAYER_MS;
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
@@ -344,6 +348,55 @@ class WorldRoom extends Room {
       if (p.level === D.JOB_CHANGE_LEVEL && client)
         client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! เควสเปลี่ยนอาชีพจะเปิดในอัปเดตถัดไป`);
     }
+  }
+
+  // ================= ระบบ AUTO =================
+  setAuto(pid, on) {
+    const p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || p.auto === on) return;
+    p.auto = on;
+    r.anchor = on ? { x: p.x, y: p.y } : null;
+    if (on) { r.moveTarget = null; r.dx = r.dy = 0; }
+  }
+
+  autoThink(pid, p, r) {
+    const t = now();
+    // ฮีลตัวเองเมื่อเลือดต่ำ
+    if (p.hp < p.maxHp * 0.45 && p.sp >= D.SKILLS.firstaid.sp && t >= (r.cds.firstaid || 0))
+      return this.castSkill(pid, p, r, "firstaid", null);
+    // หาเป้าหมายใหม่ (ใกล้สุดก่อน):
+    //  1) มอนที่กำลังตีเราอยู่ — ป้องกันตัวเสมอ
+    //  2) มอนในรัศมีจากจุดเปิด AUTO ที่เลเวลไม่เกินเรา +2 และไม่ได้สู้กับคนอื่นอยู่
+    // เลือดน้อยและยังฮีลไม่ได้ → พักรอเลือดฟื้นก่อนค่อยหามอนตัวต่อไป
+    if (!r.target) {
+      if (p.hp < p.maxHp * 0.5) r.resting = true;
+      if (r.resting && p.hp >= p.maxHp * 0.85) r.resting = false;
+    }
+    if (!r.target) {
+      let best = null, bd = Infinity, attacker = false;
+      this.state.monsters.forEach((m, mid) => {
+        if (m.dead) return;
+        const mr = this.mr.get(mid);
+        const onMe = mr.target === pid;
+        if (attacker && !onMe) return;
+        if (!onMe) {
+          if (r.resting) return;
+          if (dist(m, r.anchor) > AUTO_RADIUS || m.level > p.level + 2) return;
+          if (mr.target && mr.target !== pid) return;
+        }
+        const d = dist(m, p);
+        if ((onMe && !attacker) || d < bd) { bd = d; best = mid; attacker = attacker || onMe; }
+      });
+      if (best) { r.target = best; r.moveTarget = null; }
+      else if (dist(p, r.anchor) > 40) r.moveTarget = { ...r.anchor }; // ไม่มีมอน → กลับจุดเดิมรอ
+      return;
+    }
+    // ใช้ฟันซ้ำเมื่อพร้อม (เหลือ SP ไว้ฮีลเสมอ)
+    const mob = this.state.monsters.get(r.target);
+    const dh = D.SKILLS.doublehit;
+    if (mob && !mob.dead && !r.pending && t >= (r.cds.doublehit || 0) &&
+        p.sp >= dh.sp + D.SKILLS.firstaid.sp && dist(p, mob) <= dh.range)
+      this.castSkill(pid, p, r, "doublehit", r.target);
   }
 
   // ================= สกิล =================
