@@ -273,6 +273,8 @@ async function enterGame(c, btn) {
     const client = new Colyseus.Client(SERVER_URL);
     room = await client.joinOrCreate("world", { token: await getToken(), charId: c.id });
     room.onMessage("system", (text) => addChat("system", esc(text)));
+    room.onMessage("maint", (info) => onMaint(info));
+    room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text }) => {
       addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
@@ -283,7 +285,8 @@ async function enterGame(c, btn) {
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
-      else if (code !== 1000) addChat("system", "หลุดการเชื่อมต่อ — รีเฟรชหน้าเพื่อเข้าใหม่");
+      else if (code === 4003) showDownScreen("maint");
+      else if (code !== 1000) showDownScreen(code === 4004 ? "restart" : "lost");
     });
     clearInterval(animTimer);
     $("login").remove();
@@ -1035,6 +1038,65 @@ function buildAutoPanel() {
 }
 
 let toastTimer = null;
+// ---------- นับถอยหลังปิดปรับปรุง ----------
+let maintEnd = 0, maintMsg = "", maintTick = null, maintSaid = {};
+function onMaint(info) {
+  if (info.now) return; // ครบเวลาแล้ว — รอโดนตัดการเชื่อมต่อ (รหัส 4003)
+  if (!info.active) {
+    if (maintEnd) { addChat("system", "✅ ยกเลิกการปิดปรับปรุงแล้ว เล่นต่อได้ตามปกติ"); showAnnounce("ยกเลิกการปิดปรับปรุงแล้ว"); }
+    maintEnd = 0; clearInterval(maintTick); const b = $("maintBar"); if (b) b.hidden = true;
+    return;
+  }
+  const first = !maintEnd;
+  maintEnd = Date.now() + info.left; maintMsg = info.msg || ""; maintSaid = {};
+  for (const t of [300, 60, 30, 10]) if (Math.ceil(info.left / 1000) <= t + 2) maintSaid[t] = true; // ไม่เตือนซ้ำกับข้อความแรก
+  const mins = Math.ceil(info.left / 60000);
+  addChat("system", `🔧 เซิร์ฟเวอร์จะปิดปรับปรุงในอีก ${mins} นาที${maintMsg ? " — " + esc(maintMsg) : ""} (ระบบจะบันทึกตัวละครให้อัตโนมัติ)`);
+  if (first) showAnnounce(`เซิร์ฟเวอร์จะปิดปรับปรุงในอีก ${mins} นาที`);
+  clearInterval(maintTick);
+  maintTick = setInterval(renderMaint, 250);
+  renderMaint();
+}
+function renderMaint() {
+  let b = $("maintBar");
+  if (!b) { b = document.createElement("div"); b.id = "maintBar"; b.setAttribute("role", "timer"); document.body.appendChild(b); }
+  const left = Math.max(0, maintEnd - Date.now()), sec = Math.ceil(left / 1000);
+  const mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, "0");
+  b.hidden = false;
+  b.classList.toggle("urgent", sec <= 30);
+  b.innerHTML = `🔧 ปิดปรับปรุงในอีก <b>${mm}:${ss}</b>${maintMsg ? ` · ${esc(maintMsg)}` : ""}`;
+  // เตือนในแชทเมื่อเหลือ 5 นาที / 1 นาที / 30 วิ / 10 วิ
+  for (const t of [300, 60, 30, 10]) if (sec <= t && !maintSaid[t]) {
+    maintSaid[t] = true;
+    if (sec > t - 3) addChat("system", `🔧 ปิดปรับปรุงในอีก ${t >= 60 ? t / 60 + " นาที" : t + " วินาที"}`);
+  }
+  if (left <= 0) clearInterval(maintTick);
+}
+// ---------- หน้าจอตอนเซิร์ฟเวอร์หลุด / ปิดปรับปรุง / อัปเดต ----------
+function showDownScreen(kind) {
+  clearInterval(maintTick);
+  const b = $("maintBar"); if (b) b.hidden = true;
+  let o = $("downScreen");
+  if (!o) { o = document.createElement("div"); o.id = "downScreen"; document.body.appendChild(o); }
+  const TXT = {
+    maint: ["🔧 ปิดปรับปรุงเซิร์ฟเวอร์", "บันทึกตัวละครเรียบร้อยแล้ว · เกมจะกลับมาเร็ว ๆ นี้ หน้านี้จะเข้าเกมใหม่ให้อัตโนมัติเมื่อเปิดแล้ว"],
+    restart: ["🔄 กำลังอัปเดตเกม", "บันทึกตัวละครเรียบร้อยแล้ว · กำลังเชื่อมต่อใหม่อัตโนมัติ…"],
+    lost: ["📡 หลุดการเชื่อมต่อ", "กำลังลองเชื่อมต่อใหม่อัตโนมัติ…"],
+  }[kind];
+  o.innerHTML = `<div class="frame"><h3>${TXT[0]}</h3><p>${TXT[1]}</p><p class="dots"><span></span><span></span><span></span></p>
+    <button type="button" class="btn-gold" id="downRetry">เข้าใหม่ตอนนี้</button></div>`;
+  $("downRetry").onclick = () => location.reload();
+  // รอจนเซิร์ฟเวอร์ตอบ แล้วโหลดหน้าใหม่ (ปิดปรับปรุง = เช็คว่าเปิดให้เข้าแล้วหรือยัง)
+  const check = async () => {
+    try {
+      const ok = (await fetch("/health", { cache: "no-store" })).ok;
+      if (ok && kind !== "maint") return location.reload();
+      if (ok && kind === "maint") { const m = await (await fetch("/api/status", { cache: "no-store" })).json(); if (!m.closed) return location.reload(); }
+    } catch {}
+    setTimeout(check, kind === "maint" ? 15000 : 3000);
+  };
+  setTimeout(check, kind === "restart" ? 2500 : 4000);
+}
 // ป้ายประกาศจากแอดมิน (กลางบนจอ 8 วินาที)
 function showAnnounce(text) {
   let el = $("announce");

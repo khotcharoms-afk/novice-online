@@ -78,6 +78,8 @@ function openTab(t) {
   if (t === "ov") { loadOverview(); ovTimer = setInterval(loadOverview, 5000); }
   if (t === "pl" && !$("accList").children.length) search();
   if (t === "lg") loadLogs();
+  clearInterval(mtTimer);
+  if (t === "an") { loadMaint(); mtTimer = setInterval(renderMaint, 500); }
   if (t === "gd") loadGameData();
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
@@ -289,6 +291,28 @@ async function loadGameData() {
         <td class="muted">${(GD.drops[k] || []).map(([id, ch]) => esc(GD.items[id].name) + " " + pct(ch)).join(", ")}</td></tr>`).join("")}</tbody></table></div></div>
     <p class="muted">แก้ตัวเลขเหล่านี้ได้ที่ไฟล์ server/items.js (ไอเทม/ดรอป/ตีบวก) และ server/data.js (มอนสเตอร์) แล้ว push ขึ้น GitHub</p>`;
 }
+
+// ---------- ปิดปรับปรุง ----------
+let MT = null, mtTimer = null;
+async function loadMaint() { try { MT = await api("GET", "/api/admin/maintenance"); MT.at = Date.now(); renderMaint(); } catch (e) { toast(e.message, true); } }
+function renderMaint() {
+  if (!MT) return;
+  const left = Math.max(0, MT.left - (Date.now() - MT.at)), s = Math.ceil(left / 1000);
+  $("mtState").innerHTML = MT.closed ? '<b style="color:var(--bad)">สถานะ: ปิดปรับปรุงอยู่ (ผู้เล่นเข้าเกมไม่ได้)</b>'
+    : MT.active ? `<b style="color:var(--gold)">สถานะ: จะปิดในอีก ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</b>${MT.note ? " · " + esc(MT.note) : ""}`
+    : "สถานะ: เปิดปกติ";
+  $("mtCancel").hidden = !MT.active || MT.closed;
+  $("mtOpen").hidden = !MT.closed;
+  if (MT.active && !MT.closed && left <= 0) setTimeout(loadMaint, 1500);
+}
+$("mtStart").onclick = async () => {
+  const minutes = Number($("mtMin").value);
+  if (!confirm(`เริ่มนับถอยหลังปิดปรับปรุง ${minutes} นาที?`)) return;
+  const r = await run(() => api("POST", "/api/admin/maintenance", { minutes, msg: $("mtMsg").value }));
+  if (r) { MT = { ...r, at: Date.now() }; renderMaint(); }
+};
+$("mtCancel").onclick = async () => { const r = await run(() => api("POST", "/api/admin/maintenance", { cancel: true })); if (r) { MT = { ...r, at: Date.now() }; renderMaint(); } };
+$("mtOpen").onclick = async () => { const r = await run(() => api("POST", "/api/admin/maintenance", { open: true })); if (r) { MT = { ...r, at: Date.now() }; renderMaint(); } };
 
 // ---------- ประกาศ / บันทึก ----------
 $("annSend").onclick = async () => {

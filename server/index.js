@@ -29,6 +29,7 @@ app.get("/credits", (_req, res) =>
   res.type("text/plain; charset=utf-8").sendFile(path.join(__dirname, "..", "CREDITS.md"))
 );
 app.get("/health", (_req, res) => res.send("ok"));
+app.get("/api/status", (_req, res) => res.json({ closed: WorldRoom.maintInfo().closed }));
 
 // ---------------- API บัญชี & ตัวละคร ----------------
 app.get("/api/config", (_req, res) => res.json(webConfig()));

@@ -3,7 +3,7 @@
 //  ผู้เล่นส่งมาแค่ "อยากทำอะไร" เช่น เดินไปตรงนี้ / ตีตัวนี้ / ใช้สกิลนี้
 // =============================================================
 const { Room, ServerError } = require("colyseus");
-const { store, StoreError } = require("./store");
+const { store, StoreError, isAdmin } = require("./store");
 const { Schema, MapSchema, defineTypes } = require("@colyseus/schema");
 const { generateMap, isWalkable } = require("./map");
 const { NavGrid } = require("./path");
@@ -65,6 +65,9 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const SAVE_EVERY_MS = 60000;
 const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
 const rooms = new Set();  // ห้องโลกเกมที่เปิดอยู่
+// ปิดปรับปรุง: แอดมินตั้งเวลานับถอยหลัง → ครบเวลา = บันทึกทุกคน + ให้ออกจากเกม + ปิดไม่ให้เข้า (จนแอดมินเปิดหรือเซิร์ฟรีสตาร์ท)
+const maint = { endAt: 0, msg: "", closed: false, timer: null };
+const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.loginId === "admin");
 
 class WorldRoom extends Room {
   static isOnline(charId) { return online.has(String(charId)); }
@@ -73,6 +76,7 @@ class WorldRoom extends Room {
   async onAuth(client, options) {
     try {
       const user = await store.verify(options && options.token);
+      if (maint.closed && !adminLogin(user)) throw new StoreError("เซิร์ฟเวอร์ปิดปรับปรุงชั่วคราว ลองใหม่อีกสักครู่");
       let char = await store.load(user.uid, options && options.charId);
       const live = online.get(char.id);
       if (live) {
@@ -110,7 +114,10 @@ class WorldRoom extends Room {
 
     this.onMessage("getMap", (client) => {
       const me = this.state.players.get(client.sessionId);
-      if (me) this.clock.setTimeout(() => { this.sendDerived(me); this.sendInv(client.sessionId); }, 50);
+      if (me) this.clock.setTimeout(() => {
+        this.sendDerived(me); this.sendInv(client.sessionId);
+        if (maint.endAt || maint.closed) client.send("maint", WorldRoom.maintInfo());
+      }, 50);
       sendMap(client);
     });
     const sendMap = (client) =>
@@ -229,9 +236,11 @@ class WorldRoom extends Room {
     r.saveTimer = this.clock.setTimeout(() => { r.saveTimer = null; this.save(pid); }, 1500);
   }
   onDispose() { rooms.delete(this); }
+  // เซิร์ฟเวอร์กำลังปิด (เช่น Render อัปเดตเวอร์ชันใหม่) → แจ้งผู้เล่น · บันทึก · ตัดการเชื่อมต่อด้วยรหัส 4004
   async onBeforeShutdown() {
+    this.broadcast("restart", {});
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
-    this.disconnect();
+    this.disconnect(4004);
   }
 
   // ================= ผู้เล่นเข้า/ออก =================
@@ -252,7 +261,7 @@ class WorldRoom extends Room {
     this.state.players.set(client.sessionId, p);
     online.set(c.id, { room: this, sessionId: client.sessionId });
     this.pr.set(client.sessionId, {
-      charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId,
+      charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user),
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       autoCfg: { radius: AUTO_RADII[1], kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0,
@@ -329,6 +338,30 @@ class WorldRoom extends Room {
   }
   static kickUid(uid, reason) {
     online.forEach((o, charId) => { const r = o.room.pr.get(o.sessionId); if (r && r.uid === uid) WorldRoom.kick(charId, reason); });
+  }
+  // ---------- ปิดปรับปรุง ----------
+  static maintInfo() {
+    return { active: maint.endAt > 0, left: Math.max(0, maint.endAt - Date.now()), msg: maint.msg, closed: maint.closed };
+  }
+  static startMaint(minutes, msg) {
+    clearTimeout(maint.timer);
+    maint.endAt = Date.now() + minutes * 60000; maint.msg = msg || ""; maint.closed = false;
+    rooms.forEach((rm) => rm.broadcast("maint", WorldRoom.maintInfo()));
+    maint.timer = setTimeout(() => WorldRoom.closeForMaint(), minutes * 60000);
+  }
+  static cancelMaint() {
+    clearTimeout(maint.timer);
+    maint.endAt = 0; maint.msg = ""; maint.closed = false;
+    rooms.forEach((rm) => rm.broadcast("maint", WorldRoom.maintInfo()));
+  }
+  static async closeForMaint() {
+    maint.endAt = 0; maint.closed = true;
+    for (const rm of rooms) {
+      rm.broadcast("maint", { ...WorldRoom.maintInfo(), now: true });
+      await Promise.all([...rm.state.players.keys()].map((id) => rm.save(id)));
+      // แอดมินอยู่ต่อได้ คนอื่นออก
+      rm.clients.forEach((c) => { const r = rm.pr.get(c.sessionId); if (!(r && r.admin)) c.leave(4003); });
+    }
   }
   static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
 

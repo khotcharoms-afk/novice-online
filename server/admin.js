@@ -188,6 +188,23 @@ function mount(app, api) {
     return { items, rarity: I.RARITY, refine, safeRefine: I.SAFE_REFINE, shop: I.SHOP, drops: I.DROPS,
       monsters: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { ...m, ...D.monsterStats(m.level) }])) };
   }));
+  // ปิดปรับปรุง: { minutes, msg } = เริ่มนับถอยหลัง · { cancel: true } = ยกเลิก · { open: true } = เปิดให้เข้าเกมอีกครั้ง
+  app.get("/api/admin/maintenance", admin(async () => { const i = WorldRoom.maintInfo(); return { ...i, note: i.msg }; }));
+  app.post("/api/admin/maintenance", admin(async (user, req) => {
+    const b = req.body || {};
+    if (b.cancel || b.open) {
+      WorldRoom.cancelMaint();
+      audit(user, b.open ? "เปิดเซิร์ฟให้เข้าเกมอีกครั้ง" : "ยกเลิกการปิดปรับปรุง");
+      const info = WorldRoom.maintInfo();
+      return { ...info, note: info.msg, msg: b.open ? "เปิดให้เข้าเกมแล้ว" : "ยกเลิกแล้ว" };
+    }
+    const minutes = Math.max(0.5, Math.min(120, Number(b.minutes) || 5));
+    const msg = String(b.msg || "").trim().slice(0, 120);
+    WorldRoom.startMaint(minutes, msg);
+    audit(user, `ตั้งเวลาปิดปรับปรุงใน ${minutes} นาที${msg ? ": " + msg : ""}`);
+    const info = WorldRoom.maintInfo();
+    return { ...info, note: info.msg, msg: `เริ่มนับถอยหลัง ${minutes} นาที` };
+  }));
   app.get("/api/admin/logs", admin(async () => ({ logs })));
 }
 

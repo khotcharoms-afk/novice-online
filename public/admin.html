@@ -154,6 +154,19 @@
       <!-- ประกาศ -->
       <section id="tab-an" hidden>
         <div class="card">
+          <h2>ปิดปรับปรุงเซิร์ฟเวอร์ (นับถอยหลัง)</h2>
+          <p class="muted">ผู้เล่นทุกคนจะเห็นแถบนับถอยหลังบนจอ + เตือนในแชทตอนเหลือ 5 นาที / 1 นาที / 30 วิ / 10 วิ ·
+            ครบเวลา = บันทึกตัวละครทุกคน แล้วให้ออกจากเกม และปิดไม่ให้เข้า (แอดมินยังเข้าได้) จนกว่าจะกด "เปิดให้เข้าเกม" หรือเซิร์ฟรีสตาร์ท</p>
+          <div class="row"><label class="muted">อีก</label>
+            <select id="mtMin"><option value="1">1 นาที</option><option value="3">3 นาที</option><option value="5" selected>5 นาที</option><option value="10">10 นาที</option><option value="15">15 นาที</option><option value="30">30 นาที</option></select>
+            <input type="text" id="mtMsg" maxlength="120" placeholder="เหตุผล เช่น อัปเดตระบบใหม่" style="flex:1;min-width:180px">
+            <button class="btn gold" id="mtStart">เริ่มนับถอยหลัง</button></div>
+          <div class="row" style="margin-top:10px"><span id="mtState" class="muted">สถานะ: เปิดปกติ</span>
+            <button class="btn" id="mtCancel" hidden>ยกเลิกการปิดปรับปรุง</button>
+            <button class="btn gold" id="mtOpen" hidden>เปิดให้เข้าเกม</button></div>
+          <p class="muted" style="margin-top:10px">ตอนอัปเดตเกม (push โค้ดใหม่) ไม่ต้องกดอะไร: เซิร์ฟเวอร์จะบันทึกทุกคนก่อนปิด และหน้าเกมของผู้เล่นจะเชื่อมต่อใหม่ให้อัตโนมัติ</p>
+        </div>
+        <div class="card">
           <h2>ประกาศถึงผู้เล่นทุกคน</h2>
           <textarea id="annText" maxlength="200" placeholder="เช่น เซิร์ฟเวอร์จะปิดปรับปรุง 5 นาที ตอน 22:00"></textarea>
           <div class="row" style="margin-top:8px"><button class="btn gold" id="annSend">ส่งประกาศ</button>
