@@ -45,6 +45,11 @@ const ITEMS = {
   potion_s:  { name: "ยาแดงขวดเล็ก", type: "use", heal: { hp: 45 }, price: 12, desc: "ฟื้น HP 45" },
   potion_m:  { name: "ยาแดง", type: "use", heal: { hp: 150 }, price: 40, desc: "ฟื้น HP 150" },
   potion_sp: { name: "ยาฟ้า", type: "use", heal: { sp: 30 }, price: 35, desc: "ฟื้น SP 30" },
+  // ---------- สัตว์เลี้ยง (เรียกออกมาแล้วช่วยเก็บของที่ดรอปรอบตัว) ----------
+  // pet.range = ระยะเก็บของรอบตัวเรา (px, 32 = 1 ช่อง) · pet.speed = ความเร็วบิน (px/วินาที, คนเดิน 170)
+  pet_sparrow:  { name: "นกกระจอกน้อย", type: "pet", lv: 1, price: 300, pet: { range: 160, speed: 210 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 5 ช่อง" },
+  pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
+  pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
   // ---------- ของดรอป (ขายที่ร้าน) ----------
   goblin_ear: { name: "หูก็อบลิน", type: "material", sell: 4 },
   wolf_fang:  { name: "เขี้ยวหมาป่า", type: "material", sell: 10 },
@@ -55,7 +60,7 @@ const ITEMS = {
 
 // ของที่ร้านค้าขาย (เรียงตามที่แสดง)
 const SHOP = ["potion_s", "potion_m", "potion_sp", "mace", "dagger", "kite", "bandana", "hood", "leather", "chain",
-  "gloves", "cape", "boots", "ring_copper"];
+  "gloves", "cape", "boots", "ring_copper", "pet_sparrow", "pet_canary", "pet_bluebird"];
 
 // ของดรอปจากมอน: [itemId, โอกาส 0–1, จำนวนต่ำสุด, สูงสุด]
 const DROPS = {

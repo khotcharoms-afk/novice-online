@@ -314,6 +314,7 @@ class WorldScene extends Phaser.Scene {
     MOB_KINDS.forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
     MANIFEST.equip.forEach((k) => this.load.image("equip/" + k, `/assets/equip/${k}.png`));
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
+    (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
   }
 
@@ -360,6 +361,23 @@ class WorldScene extends Phaser.Scene {
       $s(m).onChange(() => this.syncView(v, m));
     });
     $s(room.state).monsters.onRemove((_m, id) => this.removeView(id));
+    // สัตว์เลี้ยง
+    this.petViews = new Map();
+    $s(room.state).pets.onAdd((pet, id) => {
+      const pv = { tx: pet.x, ty: pet.y, dir: pet.dir, moving: false, kind: pet.kind, seed: Math.random() * 1000 };
+      pv.sh = this.add.ellipse(pet.x, pet.y, 16, 6, 0x000000, 0.25);
+      pv.sp = this.add.sprite(pet.x, pet.y - 22, "pet/" + pet.kind, 0).setOrigin(0.5, 1);
+      pv.sp.x = pv.sh.x = pet.x;
+      this.petViews.set(id, pv);
+      $s(pet).onChange(() => {
+        pv.tx = pet.x; pv.ty = pet.y; pv.dir = pet.dir; pv.moving = pet.moving;
+        if (pet.kind !== pv.kind) { pv.kind = pet.kind; pv.sp.setTexture("pet/" + pet.kind, 0); }
+      });
+    });
+    $s(room.state).pets.onRemove((_p, id) => {
+      const pv = this.petViews.get(id);
+      if (pv) { pv.sp.destroy(); pv.sh.destroy(); this.petViews.delete(id); }
+    });
     this.dropViews = new Map();
     $s(room.state).drops.onAdd((d, id) => this.addDrop(d, id));
     $s(room.state).drops.onRemove((_d, id) => { const o = this.dropViews.get(id); if (o) o.destroy(); this.dropViews.delete(id); });
@@ -696,7 +714,22 @@ class WorldScene extends Phaser.Scene {
   updateOnline() { $("online").textContent = room.state.players.size; }
 
   // ---------- ทุกเฟรม ----------
+  updatePets(time) {
+    const ROW = { down: 0, left: 1, right: 2, up: 3 };
+    this.petViews.forEach((pv) => {
+      const k = Math.min(1, 0.25);
+      let x = pv.sh.x, y = pv.sh.y;
+      if (Math.abs(pv.tx - x) > 300 || Math.abs(pv.ty - y) > 300) { x = pv.tx; y = pv.ty; }
+      else { x += (pv.tx - x) * k; y += (pv.ty - y) * k; }
+      const bob = Math.sin((time + pv.seed) / 220) * 3;
+      pv.sh.setPosition(x, y).setDepth(y - 1);
+      pv.sp.setPosition(x, y - 14 + bob).setDepth(y + 2);
+      const flap = Math.floor((time + pv.seed) / (pv.moving ? 90 : 200)) % 2;
+      pv.sp.setFrame((ROW[pv.dir] ?? 0) * 2 + flap);
+    });
+  }
   update(time, dt) {
+    if (this.petViews) this.updatePets(time);
     const k = Math.min(1, (dt / 1000) * 14);
     this.views.forEach((v) => {
       const r = v.root;

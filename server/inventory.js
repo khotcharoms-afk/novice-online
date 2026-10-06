@@ -7,7 +7,7 @@ const I = require("./items");
 
 const STARTER = { inv: [{ id: "mace", n: 1 }, { id: "potion_s", n: 5 }], gold: 50 };
 
-function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0 }; }
+function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0, pet: null }; }
 
 // โหลดจากฐานข้อมูล — ตัดไอเทมที่ไม่รู้จักทิ้ง; ตัวละครเก่าที่ยังไม่มีกระเป๋าได้ของเริ่มต้น
 function loadBag(c) {
@@ -25,11 +25,12 @@ function loadBag(c) {
     if (id && I.fitsSlot(I.ITEMS[id], slot)) bag.equip[slot] = id;
   }
   bag.gold = Math.max(0, Math.floor(Number(c.gold) || 0));
+  if (c.pet && I.ITEMS[c.pet] && I.ITEMS[c.pet].type === "pet") bag.pet = c.pet;
   return bag;
 }
-const saveBag = (b) => ({ inv: b.inv.map((s) => (s ? { id: s.id, n: s.n } : null)), equip: { ...b.equip }, gold: b.gold });
+const saveBag = (b) => ({ inv: b.inv.map((s) => (s ? { id: s.id, n: s.n } : null)), equip: { ...b.equip }, gold: b.gold, pet: b.pet || null });
 
-const maxStack = (id) => (I.ITEMS[id] && I.ITEMS[id].type === "equip" ? 1 : I.MAX_STACK);
+const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet") ? 1 : I.MAX_STACK);
 
 // ใส่ของเข้ากระเป๋า → คืนจำนวนที่ใส่ไม่ลง (กระเป๋าเต็ม)
 function addItem(b, id, n) {
@@ -91,6 +92,24 @@ function unequip(b, slot) {
   delete b.equip[slot];
   return null;
 }
+// เรียกสัตว์เลี้ยงจากช่องกระเป๋า idx (ตัวเดิมที่ออกมาอยู่สลับกลับเข้ากระเป๋า)
+function summonPet(b, idx, level) {
+  const s = b.inv[idx], it = s && I.ITEMS[s.id];
+  if (!it || it.type !== "pet") return "ไม่ใช่สัตว์เลี้ยง";
+  if (level < (it.lv || 1)) return `ต้องเลเวล ${it.lv} ขึ้นไป`;
+  const old = b.pet;
+  b.pet = s.id;
+  b.inv[idx] = old ? { id: old, n: 1 } : null;
+  return null;
+}
+function recallPet(b) {
+  if (!b.pet) return null;
+  const free = b.inv.findIndex((x) => !x);
+  if (free < 0) return "กระเป๋าเต็ม";
+  b.inv[free] = { id: b.pet, n: 1 };
+  b.pet = null;
+  return null;
+}
 function moveSlot(b, from, to) {
   if (from === to || !b.inv[from] || to < 0 || to >= b.inv.length) return;
   const a = b.inv[from], c = b.inv[to];
@@ -104,4 +123,4 @@ function moveSlot(b, from, to) {
 }
 
 module.exports = { emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
-  equipFrom, unequip, moveSlot, maxStack, STARTER };
+  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER };

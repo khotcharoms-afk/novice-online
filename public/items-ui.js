@@ -8,14 +8,14 @@ const ICON = (id) => `/assets/icons/${id}.png`;
 const BAR_KEYS = ["q", "e", "r", "f", "z", "x", "v", "b"];
 const DOLL_L = ["head", "face", "armor", "gloves", "acc1"];
 const DOLL_R = ["weapon", "offhand", "cape", "shoes", "acc2"];
-const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป" };
+const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง" };
 const BONUS_NAME = { atk: "พลังโจมตี", def: "ป้องกัน", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP สูงสุด", maxSp: "SP สูงสุด" };
 const itemOf = (id) => gameData && gameData.items[id];
 const myPlayer = () => room && room.state.players.get(room.sessionId);
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
 function onInv(v) {
-  INV = { inv: v.inv, equip: v.equip, gold: v.gold };
+  INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null };
   renderInv(); renderPaperDoll(); renderShop(); renderItemBar();
   hideCard();
 }
@@ -72,6 +72,7 @@ function quickUse(idx) {
   const it = itemOf(s.id);
   if (!$("shopPanel").hidden && shopTab === "sell") return room.send("sell", { idx, n: s.n });
   if (it && it.type === "equip") room.send("equip", { idx });
+  else if (it && it.type === "pet") room.send("useItem", { idx });
   else if (it && it.type === "use") room.send("useItem", { idx });
 }
 function toggleInv(force) {
@@ -101,6 +102,21 @@ function renderPaperDoll() {
   };
   build($("dollL"), DOLL_L);
   build($("dollR"), DOLL_R);
+  // ช่องสัตว์เลี้ยง (ใต้รูปตัวละคร)
+  const pb = $("dollPet");
+  if (pb) {
+    const id = INV.pet, it = itemOf(id);
+    pb.innerHTML = "";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "eq-slot" + (id ? " filled" : "");
+    b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${it ? it.name : id}</span>` : `<span>สัตว์เลี้ยง</span>`;
+    b.title = id ? "สัตว์เลี้ยงกำลังช่วยเก็บของ" : "ซื้อสัตว์เลี้ยงที่ร้านลุงสมปอง แล้วดับเบิลคลิกเพื่อเรียกออกมา";
+    b.onclick = (e) => { if (id) openCard(id, { where: "pet" }, e); };
+    b.ondblclick = () => id && room.send("petOff");
+    makeDrop(b, (d) => d.from === "inv" && itemOf(INV.inv[d.idx]?.id)?.type === "pet", (d) => room.send("useItem", { idx: d.idx }));
+    pb.appendChild(b);
+  }
   drawDoll();
 }
 function fits(s, slot) {
@@ -124,6 +140,7 @@ function openCard(id, ctx, ev) {
   hideTip();
   const lines = [];
   for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
+  if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
   const slotTxt = it.type === "equip" ? ` · ${it.slot === "acc" ? "เครื่องประดับ" : gameData.slotName[it.slot]}` : "";
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
   const sell = it.sell ?? Math.floor((it.price || 0) / 2);
@@ -131,8 +148,10 @@ function openCard(id, ctx, ev) {
   if (ctx.where === "inv") {
     if (it.type === "equip") acts.push(`<button class="btn-gold" data-a="equip">สวม</button>`);
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
+    if (it.type === "pet") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
     if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ขาย (${sell * INV.inv[ctx.idx].n} g)</button>`);
   } else if (ctx.where === "eq") acts.push(`<button class="btn-ghost" data-a="unequip">ถอด</button>`);
+  else if (ctx.where === "pet") acts.push(`<button class="btn-ghost" data-a="petOff">เก็บกลับเข้ากระเป๋า</button>`);
   card.innerHTML = `<h4>${it.name}</h4><div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
@@ -143,6 +162,7 @@ function openCard(id, ctx, ev) {
     if (a === "unequip") room.send("unequip", { slot: ctx.slot });
     if (a === "sell") room.send("sell", { idx: ctx.idx, n: INV.inv[ctx.idx].n });
     if (a === "bar") assignBar(id);
+    if (a === "petOff") room.send("petOff");
     hideCard();
   }));
   card.hidden = false;

@@ -313,3 +313,6 @@ button { font: inherit; color: inherit; }
 }
 #spDerived .bonus { color: #7dff9a; font-weight: normal; font-size: 11px; }
 #apPct { width: 100%; accent-color: #c9a45c; margin: 2px 0 0; } #apPctTxt { color: var(--name); }
+.doll-mid { display: grid; gap: 6px; justify-items: center; }
+#dollPet .eq-slot { width: 96px; }
+@media (max-width: 640px) { #dollPet .eq-slot { width: 72px; } }

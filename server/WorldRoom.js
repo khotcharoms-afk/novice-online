@@ -43,10 +43,15 @@ defineTypes(Monster, {
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean",
   hp: "uint32", maxHp: "uint32",
 });
+// สัตว์เลี้ยง (key = sessionId ของเจ้าของ) — บินได้ จึงไม่ชนสิ่งกีดขวาง
+class Pet extends Schema {}
+defineTypes(Pet, { kind: "string", x: "number", y: "number", dir: "string", moving: "boolean" });
 class WorldState extends Schema {
-  constructor() { super(); this.players = new MapSchema(); this.monsters = new MapSchema(); this.drops = new MapSchema(); }
+  constructor() { super(); this.players = new MapSchema(); this.monsters = new MapSchema(); this.drops = new MapSchema(); this.pets = new MapSchema(); }
 }
-defineTypes(WorldState, { players: { map: Player }, monsters: { map: Monster }, drops: { map: Drop } });
+defineTypes(WorldState, { players: { map: Player }, monsters: { map: Monster }, drops: { map: Drop }, pets: { map: Pet } });
+const PET_PICK = 12;          // สัตว์เลี้ยงบินถึงของในระยะนี้ = เก็บ
+const PET_FOLLOW = 30;        // ระยะห่างตอนบินตามเจ้าของ
 const DROP_OWNER_MS = 10000;  // เจ้าของมีสิทธิ์เก็บก่อน 10 วิ
 const DROP_LIFE_MS = 60000;   // ของบนพื้นหายใน 60 วิ
 const PICK_RANGE = 28;
@@ -129,6 +134,7 @@ class WorldRoom extends Room {
     this.onMessage("useItem", (client, m) => this.withBag(client, m, (p, b) => this.useItem(client.sessionId, p, b, Number(m.idx))));
     this.onMessage("buy", (client, m) => this.withBag(client, m, (p, b) => this.buy(p, b, String(m.id), Number(m.n) || 1)));
     this.onMessage("sell", (client, m) => this.withBag(client, m, (p, b) => this.sell(p, b, Number(m.idx), Number(m.n) || 1)));
+    this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
     this.onMessage("pickup", (client, m) => {
       const r = this.alive(client);
       if (!r || !m || !this.state.drops.get(String(m.id))) return;
@@ -221,6 +227,7 @@ class WorldRoom extends Room {
       autoCfg: { radius: AUTO_RADII[1], kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0,
     });
+    this.syncPet(client.sessionId);
     this.sendInv(client.sessionId);
     this.broadcast("system", `${p.name} เข้าสู่เกม`);
   }
@@ -234,6 +241,7 @@ class WorldRoom extends Room {
     }
     if (p) this.broadcast("system", `${p.name} ออกจากเกม`);
     this.state.players.delete(client.sessionId);
+    this.state.pets.delete(client.sessionId);
     this.pr.delete(client.sessionId);
     this.mr.forEach((r) => { if (r.target === client.sessionId) r.target = null; r.dmgBy.delete(client.sessionId); });
   }
@@ -336,6 +344,67 @@ class WorldRoom extends Room {
     const t = now();
     this.state.players.forEach((p, id) => this.updatePlayer(p, this.pr.get(id), id, dt, t));
     this.state.monsters.forEach((m, id) => this.updateMob(m, this.mr.get(id), id, dt, t));
+    this.state.pets.forEach((pet, id) => this.updatePet(pet, id, dt, t));
+  }
+
+  // ================= สัตว์เลี้ยง =================
+  // สร้าง/ลบ/เปลี่ยนตัวสัตว์เลี้ยงบนแผนที่ให้ตรงกับที่เรียกไว้ในกระเป๋า
+  syncPet(pid) {
+    const p = this.state.players.get(pid);
+    const kind = p && p.bag && p.bag.pet;
+    let pet = this.state.pets.get(pid);
+    if (!kind) { if (pet) this.state.pets.delete(pid); return; }
+    if (!pet) {
+      pet = new Pet();
+      pet.x = p.x - 20; pet.y = p.y - 6; pet.dir = "down"; pet.moving = false;
+      this.state.pets.set(pid, pet);
+    }
+    if (pet.kind !== kind) pet.kind = kind;
+  }
+  updatePet(pet, pid, dt, t) {
+    const p = this.state.players.get(pid), r = this.pr.get(pid);
+    const info = I.ITEMS[pet.kind] && I.ITEMS[pet.kind].pet;
+    if (!p || !r || !info) return;
+    const flyTo = (x, y, speed) => {
+      const dx = x - pet.x, dy = y - pet.y, d = Math.hypot(dx, dy);
+      const step = (speed * dt) / 1000;
+      if (d <= step) { pet.x = x; pet.y = y; }
+      else { pet.x += (dx / d) * step; pet.y += (dy / d) * step; }
+      pet.dir = dirOf(dx, dy); pet.moving = true;
+      return d;
+    };
+    // หาของที่ดรอปรอบตัวเจ้าของ (เฉพาะของที่เจ้าของมีสิทธิ์เก็บ และกระเป๋ายังมีที่)
+    if (!p.dead) {
+      if (r.petPick) {
+        const d = this.state.drops.get(r.petPick);
+        if (!d || !this.canPick(pid, r.petPick) || dist(p, d) > info.range + 96) r.petPick = null;
+      }
+      if (!r.petPick && t >= (r.petNext || 0)) {
+        let best = null, bd = Infinity;
+        this.state.drops.forEach((d, did) => {
+          if (dist(p, d) > info.range || !this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1)) return;
+          const dd = dist(pet, d);
+          if (dd < bd) { bd = dd; best = did; }
+        });
+        r.petPick = best;
+        if (!best) r.petNext = t + 300;
+      }
+      if (r.petPick) {
+        const d = this.state.drops.get(r.petPick);
+        if (flyTo(d.x, d.y - 4, info.speed) <= PET_PICK) {
+          this.tryPickup(pid, p, r.petPick);
+          r.petPick = null; r.petNext = t + 250;
+        }
+        return;
+      }
+    }
+    // บินตามเจ้าของ (อยู่ข้างหลังเยื้อง ๆ)
+    const back = { down: [0, -1], up: [0, 1], left: [1, 0], right: [-1, 0] }[p.dir] || [0, -1];
+    const fx = p.x + back[0] * PET_FOLLOW + (back[1] ? 18 : 0), fy = p.y + back[1] * PET_FOLLOW * 0.6 - 4;
+    const d = Math.hypot(fx - pet.x, fy - pet.y);
+    if (d > 700) { pet.x = fx; pet.y = fy; pet.moving = false; return; }
+    if (d > 8) flyTo(fx, fy, d > 120 ? info.speed * 1.4 : Math.max(SPEED, info.speed * 0.8));
+    else { pet.moving = false; if (!p.moving) pet.dir = p.dir; }
   }
 
   updatePlayer(p, r, id, dt, t) {
@@ -601,6 +670,7 @@ class WorldRoom extends Room {
     if (typeof err === "string") client.send("toast", err);
     const gear = Bag.gearString(p.bag);
     if (gear !== p.gear) p.gear = gear;
+    this.syncPet(client.sessionId);
     this.applyStats(p, false);
     this.sendInv(client.sessionId);
   }
@@ -612,6 +682,7 @@ class WorldRoom extends Room {
     const s = b.inv[idx], it = s && I.ITEMS[s.id], r = this.pr.get(pid);
     if (!it) return;
     if (it.type === "equip") return Bag.equipFrom(b, idx, p.level);
+    if (it.type === "pet") return Bag.summonPet(b, idx, p.level);
     if (it.type !== "use") return "ใช้ไอเทมนี้ไม่ได้";
     if (p.dead) return;
     if (r && now() < r.useReady) return;
@@ -711,7 +782,8 @@ class WorldRoom extends Room {
     // เก็บของที่ดรอปใกล้ ๆ ก่อนหามอนตัวต่อไป
     let underAttack = false;
     this.mr.forEach((mr) => { if (mr.target === pid) underAttack = true; });
-    if (!r.target && !r.pick && !underAttack && r.autoCfg.loot !== false) {
+    // (ถ้ามีสัตว์เลี้ยงออกมา ให้สัตว์เลี้ยงเก็บแทน เราไม่ต้องเดินไปเอง)
+    if (!r.target && !r.pick && !underAttack && r.autoCfg.loot !== false && !p.bag.pet) {
       let best = null, bd = 260;
       this.state.drops.forEach((d, did) => {
         if (!this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1)) return;
