@@ -30,6 +30,7 @@ function newCharData(uid, name, look) {
 }
 const publicChar = (id, c) => ({
   id, name: c.name, look: c.look, job: c.job, jobName: D.JOB_NAME[c.job] || c.job, level: c.level,
+  gear: require("./inventory").gearString({ equip: c.equip || {} }),
 });
 
 // ---------------- คีย์ Service Account ----------------

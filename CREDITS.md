@@ -146,3 +146,81 @@
   - https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle
   - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
   - http://opengameart.org/content/lpc-clothing-updates
+
+## อุปกรณ์สวมใส่ (`equip/*.png`) และไอคอนอุปกรณ์บางส่วน (`icons/*.png`)
+
+ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** เช่นเดียวกับตัวละคร (สัญญาอนุญาต CC-BY-SA 3.0 / GPL 3.0 / OGA-BY 3.0 / CC-BY 4.0 ตามแต่ละชิ้น) — ไอคอนยา เงิน ของดรอป และเครื่องประดับ วาดขึ้นใหม่สำหรับเกมนี้
+
+- **arms/gloves/female** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **arms/gloves/male** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax), bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **cape/solid/female** — bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+  - https://opengameart.org/content/lpc-roman-armor
+  - http://opengameart.org/content/lpc-clothing-updates
+- **cape/solid/male** — Nila122, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+  - https://opengameart.org/content/lpc-roman-armor
+- **cape/solid_behind** — Nila122, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+  - https://opengameart.org/content/lpc-roman-armor
+- **facial/glasses/round** — bluecarrot16, Thane Brimhall (pennomi), laetissima; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/clothing-facial-features-and-ui-elements
+  - https://opengameart.org/content/lpc-gentleman
+- **feet/boots/female** — bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-and-hair
+- **feet/boots** — bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-and-hair
+- **hat/cloth/bandana2** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Marcel van de Steeg (MadMarcel), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle
+  - https://github.com/makrohn/Universal-LPC-spritesheet/commit/f50007cb47c235d8896cafae7a613f0b6a9a09a8?short_path=02b86d4#diff-02b86d45789a3e3e8e79519c7d17d15c9e6ecc9b4ddecb1bcd8dfbbaef430b75
+  - https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+- **hat/cloth/hood** — Johannes Sjölund (wulax),JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+- **hat/helmet/nasal** — bluecarrot16; CC-BY 3.0, CC-BY 4.0, OGA-BY 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+- **shield/kite** — DarkwallLKE, Tuomo Untinen (reemax), Michael Whitlock (bigbeargames); CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-kite-shield
+  - https://opengameart.org/content/lpc-shields-pack
+- **torso/aprons/apron** — Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-aprons
+- **torso/armour/leather/female** —  adapted to v3 bases by bluecarrot16; Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women
+  - http://opengameart.org/content/lpc-clothing-updates
+- **torso/armour/leather** — Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **torso/armour/plate/female** —  adapted to female base by makrohn;  recolor by bigbeargames
+  -  color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+  -  run/jump/sit/climb/revised combat by JaidynReiman
+  - JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women
+  - http://opengameart.org/content/lpc-clothing-updates
+- **torso/armour/plate/male** —  recolor by bigbeargames;  color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+  -  run/jump/sit/climb/revised combat by JaidynReiman
+  - JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Johannes Sjölund (wulax)
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women
+- **torso/chainmail** — Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **weapon/blunt/mace** — Johannes Sjölund (wulax), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-extended-weapon-animations
+- **weapon/blunt/waraxe** — Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-weapons
+- **weapon/sword/arming** — ElizaWy; walk and down by JaidynReiman; OGA-BY 3.0
+  - https://github.com/ElizaWy/LPC/tree/main/Characters/Props/Sword%2001%20-%20Arming%20Sword
+  - https://opengameart.org/content/expanded-universal-lpc-spritesheet-idle-run-jump-lpc-revised-combat-and-assets
+- **weapon/sword/dagger** — bluecarrot16, Johannes Sjölund (wulax), Matthew Krohn (makrohn); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-extended-weapon-animations

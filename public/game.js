@@ -22,6 +22,7 @@ const LOOK_OPTS = {
 const MOB_KINDS = ["goblin", "wolf", "boar", "skeleton", "orc"];
 
 let room = null;
+let MANIFEST = { equip: [], icons: [] };
 let scene = null;
 let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
 
@@ -56,7 +57,10 @@ const FB_ERR = {
 };
 
 async function initAuth() {
-  try { cfg = await (await fetch("/api/config")).json(); }
+  try {
+    cfg = await (await fetch("/api/config")).json();
+    MANIFEST = await (await fetch("/assets/manifest.json")).json();
+  }
   catch { setErr("authErr", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ถ้าเพิ่งเปิดเว็บ รอประมาณ 1 นาทีแล้วรีเฟรช)"); return; }
   $("idInput").value = storeGet("pn_id") || "";
   if (cfg.mode === "dev") {
@@ -118,16 +122,24 @@ const loadImg = (path) => {
   if (!imgCache[path]) { const i = new Image(); i.src = `/assets/${path}.png`; imgCache[path] = i; }
   return imgCache[path];
 };
-const layersFor = (lk, job = "villager") => {
+// ชั้นภาพตัวละคร: ชั้นหลังตัว (ผ้าคลุม/อาวุธ) → ตัว → ชุด → ของสวม → ผม → หมวก/อาวุธ/โล่
+const AFTER_HAIR = new Set(["head", "weapon", "offhand"]);
+const layersFor = (lk, job = "villager", gear = "") => {
   const [sex, skin, hair, color] = lk.split("|");
-  return [`look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, `look/hair_${hair}_${color}`];
+  const has = (k) => MANIFEST.equip.includes(k);
+  const pick = (base) => (has(`${base}_${sex}`) ? `equip/${base}_${sex}` : has(base) ? `equip/${base}` : null);
+  const items = gear ? gear.split(",").map((x) => x.split(":")) : [];
+  const back = items.map(([, id]) => pick(`${id}_back`)).filter(Boolean);
+  const pre = items.filter(([s]) => !AFTER_HAIR.has(s)).map(([, id]) => pick(id)).filter(Boolean);
+  const post = items.filter(([s]) => AFTER_HAIR.has(s)).map(([, id]) => pick(id)).filter(Boolean);
+  return [...back, `look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, ...pre, `look/hair_${hair}_${color}`, ...post];
 };
 // วาดตัวละครลง canvas (frame 0 = ยืน, 1–8 = เดิน; row 0–3 = ขึ้น/ซ้าย/ลง/ขวา)
-function drawLook(cv, lk, job, frame, row) {
+function drawLook(cv, lk, job, frame, row, gear) {
   const ctx = cv.getContext("2d");
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, 64, 64);
-  for (const l of layersFor(lk, job)) {
+  for (const l of layersFor(lk, job, gear || cv.dataset.gear || "")) {
     const img = loadImg(l);
     if (img.complete && img.naturalWidth) ctx.drawImage(img, frame * 64, row * 64, 64, 64, 0, 0, 64, 64);
   }
@@ -171,7 +183,7 @@ async function openSelect() {
       <button type="button" class="btn-gold play">เล่น</button><button type="button" class="link del">ลบ</button>`;
     card.querySelector(".cn").textContent = c.name;
     const cv = card.querySelector("canvas");
-    cv.dataset.look = c.look; cv.dataset.job = c.job;
+    cv.dataset.look = c.look; cv.dataset.job = c.job; cv.dataset.gear = c.gear || "";
     drawLook(cv, c.look, c.job, 0, 2);
     card.querySelector(".play").onclick = (e) => enterGame(c, e.target);
     card.querySelector(".del").onclick = () => deleteChar(c);
@@ -255,6 +267,7 @@ async function enterGame(c, btn) {
   btn.disabled = true;
   setErr("selectErr");
   try {
+    MANIFEST = await (await fetch("/assets/manifest.json")).json();
     const client = new Colyseus.Client(SERVER_URL);
     room = await client.joinOrCreate("world", { token: await getToken(), charId: c.id });
     room.onMessage("system", (text) => addChat("system", esc(text)));
@@ -299,6 +312,9 @@ class WorldScene extends Phaser.Scene {
     }
     paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
     MOB_KINDS.forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
+    MANIFEST.equip.forEach((k) => this.load.image("equip/" + k, `/assets/equip/${k}.png`));
+    MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
+    this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
   }
 
   create() {
@@ -320,6 +336,7 @@ class WorldScene extends Phaser.Scene {
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
       $("apClose").onclick = () => toggleAutoPanel(false);
       setupStats();
+      if (!window._itemsUI) { window._itemsUI = 1; setupItemsUI(); } else renderItemBar();
     });
     // วงขอบเขต AUTO บนพื้น
     this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.08).setStrokeStyle(3, 0xffd36b, 0.85)
@@ -343,6 +360,18 @@ class WorldScene extends Phaser.Scene {
       $s(m).onChange(() => this.syncView(v, m));
     });
     $s(room.state).monsters.onRemove((_m, id) => this.removeView(id));
+    this.dropViews = new Map();
+    $s(room.state).drops.onAdd((d, id) => this.addDrop(d, id));
+    $s(room.state).drops.onRemove((_d, id) => { const o = this.dropViews.get(id); if (o) o.destroy(); this.dropViews.delete(id); });
+    room.onMessage("inv", (v) => {
+      onInv(v);
+      const me = this.views.get(room.sessionId);
+      if (v.gold && v.at) this.floatText(v.at.x, v.at.y - 40, `+${v.gold} gold`, "#ffd36b", 12, 1000);
+    });
+    room.onMessage("loot", ({ item, n }) => {
+      const me = this.views.get(room.sessionId), it = gameData && gameData.items[item];
+      if (me && it) this.floatText(me.root.x, me.root.y - 88, `+${it.name}${n > 1 ? " ×" + n : ""}`, "#9fe3ff", 12, 1100);
+    });
 
     // ---------- เหตุการณ์ต่อสู้ ----------
     room.onMessage("atk", ({ id, dir }) => this.playOnce(id, "slash", dir, 380));
@@ -369,6 +398,15 @@ class WorldScene extends Phaser.Scene {
     // ---------- คลิก ----------
     this.input.on("pointerdown", (p, over) => {
       if (document.activeElement === $("chatInput")) $("chatInput").blur();
+      const drop = over.find((o) => o.getData && o.getData("dropId"));
+      if (drop) { this.myTarget = null; room.send("pickup", { id: drop.getData("dropId") }); return; }
+      const npc = over.find((o) => o.getData && o.getData("npcId"));
+      if (npc) {
+        const n = npc.getData("npc");
+        this.myTarget = null; this.pendingNpc = n;
+        room.send("moveTo", { x: n.x, y: n.y + 40 });
+        return;
+      }
       const hit = over.find((o) => o.getData && o.getData("mobId"));
       if (hit) {
         this.myTarget = hit.getData("mobId");
@@ -475,6 +513,7 @@ class WorldScene extends Phaser.Scene {
       }
     }
     this.cameras.main.setBounds(0, 0, W * T, H * T);
+    this.buildNpcs(map.npcs || []);
     $("mapName").textContent = map.name;
     buildMinimap(map);
   }
@@ -482,7 +521,7 @@ class WorldScene extends Phaser.Scene {
   // ---------- ตัวละคร / มอนสเตอร์ ----------
   createView(e, id, isMob) {
     const isMe = id === room.sessionId;
-    const key = isMob ? "mob_" + e.kind : this.buildSheet(`pl_${e.job}_${e.look}`, layersFor(e.look, e.job));
+    const key = isMob ? "mob_" + e.kind : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
@@ -498,7 +537,7 @@ class WorldScene extends Phaser.Scene {
       sprite.on("pointerover", () => { v.hover = true; });
       sprite.on("pointerout", () => { v.hover = false; });
     }
-    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e,
+    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e, gear: e.gear || "",
       tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
     this.views.set(id, v);
     this.syncView(v, e);
@@ -523,6 +562,12 @@ class WorldScene extends Phaser.Scene {
       v.label.setColor(diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
     } else {
+      if ((e.gear || "") !== v.gear) { // เปลี่ยนอุปกรณ์ → ประกอบภาพตัวละครใหม่
+        v.gear = e.gear || "";
+        v.key = this.buildSheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
+        v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
+        if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
+      }
       v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
       if (v.isMe) {
@@ -564,6 +609,30 @@ class WorldScene extends Phaser.Scene {
     v.dir = dir || v.dir;
     v.busyUntil = this.time.now + ms;
     v.sprite.play({ key: `${v.key}:${kind}:${v.dir}`, repeat });
+  }
+
+  // ---------- ของบนพื้น / NPC ----------
+  addDrop(d, id) {
+    const key = "icon/" + d.item;
+    const img = this.add.image(d.x, d.y, this.textures.exists(key) ? key : "icon/gold").setScale(0.75).setDepth(d.y - 20);
+    img.setInteractive({ cursor: "pointer" });
+    img.setData("dropId", id);
+    const it = gameData && gameData.items[d.item];
+    img.on("pointerover", () => showTip(`${it ? it.name : d.item}${d.n > 1 ? " ×" + d.n : ""}`));
+    img.on("pointerout", hideTip);
+    this.tweens.add({ targets: img, y: { from: d.y - 18, to: d.y }, duration: 380, ease: "Bounce.easeOut" });
+    this.dropViews.set(id, img);
+  }
+  buildNpcs(list) {
+    for (const n of list) {
+      const key = this.buildSheet("npc_" + n.id, [n.sprite === "npc_merchant" ? "npcsrc_merchant" : n.sprite]);
+      const sp = this.add.sprite(n.x, n.y, key, DIR_ROW.down * COLS).setOrigin(0.5, 0.97).setDepth(n.y);
+      sp.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 8, 28, 56), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
+      sp.setData("npcId", n.id); sp.setData("npc", n);
+      this.add.ellipse(n.x, n.y - 1, 26, 9, 0x000000, 0.28).setDepth(n.y - 1);
+      this.add.text(n.x, n.y - 58, n.name, { fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#9fe3ff",
+        stroke: "#0d1124", strokeThickness: 3, resolution: 2 }).setOrigin(0.5, 1).setDepth(n.y);
+    }
   }
 
   // ---------- เอฟเฟกต์ ----------
@@ -660,6 +729,14 @@ class WorldScene extends Phaser.Scene {
       if (this.autoRing.width !== ring.r * 2) this.autoRing.setSize(ring.r * 2, ring.r * 2 * 0.9);
     }
 
+    // เดินถึง NPC แล้วเปิดหน้าต่าง
+    if (this.pendingNpc) {
+      const mv = this.views.get(room.sessionId);
+      if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
+        openShop(); this.pendingNpc = null;
+      }
+    }
+
     // วงแดงใต้เป้าหมาย
     const tv = this.myTarget && this.views.get(this.myTarget);
     this.targetRing.setVisible(!!tv);
@@ -730,8 +807,8 @@ function mySkills() {
   return (gameData && me && gameData.jobSkills[me.job]) || [];
 }
 function buildSkillBar() {
-  const bar = $("skillBar"), items = $("itemBar");
-  bar.innerHTML = ""; items.innerHTML = "";
+  const bar = $("skillBar");
+  bar.innerHTML = "";
   const list = mySkills();
   for (let i = 0; i < 9; i++) {
     const key = list[i];
@@ -743,7 +820,6 @@ function buildSkillBar() {
     if (s) { el.title = `${s.name} — ${s.desc} (SP ${s.sp})`; el.onclick = () => castSkill(key, el); }
     bar.appendChild(el);
   }
-  for (let i = 0; i < 8; i++) items.insertAdjacentHTML("beforeend", `<div class="slot"></div>`);
   const auto = document.createElement("button");
   auto.id = "autoBtn";
   auto.className = "auto-btn";
@@ -767,7 +843,7 @@ function buildSkillBar() {
   const me = room.state.players.get(room.sessionId);
   if (me) renderAuto(me.auto, me.autoState);
 }
-const AUTO_STATE = { fight: "กำลังตี", rest: "พักเลือด", wait: "หามอน" };
+const AUTO_STATE = { fight: "กำลังตี", rest: "พักเลือด", wait: "หามอน", loot: "เก็บของ" };
 function renderAuto(on, state) {
   const b = $("autoBtn");
   if (!b) return;
@@ -841,15 +917,17 @@ function renderStats() {
   $("spPoints").textContent = pts;
   for (const k of gameData.statKeys) {
     const v = $("spStats").querySelector(`[data-v="${k}"]`);
-    if (v) v.textContent = me[k];
+    const gb = (derived && derived.bonus && derived.bonus[k]) || 0;
+    if (v) v.innerHTML = me[k] + (gb ? ` <span class="bonus">+${gb}</span>` : "");
     $("spStats").querySelectorAll(`button[data-k="${k}"]`).forEach((b) => (b.disabled = pts <= 0 || me[k] >= gameData.statMax));
   }
   $("spRecommend").disabled = pts <= 0;
   if (!derived) return;
   const pc = (x) => (x * 100).toFixed(1) + "%";
+  const plus = (k) => (derived.bonus && derived.bonus[k] ? ` <span class="bonus">(+${derived.bonus[k]})</span>` : "");
   const rows = [
-    ["พลังโจมตี", derived.atk], ["ป้องกัน", derived.def],
-    ["HP สูงสุด", me.maxHp], ["SP สูงสุด", me.maxSp],
+    ["พลังโจมตี", derived.atk + plus("atk")], ["ป้องกัน", derived.def + plus("def")],
+    ["HP สูงสุด", me.maxHp + plus("maxHp")], ["SP สูงสุด", me.maxSp + plus("maxSp")],
     ["ตีทุก", (derived.atkDelay / 1000).toFixed(2) + " วิ"], ["หลบ", pc(derived.flee)],
     ["คริติคอล", pc(derived.crit)], ["แม่นยำ", "+" + pc(derived.hitBonus)],
     ["ฮีลเพิ่ม", "+" + derived.healBonus],
@@ -861,8 +939,8 @@ function renderStats() {
 const WHOLE_MAP = 9999;
 const RADII = [[160, "5 ช่อง"], [360, "11 ช่อง"], [560, "17 ช่อง"], [WHOLE_MAP, "ทั้งแมพ"]];
 const autoCfg = (() => {
-  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [] }; }
-  catch { return { radius: 360, kinds: [] }; }
+  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [], loot: c.loot !== false, potion: c.potion !== false }; }
+  catch { return { radius: 360, kinds: [], loot: true, potion: true }; }
 })();
 function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", autoCfg); }
 function toggleAutoPanel(force) {

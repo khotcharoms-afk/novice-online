@@ -247,3 +247,68 @@ button { font: inherit; color: inherit; }
 .sp-derived b { color: var(--text); font-weight: 500; float: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { #statPanel { top: 120px; left: 10px; width: calc(100vw - 20px); max-width: 320px; } }
 #statPanel, #autoPanel { z-index: 8; }
+
+/* ---------- ตัวละคร (อุปกรณ์) ---------- */
+#statPanel { width: 340px; max-height: calc(100vh - 220px); overflow-y: auto; }
+.status-actions { gap: 6px; }
+.doll { display: grid; grid-template-columns: 1fr 96px 1fr; gap: 6px; align-items: center; margin-bottom: 4px; }
+.doll-col { display: grid; gap: 4px; }
+#dollCanvas { width: 96px; height: 96px; image-rendering: pixelated; justify-self: center;
+  background: radial-gradient(circle, rgba(95, 154, 63, .25), transparent 70%); border-radius: 10px; }
+.eq-slot { display: flex; align-items: center; gap: 5px; height: 36px; padding: 2px 5px; border-radius: 7px; cursor: pointer;
+  border: 1px solid #2c3561; background: rgba(13, 17, 36, .65); font-size: 11px; color: var(--muted); text-align: left;
+  overflow: hidden; white-space: nowrap; }
+.eq-slot img { width: 28px; height: 28px; image-rendering: pixelated; flex: none; }
+.eq-slot.filled { color: var(--text); border-color: var(--brass-dim); }
+.eq-slot.over, .inv-slot.over, .slot.over { border-color: var(--name); box-shadow: 0 0 0 1px var(--name); }
+.doll-note { margin: 0 0 8px; }
+.sp-row em .bonus { color: #7dff9a; font-size: 11px; margin-left: 2px; }
+.sp-row { grid-template-columns: 44px 1fr 52px 30px 34px; }
+
+/* ---------- กระเป๋า ---------- */
+#invPanel { right: 10px; top: 250px; width: 330px; padding: 10px 12px 10px; z-index: 8; }
+.inv-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+.inv-slot { position: relative; aspect-ratio: 1; border-radius: 6px; border: 1px solid #2c3561; background: rgba(10, 13, 30, .75);
+  display: grid; place-items: center; cursor: pointer; padding: 0; }
+.inv-slot img { width: 80%; height: 80%; image-rendering: pixelated; pointer-events: none; }
+.inv-slot .n { position: absolute; right: 2px; bottom: 0; font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.inv-slot.sel { border-color: var(--name); }
+.inv-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.inv-foot b { color: var(--name); font-weight: 500; }
+.inv-foot img { vertical-align: -3px; image-rendering: pixelated; }
+.btn-ghost.small { padding: 4px 8px; font-size: 12px; }
+
+/* ---------- ร้านค้า ---------- */
+#shopPanel { left: 360px; top: 210px; width: 330px; padding: 10px 12px; z-index: 8; }
+.shop-tabs { margin-bottom: 6px; }
+.shop-list { display: grid; gap: 4px; max-height: 340px; overflow-y: auto; }
+.shop-row { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 6px; align-items: center; padding: 3px 6px;
+  border-radius: 7px; border: 1px solid #2c3561; background: rgba(13, 17, 36, .6); font-size: 13px; }
+.shop-row img { width: 28px; height: 28px; image-rendering: pixelated; }
+.shop-row small { display: block; color: var(--muted); font-size: 11px; }
+.shop-row .price { color: var(--name); font-variant-numeric: tabular-nums; font-size: 12.5px; white-space: nowrap; }
+.shop-row button { font-size: 12px; padding: 3px 8px; }
+
+/* ---------- การ์ดไอเทม / ทิป ---------- */
+#itemCard { position: fixed; z-index: 30; width: 230px; padding: 10px; font-size: 12.5px; }
+#itemCard h4 { margin: 0 0 2px; font-weight: 500; color: var(--name); font-size: 14px; }
+#itemCard .meta { color: var(--muted); margin-bottom: 6px; }
+#itemCard ul { margin: 0 0 6px; padding-left: 16px; color: #7dff9a; }
+#itemCard .need { color: #ff9a9a; }
+#itemCard .acts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+#itemCard .acts button { flex: 1; padding: 5px 6px; font-size: 12px; }
+#tip { position: fixed; z-index: 31; pointer-events: none; padding: 3px 8px; border-radius: 6px; font-size: 12px;
+  background: rgba(13, 17, 36, .92); border: 1px solid var(--brass-dim); color: var(--text); }
+.ap-toggles { display: grid; gap: 4px; font-size: 12.5px; }
+.ap-toggles input { accent-color: #c9a45c; }
+#itemBar .slot { cursor: pointer; display: grid; place-items: center; }
+#itemBar .slot img { width: 28px; height: 28px; image-rendering: pixelated; pointer-events: none; }
+#itemBar .slot .n { position: absolute; right: 3px; bottom: 1px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; }
+#itemBar .slot .k { position: absolute; left: 4px; top: 1px; font-size: 10px; color: var(--muted); }
+#itemBar .slot.empty-stock img { opacity: .35; }
+@media (max-width: 1100px) { #itemBar { display: flex !important; } #bars { gap: 4px; } #itemBar { flex-direction: column; } #itemBar .slot:nth-child(n+5) { display: none; } }
+@media (max-width: 640px) {
+  #statPanel, #invPanel, #shopPanel { left: 8px; right: 8px; width: auto; top: 110px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  .doll { grid-template-columns: 1fr 72px 1fr; } #dollCanvas { width: 72px; height: 72px; }
+}
+#spDerived .bonus { color: #7dff9a; font-weight: normal; font-size: 11px; }

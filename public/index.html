@@ -80,7 +80,8 @@
         <button id="exitBtn" class="exit-btn" type="button" title="กลับไปหน้าเลือกตัวละคร">ออก</button>
       </div>
       <div class="status-actions">
-        <button id="statBtn" class="stat-btn" type="button" title="เปิดหน้าสเตตัส (ปุ่ม C)">สเตตัส <span id="statBadge" class="badge" hidden>0</span></button>
+        <button id="statBtn" class="stat-btn" type="button" title="ตัวละคร / สเตตัส / อุปกรณ์ (ปุ่ม C)">ตัวละคร <span id="statBadge" class="badge" hidden>0</span></button>
+        <button id="invBtn" class="stat-btn" type="button" title="กระเป๋า (ปุ่ม I)">กระเป๋า</button>
       </div>
       <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
       <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
@@ -116,27 +117,54 @@
     </section>
 
     <section id="bars">
-      <div id="itemBar" class="frame slots small" title="ช่องไอเท็ม (มาใน Phase ถัดไป)"></div>
+      <div id="itemBar" class="frame slots small" title="ช่องไอเทมลัด Q E R F Z X V B"></div>
       <div id="skillBar" class="frame slots"></div>
     </section>
 
     <section id="statPanel" class="frame" hidden aria-label="สเตตัส">
-      <div class="ap-head"><b>สเตตัส</b><button id="spClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="ap-head"><b>ตัวละคร</b><button id="spClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="doll">
+        <div class="doll-col" id="dollL"></div>
+        <canvas id="dollCanvas" width="64" height="64"></canvas>
+        <div class="doll-col" id="dollR"></div>
+      </div>
+      <p class="ap-note doll-note">ดับเบิลคลิกของในกระเป๋าเพื่อสวม · คลิกช่องอุปกรณ์เพื่อถอด · ลากของมาวางที่ช่องได้</p>
       <div class="sp-points">แต้มคงเหลือ <b id="spPoints">0</b></div>
       <div id="spStats" class="sp-stats"></div>
       <button id="spRecommend" type="button" class="btn-ghost sp-rec">ลงแต้มแนะนำ (STR 40% · VIT 30% · AGI 20% · DEX 10%)</button>
       <div id="spDerived" class="sp-derived"></div>
       <p class="ap-note">กด + เพื่อลง 1 แต้ม, +5 เพื่อลง 5 แต้ม · ลงแล้วคืนไม่ได้ (รีเซ็ตได้ตอนเปลี่ยนอาชีพ)</p>
     </section>
+    <section id="invPanel" class="frame" hidden aria-label="กระเป๋า">
+      <div class="ap-head"><b>กระเป๋า</b><button id="invClose" type="button" aria-label="ปิด">✕</button></div>
+      <div id="invGrid" class="inv-grid"></div>
+      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="goldTxt">0</b> gold</span><span id="invCount">0/40</span></div>
+    </section>
+    <section id="shopPanel" class="frame" hidden aria-label="ร้านค้า">
+      <div class="ap-head"><b>ร้านค้าลุงสมปอง</b><button id="shopClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="tabs shop-tabs" role="tablist">
+        <button class="tab active" data-shop="buy">ซื้อ</button>
+        <button class="tab" data-shop="sell">ขาย</button>
+      </div>
+      <div id="shopList" class="shop-list"></div>
+      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="shopGold">0</b> gold</span>
+        <button id="sellJunk" type="button" class="btn-ghost small" hidden>ขายของดรอปทั้งหมด</button></div>
+    </section>
+    <div id="itemCard" class="frame" hidden></div>
+    <div id="tip" hidden></div>
     <section id="autoPanel" class="frame" hidden aria-label="ตั้งค่า AUTO">
       <div class="ap-head"><b>ตั้งค่า AUTO</b><button id="apClose" type="button" aria-label="ปิด">✕</button></div>
       <div class="ap-row"><span>ขอบเขตการตี (รัศมีรอบจุดที่กดเปิด AUTO หรือทั้งแมพ)</span><div id="apRadius" class="chips"></div></div>
       <div class="ap-row"><span>มอนสเตอร์ที่จะตี</span><div id="apKinds" class="ap-kinds"></div>
         <p class="ap-note">ไม่เลือกเลย = ตีทุกชนิดที่เลเวลไม่เกินเรา +2 · มอนที่มาตีเราจะสู้กลับเสมอ</p></div>
+      <div class="ap-row ap-toggles">
+        <label><input type="checkbox" id="apLoot" checked> เก็บของที่ดรอปอัตโนมัติ</label>
+        <label><input type="checkbox" id="apPotion" checked> กินยาแดงเมื่อ HP ต่ำกว่า 35%</label>
+      </div>
     </section>
     <div id="toast" role="status"></div>
     <div id="deathMsg" hidden>คุณถูกล้ม — กำลังฟื้นที่ลานกลางเมือง…</div>
-    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · C = สเตตัส · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
+    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Q E R F Z X V B = ช่องไอเทม · C = ตัวละคร · I = กระเป๋า · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
   </div>
 
   <script src="/lib/firebase-app.js"></script>
@@ -144,5 +172,6 @@
   <script src="/lib/phaser.min.js"></script>
   <script src="/lib/colyseus.js"></script>
   <script src="/game.js"></script>
+  <script src="/items-ui.js"></script>
 </body>
 </html>
