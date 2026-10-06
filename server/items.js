@@ -73,6 +73,15 @@ const DROPS = {
   boar:     [["boar_tusk", 0.55, 1, 1], ["stone_1", 0.1, 1, 2], ["stone_2", 0.05, 1, 1], ["potion_m", 0.06, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.01, 1, 1]],
   skeleton: [["old_bone", 0.55, 1, 2], ["stone_2", 0.07, 1, 1], ["stone_3", 0.015, 1, 1], ["potion_m", 0.08, 1, 1], ["glasses", 0.02, 1, 1], ["plate", 0.008, 1, 1]],
   orc:      [["orc_scrap", 0.55, 1, 2], ["stone_2", 0.08, 1, 2], ["stone_3", 0.03, 1, 1], ["potion_m", 0.1, 1, 2], ["waraxe", 0.01, 1, 1], ["plate", 0.01, 1, 1]],
+  wolfpup:     [["wolf_fang", 0.4, 1, 1], ["stone_1", 0.08, 1, 1], ["potion_s", 0.08, 1, 1]],
+  goblinchief: [["goblin_ear", 0.7, 1, 3], ["stone_1", 0.14, 1, 2], ["bandana", 0.02, 1, 1], ["ring_copper", 0.015, 1, 1], ["potion_s", 0.1, 1, 2]],
+  redwolf:     [["wolf_fang", 0.6, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.03, 1, 1], ["fang_necklace", 0.025, 1, 1], ["cape", 0.015, 1, 1]],
+  skelwarrior: [["old_bone", 0.6, 1, 2], ["stone_2", 0.08, 1, 1], ["nasal", 0.015, 1, 1], ["plate", 0.01, 1, 1], ["potion_m", 0.1, 1, 1]],
+  shadowwolf:  [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.09, 1, 1], ["fang_necklace", 0.03, 1, 1], ["boots", 0.02, 1, 1]],
+  orcchief:    [["orc_scrap", 0.7, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.03, 1, 1], ["waraxe", 0.02, 1, 1], ["plate", 0.015, 1, 1]],
+  snowwolf:    [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.035, 1, 1], ["fang_necklace", 0.03, 1, 1]],
+  frostskel:   [["old_bone", 0.6, 2, 3], ["stone_3", 0.045, 1, 1], ["glasses", 0.02, 1, 1], ["potion_m", 0.12, 1, 2]],
+  snoworc:     [["orc_scrap", 0.65, 2, 3], ["stone_3", 0.055, 1, 1], ["waraxe", 0.02, 1, 1], ["boar_charm", 0.02, 1, 1]],
 };
 // เงินที่ได้ต่อการฆ่า 1 ตัว (แบ่งตามดาเมจเหมือน EXP)
 const goldDrop = (mobLv) => Math.round(mobLv * 2.5 + Math.random() * mobLv * 2);

@@ -97,7 +97,7 @@ async function loadOverview() {
   const rows = d.online.map((o) => `<tr>
     <td>${esc(o.name)} ${o.auto ? '<span class="pill">AUTO</span>' : ""} ${o.dead ? '<span class="pill ban">ตาย</span>' : ""}</td>
     <td>${esc(o.loginId)}</td><td class="num">${o.level}</td><td class="hide-sm">${esc(o.jobName)}</td>
-    <td class="num">${fmt(o.hp)}/${fmt(o.maxHp)}</td><td class="num">${fmt(o.gold)}</td><td class="hide-sm">${o.tx}, ${o.ty}</td>
+    <td class="num">${fmt(o.hp)}/${fmt(o.maxHp)}</td><td class="num">${fmt(o.gold)}</td><td class="hide-sm">${esc(o.map || "")} (${o.tx}, ${o.ty})</td>
     <td class="row" style="justify-content:flex-end">
       <button class="btn" data-acc="${esc(o.uid)}">จัดการ</button>
       <button class="btn" data-town="${esc(o.charId)}" data-name="${esc(o.name)}">ส่งกลับเมือง</button>

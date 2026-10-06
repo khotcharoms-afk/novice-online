@@ -97,6 +97,7 @@
         <span id="pos">-</span>
       </div>
       <div class="zoom">
+        <button id="worldBtn" type="button" class="world-btn" title="แผนที่โลก (M)">🗺 แผนที่โลก</button>
         <button id="zoomOut" aria-label="ซูมออก">−</button>
         <span id="zoomTxt">150%</span>
         <button id="zoomIn" aria-label="ซูมเข้า">+</button>
@@ -175,6 +176,14 @@
       <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="smithGold">0</b> gold</span></div>
     </section>
     <div id="refineFx" aria-live="polite"></div>
+    <section id="worldPanel" class="frame" hidden aria-label="แผนที่โลก">
+      <div class="ap-head"><b>แผนที่โลก <span id="wmSub" class="wm-sub"></span></b><button id="wmClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="wm-body">
+        <div class="wm-map"><img id="wmImg" src="/assets/worldmap.jpg" alt="แผนที่โลก" draggable="false"><div id="wmPins"></div>
+          <div class="wm-legend"><span><i class="dot town"></i>เมือง (ปลอดภัย)</span><span><i class="dot easy"></i>ง่าย</span><span><i class="dot ok"></i>พอดี</span><span><i class="dot hard"></i>อันตราย</span></div></div>
+        <div id="wmInfo" class="wm-info"></div>
+      </div>
+    </section>
     <div id="itemCard" class="frame" hidden></div>
     <div id="tip" hidden></div>
     <section id="autoPanel" class="frame" hidden aria-label="ตั้งค่า AUTO">
@@ -191,7 +200,7 @@
     </section>
     <div id="toast" role="status"></div>
     <div id="deathMsg" hidden>คุณถูกล้ม — กำลังฟื้นที่ลานกลางเมือง…</div>
-    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Q E R F Z X V B = ช่องไอเทม · C = ตัวละคร · I = กระเป๋า · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
+    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Q E R F Z X V B = ช่องไอเทม · C = ตัวละคร · I = กระเป๋า · M = แผนที่โลก · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
   </div>
 
   <script src="/lib/firebase-app.js"></script>
@@ -201,6 +210,7 @@
   <script src="/game.js"></script>
   <script src="/items-ui.js"></script>
   <script src="/shop-ui.js"></script>
+  <script src="/worldmap-ui.js"></script>
   <script src="/windows.js"></script>
 </body>
 </html>

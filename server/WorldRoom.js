@@ -6,6 +6,10 @@ const { Room, ServerError } = require("colyseus");
 const { store, StoreError, isAdmin } = require("./store");
 const { Schema, MapSchema, defineTypes } = require("@colyseus/schema");
 const { generateMap, isWalkable } = require("./map");
+const W = require("./maps");
+// แผนที่สร้างจาก seed เดิมทุกครั้ง → เก็บไว้ใช้ซ้ำ
+const mapCache = {};
+const getMap = (id) => mapCache[id] || (mapCache[id] = generateMap(id));
 const { NavGrid } = require("./path");
 const D = require("./data");
 const I = require("./items");
@@ -39,7 +43,7 @@ class Drop extends Schema {}
 defineTypes(Drop, { item: "string", n: "uint16", x: "number", y: "number", r: "uint8" }); // r = ระดับความหายาก (อุปกรณ์)
 class Monster extends Schema {}
 defineTypes(Monster, {
-  kind: "string", name: "string", level: "uint16",
+  kind: "string", name: "string", level: "uint16", sprite: "string", tint: "uint32", scale: "number",
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean",
   hp: "uint32", maxHp: "uint32",
 });
@@ -69,8 +73,23 @@ const rooms = new Set();  // ห้องโลกเกมที่เปิด
 const maint = { endAt: 0, msg: "", closed: false, timer: null };
 const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.loginId === "admin");
 
+// ข้อมูลโลกสำหรับหน้าต่างแผนที่โลก: แต่ละแผนที่มีมอนอะไร ดรอปอะไร บริการอะไร
+let worldCache = null;
+function worldInfo() {
+  if (worldCache) return worldCache;
+  worldCache = { name: W.WORLD_NAME, maps: Object.entries(W.MAPS).map(([id, m]) => ({
+    id, name: m.name, type: m.type, lv: m.lv, desc: m.desc, world: m.world, season: m.season,
+    exits: Object.values(m.exits),
+    mobs: [...new Set(m.spawns.map(([k]) => k))].map((k) => ({ kind: k, name: D.MONSTERS[k].name, level: D.MONSTERS[k].level,
+      aggressive: D.MONSTERS[k].aggressive, drops: (I.DROPS[k] || []).map(([id]) => id) })),
+    services: m.type === "town" ? ["ร้านค้า (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)"] : [],
+  })) };
+  return worldCache;
+}
+
 class WorldRoom extends Room {
   static isOnline(charId) { return online.has(String(charId)); }
+  static worldInfo() { return worldInfo(); }
 
   // ตรวจตั๋วล็อกอิน + ความเป็นเจ้าของตัวละคร ก่อนให้เข้าห้อง
   async onAuth(client, options) {
@@ -79,12 +98,16 @@ class WorldRoom extends Room {
       if (maint.closed && !adminLogin(user)) throw new StoreError("เซิร์ฟเวอร์ปิดปรับปรุงชั่วคราว ลองใหม่อีกสักครู่");
       let char = await store.load(user.uid, options && options.charId);
       const live = online.get(char.id);
+      if (live) { const lp = live.room.state.players.get(live.sessionId); if (lp) char = { ...char, ...live.room.toData(lp) }; }
+      // ตัวละครอยู่แผนที่อื่น → บอก client ให้เข้าห้องที่ถูก
+      const charMap = W.MAPS[char.map] ? char.map : W.START_MAP;
+      if (charMap !== this.mapId) throw new StoreError("MAP:" + charMap);
       if (live) {
         // ตัวละครนี้ออนไลน์อยู่ในอีกหน้าต่าง → ใช้ข้อมูลล่าสุดจากในเกม แล้วเตะหน้าต่างเก่าออก
-        const lp = live.room.state.players.get(live.sessionId);
-        if (lp) char = { ...char, ...live.room.toData(lp) };
         const old = live.room.clients.find((c) => c.sessionId === live.sessionId);
-        if (old) { old.send("system", "ตัวละครนี้ถูกเข้าเกมจากที่อื่น"); old.leave(4001); }
+        const lp = live.room.state.players.get(live.sessionId);
+        if (old && lp && lp.warp) old.leave(4005); // ย้ายแผนที่ — ปิดห้องเก่าเงียบ ๆ
+        else if (old) { old.send("system", "ตัวละครนี้ถูกเข้าเกมจากที่อื่น"); old.leave(4001); }
       }
       return { user, char };
     } catch (e) {
@@ -93,19 +116,34 @@ class WorldRoom extends Room {
     }
   }
 
-  onCreate() {
+  onCreate(options) {
     this.maxClients = 100;
     rooms.add(this);
-    this.map = generateMap();
+    this.mapId = W.MAPS[options && options.mapId] ? options.mapId : W.START_MAP;
+    this.def = W.MAPS[this.mapId];
+    this.map = getMap(this.mapId);
     const cx = (this.map.width / 2) * this.map.tile, cy = (this.map.height / 2) * this.map.tile;
-    this.npcs = [
-      { id: "merchant", name: "ลุงสมปอง (ร้านค้า)", sprite: "npc_merchant", x: cx - 96, y: cy - 70 },
-      { id: "smith", name: "ลุงเหล็กกล้า (ตีบวก)", sprite: "npc_smith", x: cx + 96, y: cy - 70 },
+    this.npcs = this.def.type !== "town" ? [] : [
+      { id: "merchant", name: "ลุงสมปอง (ร้านค้า)", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
+      { id: "smith", name: "ลุงเหล็กกล้า (ตีบวก)", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
     ];
+    this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
     this.dr = new Map(); // ข้อมูลภายในของของบนพื้น: owner, until, expire
     const T = this.map.tile;
     this.nav = new NavGrid(this.map.width, this.map.height, T, (tx, ty) => this.canStand(tx * T + T / 2, ty * T + T / 2));
+    // ช่องที่เดินไปถึงได้จากจุดเกิด (มอนจะไม่เกิดในที่ปิดตาย)
+    {
+      const MW = this.map.width, MH = this.map.height, ok = (tx, ty) => this.canStand(tx * T + T / 2, ty * T + T / 2);
+      this.reach = new Uint8Array(MW * MH);
+      const st = [[Math.floor(this.map.spawn.x / T), Math.floor(this.map.spawn.y / T)]];
+      while (st.length) {
+        const [x, y] = st.pop();
+        if (x < 0 || y < 0 || x >= MW || y >= MH || this.reach[y * MW + x] || !ok(x, y)) continue;
+        this.reach[y * MW + x] = 1;
+        st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      }
+    }
     this.setState(new WorldState());
     this.pr = new Map(); // ข้อมูลภายในของผู้เล่น (ไม่ส่งให้ client)
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
@@ -124,8 +162,11 @@ class WorldRoom extends Room {
       client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
-        npcs: this.npcs,
-        mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) });
+        npcs: this.npcs, online: online.size,
+        mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
+        portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })),
+        world: worldInfo(),
+        mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level, sprite: m.sprite, aggressive: m.aggressive }])) });
 
     this.onMessage("moveTo", (client, m) => {
       const r = this.alive(client); if (!r || !m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -208,7 +249,8 @@ class WorldRoom extends Room {
       if (now() - r.lastChat < 700) return;
       r.lastChat = now();
       const clean = text.trim().slice(0, 100);
-      if (clean) this.broadcast("chat", { id: client.sessionId, name: p.name, text: clean });
+      // แชทถึงทุกแผนที่
+      if (clean) rooms.forEach((rm) => rm.broadcast("chat", { id: client.sessionId, name: p.name, text: clean, map: this.def.name }));
     });
 
     this.setSimulationInterval((dt) => this.update(dt), TICK_MS);
@@ -219,8 +261,11 @@ class WorldRoom extends Room {
   // ================= บันทึกตัวละคร =================
   toData(p) {
     const dead = p.dead || p.hp <= 0;
-    const spot = dead ? this.townSpawn() : p;
-    return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp,
+    // ตายอยู่ (ออกเกมระหว่างรอฟื้น) → บันทึกเป็นที่เมือง
+    const deadOut = dead && !p.warp && this.mapId !== W.START_MAP;
+    const spot = p.warp || (deadOut ? getMap(W.START_MAP).spawn : dead ? this.townSpawn() : p);
+    const map = p.warp ? p.warp.map : deadOut ? W.START_MAP : this.mapId;
+    return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp, map,
       x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job,
       stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])), ...Bag.saveBag(p.bag) };
   }
@@ -255,7 +300,7 @@ class WorldRoom extends Room {
     this.applyCharData(p, c);
     if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
     if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
-    const s = Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
+    const s = c.map && Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
     p.x = s.x; p.y = s.y;
     p.sid = client.sessionId; // (ใช้ภายในเซิร์ฟเวอร์ ไม่ซิงก์)
     this.state.players.set(client.sessionId, p);
@@ -296,7 +341,7 @@ class WorldRoom extends Room {
     const out = [];
     online.forEach(({ room, sessionId }, charId) => {
       const p = room.state.players.get(sessionId), r = room.pr.get(sessionId);
-      if (p && r) out.push({ charId, uid: r.uid, loginId: r.loginId, name: p.name, level: p.level, jobName: p.jobName,
+      if (p && r) out.push({ charId, uid: r.uid, loginId: r.loginId, name: p.name, level: p.level, jobName: p.jobName, map: room.def.name,
         hp: p.hp, maxHp: p.maxHp, gold: p.bag ? p.bag.gold : 0, auto: p.auto, dead: p.dead,
         tx: Math.floor(p.x / room.map.tile), ty: Math.floor(p.y / room.map.tile) });
     });
@@ -319,7 +364,10 @@ class WorldRoom extends Room {
     const msg = fn(data);
     room.applyCharData(p, data);
     if (!data.heal && Number.isFinite(data.hp)) { p.hp = Math.max(1, Math.min(p.maxHp, data.hp)); p.sp = Math.max(0, Math.min(p.maxSp, data.sp)); }
-    if (data.x == null) { const s = room.townSpawn(); p.x = s.x; p.y = s.y; const r = room.pr.get(sessionId); if (r) { r.nav = null; r.moveTarget = null; r.target = null; r.pick = null; } }
+    if (data.x == null) {
+      if (room.mapId !== W.START_MAP) { room.warpPlayer(sessionId, W.START_MAP, null); return true; }
+      const s = room.townSpawn(); p.x = s.x; p.y = s.y; const r = room.pr.get(sessionId); if (r) { r.nav = null; r.moveTarget = null; r.target = null; r.pick = null; }
+    }
     if (data.heal) { p.dead = false; p.hp = p.maxHp; p.sp = p.maxSp; }
     room.syncPet(sessionId);
     room.sendInv(sessionId);
@@ -434,12 +482,13 @@ class WorldRoom extends Room {
 
   // ================= มอนสเตอร์ =================
   spawnMonsters() {
-    for (const kind in D.MONSTERS) {
+    for (const [kind, count] of this.def.spawns) {
       const def = D.MONSTERS[kind];
-      for (let i = 0; i < def.count; i++) {
+      for (let i = 0; i < count; i++) {
         const id = "m" + this.mobSeq++;
         const m = new Monster();
         m.kind = kind; m.name = def.name; m.level = def.level;
+        m.sprite = def.sprite || kind; m.tint = def.tint || 0xffffff; m.scale = def.scale || 1;
         this.state.monsters.set(id, m);
         this.mr.set(id, { def, stats: D.monsterStats(def.level), home: null, target: null,
           wander: null, nextWander: 0, atkReady: 0, respawnAt: 0, dmgBy: new Map() });
@@ -451,19 +500,21 @@ class WorldRoom extends Room {
   respawnMob(id) {
     const m = this.state.monsters.get(id), r = this.mr.get(id);
     // จุดเกิดคงที่ของมอนแต่ละตัว → มอนเกิดใหม่ที่เดิม ความหนาแน่นในแต่ละโซนไม่เปลี่ยน
-    if (!r.spawn) r.spawn = this.ringSpot(r.def.ring);
+    if (!r.spawn) r.spawn = this.mobSpot();
     m.x = r.spawn.x; m.y = r.spawn.y; m.dir = "down"; m.moving = false; m.dead = false;
     m.maxHp = r.stats.maxHp; m.hp = m.maxHp;
     r.home = { ...r.spawn }; r.target = null; r.wander = null; r.returning = false; r.dmgBy.clear();
   }
 
-  ringSpot([lo, hi]) {
-    const { tile, width: W, height: H } = this.map;
-    for (let i = 0; i < 500; i++) {
-      const tx = Math.floor(Math.random() * W), ty = Math.floor(Math.random() * H);
-      const d = Math.max(Math.abs(tx - W / 2) / (W / 2), Math.abs(ty - H / 2) / (H / 2));
+  // จุดเกิดมอน: ที่เดินได้ ห่างทางเข้า/จุดเกิดผู้เล่นอย่างน้อย 9 ช่อง และไปถึงได้จากจุดเกิด
+  mobSpot() {
+    const { tile, width: MW, height: MH } = this.map;
+    const safe = [this.map.spawn, ...this.map.portals];
+    for (let i = 0; i < 800; i++) {
+      const tx = 3 + Math.floor(Math.random() * (MW - 6)), ty = 3 + Math.floor(Math.random() * (MH - 6));
       const x = tx * tile + tile / 2, y = ty * tile + tile - 4;
-      if (d >= lo && d <= hi && this.canStand(x, y)) return { x, y };
+      if (!this.canStand(x, y) || safe.some((q) => dist(q, { x, y }) < tile * 9)) continue;
+      if (!this.reach || this.reach[ty * MW + tx]) return { x, y };
     }
     return this.townSpawn();
   }
@@ -540,12 +591,21 @@ class WorldRoom extends Room {
     if (!r) return;
     if (p.dead) {
       if (t >= r.deadUntil) {
+        // ตายนอกเมือง → ฟื้นที่เมือง (เหมือนกลับจุดเซฟ)
+        if (this.mapId !== W.START_MAP && !p.warp) {
+          p.dead = false; p.hp = p.maxHp; p.sp = Math.max(p.sp, Math.floor(p.maxSp / 2));
+          this.warpPlayer(id, W.START_MAP, null);
+          return;
+        }
+        if (p.warp) return;
         const s = this.townSpawn();
         p.x = s.x; p.y = s.y; p.dead = false; p.hp = p.maxHp; p.sp = Math.max(p.sp, Math.floor(p.maxSp / 2));
         p.dir = "down";
       }
       return;
     }
+    if (p.warp) return; // กำลังย้ายแผนที่
+    this.checkPortals(id, p);
     const step = (SPEED * dt) / 1000;
     if (p.auto) this.autoThink(id, p, r);
 
@@ -1110,14 +1170,39 @@ class WorldRoom extends Room {
     );
   }
 
+  // จุดเกิดของแผนที่นี้ (เมือง = กลางลาน · ทุ่ง = หน้าทางไปเมือง) สุ่มรอบ ๆ เล็กน้อย
   townSpawn() {
-    const { tile, width, height } = this.map;
-    const cx = (width / 2) * tile, cy = (height / 2) * tile;
+    const { tile } = this.map, sp = this.map.spawn;
     for (let i = 0; i < 200; i++) {
-      const x = cx + rand(-0.5, 0.5) * tile * 8, y = cy + rand(-0.5, 0.5) * tile * 6;
+      const x = sp.x + rand(-0.5, 0.5) * tile * (this.def.type === "town" ? 8 : 4), y = sp.y + rand(-0.5, 0.5) * tile * 3;
       if (this.canStand(x, y)) return { x, y };
     }
-    return { x: cx, y: cy };
+    return { ...sp };
+  }
+
+  // ================= วาร์ปข้ามแผนที่ =================
+  // บันทึกตำแหน่งปลายทาง แล้วบอก client ให้ย้ายไปห้องของแผนที่นั้น
+  async warpPlayer(pid, toMap, pos) {
+    const p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || p.warp || !W.MAPS[toMap]) return;
+    const target = getMap(toMap);
+    if (!pos) { const back = target.portals.find((pt) => pt.to === this.mapId); pos = back && toMap !== W.START_MAP ? { x: back.x, y: back.y } : target.spawn; }
+    p.warp = { map: toMap, x: pos.x, y: pos.y };
+    this.setAuto(pid, false);
+    r.moveTarget = null; r.target = null; r.pick = null; r.nav = null; p.moving = false;
+    await this.save(pid);
+    const client = this.clients.find((c) => c.sessionId === pid);
+    if (client) client.send("warp", { map: toMap, name: W.MAPS[toMap].name });
+  }
+  checkPortals(pid, p) {
+    if (p.warp || p.dead) return;
+    for (const pt of this.map.portals) {
+      const b = pt.box;
+      if (p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1) {
+        const back = getMap(pt.to).portals.find((q) => q.to === this.mapId);
+        return this.warpPlayer(pid, pt.to, back ? { x: back.x, y: back.y } : null);
+      }
+    }
   }
 }
 

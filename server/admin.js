@@ -94,7 +94,7 @@ const ACTIONS = {
     });
   },
   resetStats(c) { c.stats = D.baseStats(); return "รีเซ็ตสเตตัส (คืนแต้มทั้งหมด)"; },
-  town(c) { c.x = null; c.y = null; return "ส่งกลับเมือง"; },
+  town(c) { c.x = null; c.y = null; c.map = require("./maps").START_MAP; return "ส่งกลับเมือง"; },
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
 };
 
@@ -107,7 +107,7 @@ async function editChar(charId, action, args) {
   if (action === "heal") fail("ตัวละครออฟไลน์อยู่ (ฟื้นเลือดตอนเข้าเกมอยู่แล้ว)");
   const c = await store.loadAny(charId);
   msg = fn(c, args || {});
-  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y"];
+  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map"];
   await store.save(charId, Object.fromEntries(keep.filter((k) => k in c).map((k) => [k, c[k] === undefined ? null : c[k]])));
   return { msg, online: false };
 }

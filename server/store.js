@@ -40,7 +40,7 @@ function adminIds() {
 }
 const isAdmin = (loginId) => adminIds().includes(String(loginId || "").toLowerCase());
 const publicChar = (id, c) => ({
-  id, name: c.name, look: c.look, job: c.job, jobName: D.JOB_NAME[c.job] || c.job, level: c.level,
+  id, name: c.name, look: c.look, job: c.job, jobName: D.JOB_NAME[c.job] || c.job, level: c.level, map: c.map || null,
   gear: require("./inventory").gearString({ equip: c.equip || {} }),
 });
 

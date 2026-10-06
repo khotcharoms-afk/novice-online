@@ -85,12 +85,22 @@ const playerStats = (lv, st = baseStats()) => ({
 
 // ---------- มอนสเตอร์ ----------
 // ring = ระยะจากกลางแผนที่ (0 = กลาง, 1 = ขอบ) — ยิ่งไกลยิ่งแรง
+// sprite = ภาพที่ใช้ (assets/mobs/<sprite>.png) · tint = ย้อมสี (0xRRGGBB) · scale = ขนาด · จุดเกิดอยู่ใน maps.js
 const MONSTERS = {
-  goblin:   { name: "ก็อบลินป่า",       level: 2,  count: 16, ring: [0.14, 0.36], speed: 70,  aggressive: false },
-  wolf:     { name: "หมาป่าเร่ร่อน",    level: 6,  count: 14, ring: [0.32, 0.55], speed: 95,  aggressive: false },
-  boar:     { name: "หมูป่าคลั่ง",       level: 10, count: 12, ring: [0.50, 0.70], speed: 80,  aggressive: true },
-  skeleton: { name: "โครงกระดูกเฝ้าป่า", level: 14, count: 10, ring: [0.64, 0.84], speed: 75,  aggressive: true },
-  orc:      { name: "ออร์คนักรบ",        level: 18, count: 8,  ring: [0.78, 0.94], speed: 85,  aggressive: true },
+  goblin:      { name: "ก็อบลินป่า",          level: 2,  sprite: "goblin",   speed: 70,  aggressive: false },
+  wolfpup:     { name: "ลูกหมาป่า",          level: 4,  sprite: "wolf",     speed: 85,  aggressive: false, tint: 0xd8c8b0, scale: 0.85 },
+  wolf:        { name: "หมาป่าเร่ร่อน",       level: 6,  sprite: "wolf",     speed: 95,  aggressive: false },
+  goblinchief: { name: "ก็อบลินหัวหน้า",       level: 8,  sprite: "goblin",   speed: 75,  aggressive: true,  tint: 0xff9a80, scale: 1.12 },
+  boar:        { name: "หมูป่าคลั่ง",          level: 10, sprite: "boar",     speed: 80,  aggressive: true },
+  redwolf:     { name: "หมาป่าแดง",          level: 13, sprite: "wolf",     speed: 100, aggressive: true,  tint: 0xff8a5a },
+  skeleton:    { name: "โครงกระดูกเฝ้าป่า",    level: 14, sprite: "skeleton", speed: 75,  aggressive: true },
+  orc:         { name: "ออร์คนักรบ",           level: 18, sprite: "orc",      speed: 85,  aggressive: true },
+  skelwarrior: { name: "โครงกระดูกนักรบ",     level: 20, sprite: "skeleton", speed: 80,  aggressive: true,  tint: 0xffd890, scale: 1.1 },
+  shadowwolf:  { name: "หมาป่าเงา",          level: 22, sprite: "wolf",     speed: 105, aggressive: true,  tint: 0x8a70c8 },
+  orcchief:    { name: "หัวหน้าออร์ค",         level: 25, sprite: "orc",      speed: 85,  aggressive: true,  tint: 0xff7070, scale: 1.18 },
+  snowwolf:    { name: "หมาป่าหิมะ",          level: 28, sprite: "wolf",     speed: 105, aggressive: true,  tint: 0xe8f4ff, scale: 1.05 },
+  frostskel:   { name: "โครงกระดูกน้ำแข็ง",    level: 30, sprite: "skeleton", speed: 80,  aggressive: true,  tint: 0x90e0ff },
+  snoworc:     { name: "ออร์คหิมะ",           level: 33, sprite: "orc",      speed: 85,  aggressive: true,  tint: 0xc8e8ff, scale: 1.15 },
 };
 const monsterStats = (lv) => ({
   maxHp: 30 + lv * 20 + Math.round(0.5 * lv * lv),

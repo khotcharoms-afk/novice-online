@@ -26,6 +26,7 @@ let room = null;
 let MANIFEST = { equip: [], icons: [] };
 let scene = null;
 let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
+let WORLD = null, CUR_MAP = null, leavingForWarp = false; // ข้อมูลโลก (ทุกแผนที่) / แผนที่ปัจจุบัน
 
 // =============================================================
 //  ล็อกอินด้วย ID (ใช้ Firebase Auth — ID ถูกแปลงเป็นอีเมลภายใน id@โดเมนเกม)
@@ -165,6 +166,13 @@ async function openSelect() {
   }
   $("acctId").textContent = account.loginId;
   $("adminLink").hidden = !account.admin;
+  // กลับเข้าเกมอัตโนมัติ (หลังย้ายแผนที่ / เซิร์ฟเวอร์อัปเดต)
+  const auto = sessionStorage.getItem("pn_auto");
+  if (auto) {
+    sessionStorage.removeItem("pn_auto");
+    const c = account.chars.find((x) => x.id === auto);
+    if (c) { showTravel(c.map); return enterGame(c, document.createElement("button")); }
+  }
   const box = $("slots");
   box.innerHTML = "";
   for (let i = 0; i < account.slots; i++) {
@@ -265,19 +273,33 @@ $("createBtn").onclick = async () => {
 // =============================================================
 //  เข้าเกม
 // =============================================================
+// เข้าห้องของแผนที่ที่ตัวละครอยู่ (ถ้าเซิร์ฟเวอร์บอกว่าอยู่แผนที่อื่น → เข้าห้องนั้นแทน)
+async function joinMap(client, c, mapId, tries = 0) {
+  try { const r = await client.joinOrCreate("world", { token: await getToken(), charId: c.id, mapId }); r.mapId = mapId; return r; }
+  catch (e) {
+    const m = /MAP:(\w+)/.exec(e.message || "");
+    if (m && tries < 2) return joinMap(client, c, m[1], tries + 1);
+    throw e;
+  }
+}
 async function enterGame(c, btn) {
   btn.disabled = true;
   setErr("selectErr");
   try {
     MANIFEST = await (await fetch("/assets/manifest.json")).json();
+    if (!WORLD) WORLD = await (await fetch("/api/world")).json();
     const client = new Colyseus.Client(SERVER_URL);
-    room = await client.joinOrCreate("world", { token: await getToken(), charId: c.id });
+    room = await joinMap(client, c, c.map || "town");
+    room.onMessage("warp", (w) => travelTo(c, w));
+    myCharId = c.id;
+    room.onMessage("online", (n) => { $("online").textContent = n; });
     room.onMessage("system", (text) => addChat("system", esc(text)));
     room.onMessage("maint", (info) => onMaint(info));
     room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text }) => {
       addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
+      saveChat();
       const v = scene && scene.views.get(id);
       if (v) scene.showBubble(v, text);
     });
@@ -286,9 +308,11 @@ async function enterGame(c, btn) {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
       else if (code === 4003) showDownScreen("maint");
+      else if (code === 4005 || leavingForWarp) return;
       else if (code !== 1000) showDownScreen(code === 4004 ? "restart" : "lost");
     });
     clearInterval(animTimer);
+    restoreChat();
     $("login").remove();
     $("hud").hidden = false;
     $("exitBtn").onclick = async () => { await room.leave(); location.reload(); };
@@ -309,8 +333,9 @@ class WorldScene extends Phaser.Scene {
   constructor() { super("world"); }
 
   preload() {
-    this.load.image("terrain", "/assets/terrain.png");
-    this.load.atlas("obj", "/assets/objects.png", "/assets/objects.json");
+    const season = (WORLD && WORLD.maps.find((m) => m.id === room.mapId) || {}).season || "summer";
+    this.load.image("terrain", `/assets/terrain_${season}.png`);
+    this.load.atlas("obj", `/assets/objects_${season}.png`, `/assets/objects_${season}.json`);
     const paths = new Set();
     for (const [sex] of LOOK_OPTS.sex) {
       for (const [skin] of LOOK_OPTS.skin) paths.add(`look/base_${sex}_${skin}`);
@@ -343,9 +368,10 @@ class WorldScene extends Phaser.Scene {
 
     room.onMessage("map", (data) => {
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
+      setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 300);
       $("apClose").onclick = () => toggleAutoPanel(false);
       setupStats();
-      if (!window._itemsUI) { window._itemsUI = 1; setupItemsUI(); } else renderItemBar();
+      if (!window._itemsUI) { window._itemsUI = 1; setupItemsUI(); setupWorldUI(); } else renderItemBar();
     });
     // วงขอบเขต AUTO บนพื้น
     this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.08).setStrokeStyle(3, 0xffd36b, 0.85)
@@ -546,14 +572,31 @@ class WorldScene extends Phaser.Scene {
     }
     this.cameras.main.setBounds(0, 0, W * T, H * T);
     this.buildNpcs(map.npcs || []);
-    $("mapName").textContent = map.name;
+    this.buildPortals(map.portals || []);
+    $("mapName").textContent = map.name + (map.lv ? ` Lv.${map.lv[0]}–${map.lv[1]}` : " · ปลอดภัย");
+    if (map.online) $("online").textContent = map.online;
     buildMinimap(map);
+  }
+
+  // ทางออกไปแผนที่อื่น: วงเวทเรืองแสง + ป้ายชื่อปลายทาง
+  buildPortals(list) {
+    for (const p of list) {
+      const x = (p.box.x0 + p.box.x1) / 2, y = (p.box.y0 + p.box.y1) / 2;
+      const ring = this.add.ellipse(x, y, 92, 40, 0x7fd1ff, 0.18).setStrokeStyle(3, 0x9fe3ff, 0.9).setDepth(-9000);
+      const inner = this.add.ellipse(x, y, 56, 22, 0xffffff, 0.12).setDepth(-8999);
+      this.tweens.add({ targets: [ring, inner], alpha: { from: 1, to: 0.45 }, duration: 900, yoyo: true, repeat: -1 });
+      const lv = p.toLv ? ` Lv.${p.toLv[0]}–${p.toLv[1]}` : " (เมือง)";
+      const ly = p.edge === "N" ? y + 44 : y - 30;
+      this.add.text(x, ly, `${{ N: "▲", S: "▼", W: "◀", E: "▶" }[p.edge]} ${p.toName}${lv}`, {
+        fontFamily: "Mitr, sans-serif", fontSize: "12px", color: "#bfeaff", stroke: "#0d1124", strokeThickness: 4, resolution: 2,
+      }).setOrigin(0.5, 0.5).setDepth(1e5);
+    }
   }
 
   // ---------- ตัวละคร / มอนสเตอร์ ----------
   createView(e, id, isMob) {
     const isMe = id === room.sessionId;
-    const key = isMob ? "mob_" + e.kind : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
+    const key = isMob ? "mob_" + (e.sprite || e.kind) : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
@@ -563,6 +606,8 @@ class WorldScene extends Phaser.Scene {
     }).setOrigin(0.5, 1);
     const bars = this.add.graphics();
     root.add([shadow, sprite, bars, label]);
+    if (isMob && e.tint && e.tint !== 0xffffff) sprite.setTint(e.tint);
+    if (isMob && e.scale && e.scale !== 1) { sprite.setScale(e.scale); shadow.setScale(e.scale); label.y = -58 * e.scale; }
     if (isMob) {
       sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
       sprite.setData("mobId", id);
@@ -733,7 +778,7 @@ class WorldScene extends Phaser.Scene {
     this.tweens.add({ targets: m, scale: 0.2, alpha: 0, duration: 500, onComplete: () => m.destroy() });
   }
 
-  updateOnline() { $("online").textContent = room.state.players.size; }
+  updateOnline() {}
 
   // ---------- ทุกเฟรม ----------
   updatePets(time) {
@@ -1023,7 +1068,9 @@ function buildAutoPanel() {
   const kinds = $("apKinds");
   kinds.innerHTML = "";
   const me = room.state.players.get(room.sessionId);
-  Object.entries(gameData.mobs).forEach(([k, m]) => {
+  const here = gameData.mapMobs || Object.keys(gameData.mobs);
+  if (!here.length) kinds.innerHTML = `<p class="ap-note">แผนที่นี้ไม่มีมอนสเตอร์ (เมืองปลอดภัย)</p>`;
+  Object.entries(gameData.mobs).filter(([k]) => here.includes(k)).forEach(([k, m]) => {
     const diff = me ? m.level - me.level : 0;
     const color = diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ecebe4";
     const lab = document.createElement("label");
@@ -1073,6 +1120,8 @@ function renderMaint() {
   if (left <= 0) clearInterval(maintTick);
 }
 // ---------- หน้าจอตอนเซิร์ฟเวอร์หลุด / ปิดปรับปรุง / อัปเดต ----------
+let myCharId = null;
+const autoReenter = () => { try { if (myCharId) sessionStorage.setItem("pn_auto", myCharId); saveChat(); } catch {} };
 function showDownScreen(kind) {
   clearInterval(maintTick);
   const b = $("maintBar"); if (b) b.hidden = true;
@@ -1085,18 +1134,40 @@ function showDownScreen(kind) {
   }[kind];
   o.innerHTML = `<div class="frame"><h3>${TXT[0]}</h3><p>${TXT[1]}</p><p class="dots"><span></span><span></span><span></span></p>
     <button type="button" class="btn-gold" id="downRetry">เข้าใหม่ตอนนี้</button></div>`;
-  $("downRetry").onclick = () => location.reload();
+  $("downRetry").onclick = () => { autoReenter(); location.reload(); };
   // รอจนเซิร์ฟเวอร์ตอบ แล้วโหลดหน้าใหม่ (ปิดปรับปรุง = เช็คว่าเปิดให้เข้าแล้วหรือยัง)
   const check = async () => {
     try {
       const ok = (await fetch("/health", { cache: "no-store" })).ok;
-      if (ok && kind !== "maint") return location.reload();
-      if (ok && kind === "maint") { const m = await (await fetch("/api/status", { cache: "no-store" })).json(); if (!m.closed) return location.reload(); }
+      if (ok && kind !== "maint") { autoReenter(); return location.reload(); }
+      if (ok && kind === "maint") { const m = await (await fetch("/api/status", { cache: "no-store" })).json(); if (!m.closed) { autoReenter(); return location.reload(); } }
     } catch {}
     setTimeout(check, kind === "maint" ? 15000 : 3000);
   };
   setTimeout(check, kind === "restart" ? 2500 : 4000);
 }
+// ---------- ย้ายแผนที่ ----------
+// เซิร์ฟเวอร์บันทึกตำแหน่งใหม่แล้ว → ออกจากห้องนี้ แล้วโหลดหน้าใหม่ให้เข้าแผนที่ปลายทางอัตโนมัติ
+async function travelTo(c, w) {
+  leavingForWarp = true;
+  showTravel(w.map, w.name);
+  saveChat();
+  try { sessionStorage.setItem("pn_auto", c.id); } catch {}
+  try { await room.leave(true); } catch {}
+  location.reload();
+}
+function showTravel(mapId, name) {
+  let o = $("travel");
+  if (!o) { o = document.createElement("div"); o.id = "travel"; document.body.appendChild(o); }
+  const m = WORLD && WORLD.maps.find((x) => x.id === mapId);
+  const nm = name || (m && m.name) || "";
+  o.innerHTML = `<div><small>กำลังเดินทางไป</small><b>${esc(nm)}</b>${m && m.lv ? `<span>Lv.${m.lv[0]}–${m.lv[1]}</span>` : ""}</div>`;
+  o.classList.add("show");
+}
+// เก็บแชทไว้ข้ามการโหลดหน้า
+function saveChat() { try { sessionStorage.setItem("pn_chat", $("chatLog").innerHTML.slice(-20000)); } catch {} }
+function restoreChat() { try { const h = sessionStorage.getItem("pn_chat"); if (h) $("chatLog").innerHTML = h; } catch {} }
+
 // ป้ายประกาศจากแอดมิน (กลางบนจอ 8 วินาที)
 function showAnnounce(text) {
   let el = $("announce");
@@ -1121,7 +1192,8 @@ function buildMinimap(map) {
   miniBase = document.createElement("canvas");
   miniBase.width = cv.width; miniBase.height = cv.height;
   const ctx = miniBase.getContext("2d");
-  const COL = ["#5b9a3f", "#b98d5b", "#2f86a6"];
+  const COL = { spring: ["#6bb04a", "#b98d5b", "#2f86a6"], summer: ["#5b9a3f", "#b98d5b", "#2f86a6"],
+    autumn: ["#b89a3c", "#a07850", "#2f86a6"], winter: ["#dfeef5", "#a9c7d8", "#4f8fb0"] }[map.season] || ["#5b9a3f", "#b98d5b", "#2f86a6"];
   for (let y = 0; y < map.height; y++)
     for (let x = 0; x < map.width; x++) {
       ctx.fillStyle = COL[map.ground[y * map.width + x]];
@@ -1129,8 +1201,13 @@ function buildMinimap(map) {
     }
   for (const o of map.objects) {
     if (!o.b) continue;
-    ctx.fillStyle = /oak|pine|dead/.test(o.k) ? "#24502a" : /rock/.test(o.k) ? "#9a9a9a" : "#3c7a33";
+    ctx.fillStyle = /oak|pine|dead/.test(o.k) ? (map.season === "autumn" ? "#9a4a1c" : map.season === "winter" ? "#6c8c9a" : "#24502a") : /rock/.test(o.k) ? "#9a9a9a" : "#3c7a33";
     ctx.fillRect((o.x / T) * sx - 1, (o.y / T) * sy - 2, 3, 3);
+  }
+  for (const p of map.portals || []) {
+    const x = ((p.box.x0 + p.box.x1) / 2 / T) * sx, y = ((p.box.y0 + p.box.y1) / 2 / T) * sy;
+    ctx.fillStyle = "#9fe3ff"; ctx.strokeStyle = "#0d1124"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.stroke(); ctx.fill();
   }
   cv.onclick = (e) => {
     const r = cv.getBoundingClientRect();

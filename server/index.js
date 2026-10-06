@@ -29,6 +29,7 @@ app.get("/credits", (_req, res) =>
   res.type("text/plain; charset=utf-8").sendFile(path.join(__dirname, "..", "CREDITS.md"))
 );
 app.get("/health", (_req, res) => res.send("ok"));
+app.get("/api/world", (_req, res) => res.json(WorldRoom.worldInfo()));
 app.get("/api/status", (_req, res) => res.json({ closed: WorldRoom.maintInfo().closed }));
 
 // ---------------- API บัญชี & ตัวละคร ----------------
@@ -58,7 +59,7 @@ app.delete("/api/chars/:id", api(async (user, req) => {
 const gameServer = new Server({
   transport: new WebSocketTransport({ server: http.createServer(app) }),
 });
-gameServer.define("world", WorldRoom);
+gameServer.define("world", WorldRoom).filterBy(["mapId"]); // 1 ห้องต่อ 1 แผนที่
 
 gameServer.listen(PORT).then(() => {
   console.log(`🎮 Game server running on http://localhost:${PORT}`);
