@@ -232,7 +232,7 @@ button { font: inherit; color: inherit; }
 .sp-points { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 .sp-points b { color: var(--name); font-size: 16px; font-weight: 500; }
 .sp-stats { display: grid; gap: 4px; margin-bottom: 8px; }
-.sp-row { display: grid; grid-template-columns: 40px 1fr 44px 40px 28px 32px; align-items: center; gap: 6px;
+.sp-row { display: grid; align-items: center; gap: 6px;
   padding: 4px 6px; border-radius: 7px; background: rgba(13, 17, 36, .6); border: 1px solid #2c3561; }
 .sp-row b { font-weight: 500; color: var(--name); font-size: 13px; }
 .sp-row span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -263,7 +263,7 @@ button { font: inherit; color: inherit; }
 .eq-slot.over, .inv-slot.over, .slot.over { border-color: var(--name); box-shadow: 0 0 0 1px var(--name); }
 .doll-note { margin: 0 0 8px; }
 .sp-row em .bonus { color: #7dff9a; font-size: 11px; margin-left: 2px; }
-.sp-row { grid-template-columns: 44px 1fr 52px 30px 34px; }
+.sp-row { grid-template-columns: 38px 1fr 58px 38px 28px 32px; gap: 5px; }
 
 /* ---------- กระเป๋า ---------- */
 #invPanel { right: 10px; top: 250px; width: 330px; padding: 10px 12px 10px; z-index: 8; }
