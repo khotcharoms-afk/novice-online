@@ -43,7 +43,10 @@ const api = (fn) => async (req, res) => {
     res.status(e instanceof StoreError ? 400 : 401).json({ error: e instanceof StoreError ? e.message : "กรุณาล็อกอินใหม่" });
   }
 };
-app.get("/api/chars", api(async (user) => ({ loginId: user.loginId, slots: user.slots, chars: await store.list(user.uid) })));
+const admin = require("./admin");
+app.get("/api/chars", api(async (user) => ({ loginId: user.loginId, slots: user.slots, admin: admin.adminOk(user), chars: await store.list(user.uid) })));
+admin.mount(app, api);
+app.get("/admin", (_req, res) => res.sendFile(path.join(__dirname, "..", "public", "admin.html")));
 app.post("/api/chars", api(async (user, req) => ({ char: await store.create(user, req.body.name, req.body.look) })));
 app.delete("/api/chars/:id", api(async (user, req) => {
   if (WorldRoom.isOnline(req.params.id)) throw new StoreError("ตัวละครนี้กำลังออนไลน์อยู่ ออกจากเกมก่อนแล้วค่อยลบ");

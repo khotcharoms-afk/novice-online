@@ -163,6 +163,7 @@ async function openSelect() {
     return;
   }
   $("acctId").textContent = account.loginId;
+  $("adminLink").hidden = !account.admin;
   const box = $("slots");
   box.innerHTML = "";
   for (let i = 0; i < account.slots; i++) {
@@ -271,6 +272,7 @@ async function enterGame(c, btn) {
     const client = new Colyseus.Client(SERVER_URL);
     room = await client.joinOrCreate("world", { token: await getToken(), charId: c.id });
     room.onMessage("system", (text) => addChat("system", esc(text)));
+    room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text }) => {
       addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
       const v = scene && scene.views.get(id);
@@ -279,6 +281,7 @@ async function enterGame(c, btn) {
     room.onMessage("toast", toast);
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
+      else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
       else if (code !== 1000) addChat("system", "หลุดการเชื่อมต่อ — รีเฟรชหน้าเพื่อเข้าใหม่");
     });
     clearInterval(animTimer);
@@ -1011,6 +1014,15 @@ function buildAutoPanel() {
 }
 
 let toastTimer = null;
+// ป้ายประกาศจากแอดมิน (กลางบนจอ 8 วินาที)
+function showAnnounce(text) {
+  let el = $("announce");
+  if (!el) { el = document.createElement("div"); el.id = "announce"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+  el.textContent = "📢 " + text;
+  el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+  clearTimeout(showAnnounce.t);
+  showAnnounce.t = setTimeout(() => el.classList.remove("show"), 8000);
+}
 function toast(text) {
   const el = $("toast");
   el.textContent = text;

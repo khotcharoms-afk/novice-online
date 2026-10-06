@@ -64,6 +64,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 
 const SAVE_EVERY_MS = 60000;
 const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
+const rooms = new Set();  // ห้องโลกเกมที่เปิดอยู่
 
 class WorldRoom extends Room {
   static isOnline(charId) { return online.has(String(charId)); }
@@ -90,6 +91,7 @@ class WorldRoom extends Room {
 
   onCreate() {
     this.maxClients = 100;
+    rooms.add(this);
     this.map = generateMap();
     const cx = (this.map.width / 2) * this.map.tile, cy = (this.map.height / 2) * this.map.tile;
     this.npcs = [{ id: "merchant", name: "ลุงสมปอง (ร้านค้า)", sprite: "npc_merchant", x: cx - 96, y: cy - 70 }];
@@ -186,6 +188,7 @@ class WorldRoom extends Room {
     if (!p || !r || !r.charId) return Promise.resolve();
     return store.save(r.charId, this.toData(p)).catch((e) => console.error("save failed", r.charId, e.message));
   }
+  onDispose() { rooms.delete(this); }
   async onBeforeShutdown() {
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
     this.disconnect();
@@ -200,6 +203,26 @@ class WorldRoom extends Room {
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = AUTO_RADII[1];
+    this.applyCharData(p, c);
+    if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
+    if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
+    const s = Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
+    p.x = s.x; p.y = s.y;
+    this.state.players.set(client.sessionId, p);
+    online.set(c.id, { room: this, sessionId: client.sessionId });
+    this.pr.set(client.sessionId, {
+      charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId,
+      moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
+      autoCfg: { radius: AUTO_RADII[1], kinds: [] },
+      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0,
+    });
+    this.syncPet(client.sessionId);
+    this.sendInv(client.sessionId);
+    this.broadcast("system", `${p.name} เข้าสู่เกม`);
+  }
+
+  // ใส่ข้อมูลที่บันทึกไว้ (เลเวล สเตตัส กระเป๋า) ลงตัวละครในเกม — ใช้ตอนเข้าเกม และตอนแอดมินแก้ข้อมูล
+  applyCharData(p, c) {
     p.level = Math.max(1, Math.min(D.MAX_LEVEL, c.level || 1));
     p.expNext = D.expToNext(p.level);
     p.exp = Math.min(c.exp || 0, Math.max(0, p.expNext - 1));
@@ -215,22 +238,58 @@ class WorldRoom extends Room {
     p.bag = Bag.loadBag(c);
     p.gear = Bag.gearString(p.bag);
     this.applyStats(p, true);
-    if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
-    if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
-    const s = Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
-    p.x = s.x; p.y = s.y;
-    this.state.players.set(client.sessionId, p);
-    online.set(c.id, { room: this, sessionId: client.sessionId });
-    this.pr.set(client.sessionId, {
-      charId: c.id, uid: auth.user.uid,
-      moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
-      autoCfg: { radius: AUTO_RADII[1], kinds: [] },
-      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0,
-    });
-    this.syncPet(client.sessionId);
-    this.sendInv(client.sessionId);
-    this.broadcast("system", `${p.name} เข้าสู่เกม`);
   }
+
+  // ================= แอดมิน =================
+  // ตัวละครที่ออนไลน์อยู่ทั้งหมด (ทุกห้อง)
+  static onlineList() {
+    const out = [];
+    online.forEach(({ room, sessionId }, charId) => {
+      const p = room.state.players.get(sessionId), r = room.pr.get(sessionId);
+      if (p && r) out.push({ charId, uid: r.uid, loginId: r.loginId, name: p.name, level: p.level, jobName: p.jobName,
+        hp: p.hp, maxHp: p.maxHp, gold: p.bag ? p.bag.gold : 0, auto: p.auto, dead: p.dead,
+        tx: Math.floor(p.x / room.map.tile), ty: Math.floor(p.y / room.map.tile) });
+    });
+    return out.sort((a, b) => b.level - a.level);
+  }
+  static worldStats() {
+    let monsters = 0, alive = 0, drops = 0, pets = 0;
+    rooms.forEach((rm) => { rm.state.monsters.forEach((m) => { monsters++; if (!m.dead) alive++; }); drops += rm.state.drops.size; pets += rm.state.pets.size; });
+    return { players: online.size, monsters, alive, drops, pets, rooms: rooms.size };
+  }
+  // แก้ข้อมูลตัวละครที่ออนไลน์อยู่: fn ได้ข้อมูลรูปแบบเดียวกับที่บันทึก แก้แล้วใส่กลับเข้าเกมทันที
+  // คืน true ถ้าออนไลน์ (แก้ในเกมแล้ว) / false ถ้าออฟไลน์
+  static async editLive(charId, fn) {
+    const o = online.get(String(charId));
+    if (!o) return false;
+    const { room, sessionId } = o;
+    const p = room.state.players.get(sessionId);
+    if (!p) return false;
+    const data = room.toData(p);
+    const msg = fn(data);
+    room.applyCharData(p, data);
+    if (!data.heal && Number.isFinite(data.hp)) { p.hp = Math.max(1, Math.min(p.maxHp, data.hp)); p.sp = Math.max(0, Math.min(p.maxSp, data.sp)); }
+    if (data.x == null) { const s = room.townSpawn(); p.x = s.x; p.y = s.y; const r = room.pr.get(sessionId); if (r) { r.nav = null; r.moveTarget = null; r.target = null; r.pick = null; } }
+    if (data.heal) { p.dead = false; p.hp = p.maxHp; p.sp = p.maxSp; }
+    room.syncPet(sessionId);
+    room.sendInv(sessionId);
+    const client = room.clients.find((c) => c.sessionId === sessionId);
+    if (client && msg) client.send("system", "[แอดมิน] " + msg);
+    await room.save(sessionId);
+    return true;
+  }
+  static kick(charId, reason) {
+    const o = online.get(String(charId));
+    const client = o && o.room.clients.find((c) => c.sessionId === o.sessionId);
+    if (!client) return false;
+    client.send("system", reason || "ถูกแอดมินนำออกจากเกม");
+    client.leave(4002);
+    return true;
+  }
+  static kickUid(uid, reason) {
+    online.forEach((o, charId) => { const r = o.room.pr.get(o.sessionId); if (r && r.uid === uid) WorldRoom.kick(charId, reason); });
+  }
+  static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
 
   onLeave(client) {
     const p = this.state.players.get(client.sessionId), r = this.pr.get(client.sessionId);

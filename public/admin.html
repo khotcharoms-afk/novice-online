@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Novice Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1124; --ink: #141a33; --ink-2: #1e2650; --line: #2c3566; --brass: #c9a45c; --brass-dim: #7d6a43;
+      --text: #ecebe4; --muted: #a7abc4; --gold: #ffd36b; --good: #7dff9a; --bad: #ff7b7b; --blue: #7fb6ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Mitr", "Noto Sans Thai", system-ui, sans-serif; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #1a2148, #141a33); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 500; color: var(--gold); }
+    header .who { margin-left: auto; color: var(--muted); font-size: 13px; }
+    header a, .link { color: var(--blue); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 16px 20px 60px; }
+    nav.tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    nav.tabs button { background: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 16px; cursor: pointer; }
+    nav.tabs button.active { border-color: var(--brass); color: var(--gold); background: var(--ink-2); }
+    .card { background: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 500; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .stat { background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .stat small { color: var(--muted); display: block; font-size: 12px; }
+    .stat b { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tbl-wrap { overflow-x: auto; }
+    .btn { background: var(--ink-2); border: 1px solid var(--line); border-radius: 7px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+    .btn:hover { border-color: var(--brass-dim); }
+    .btn.gold { background: linear-gradient(180deg, #e3c27a, #b58d43); color: #23180a; border-color: #e3c27a; }
+    .btn.danger { border-color: #7a3a3a; color: var(--bad); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    input[type=text], input[type=number], input[type=password], select, textarea {
+      background: #0f1430; border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; min-width: 0; }
+    textarea { width: 100%; min-height: 80px; resize: vertical; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row + .row { margin-top: 8px; }
+    .muted { color: var(--muted); font-size: 12.5px; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; border: 1px solid var(--line); color: var(--muted); }
+    .pill.on { color: var(--good); border-color: #2f6a3e; }
+    .pill.ban { color: var(--bad); border-color: #7a3a3a; }
+    .pill.admin { color: var(--gold); border-color: var(--brass-dim); }
+    .acc-list { display: grid; gap: 6px; }
+    .acc-item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+      background: #111733; cursor: pointer; text-align: left; width: 100%; }
+    .acc-item:hover, .acc-item.sel { border-color: var(--brass); }
+    .acc-item b { font-weight: 500; }
+    .grid2 { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: start; }
+    .chars { display: grid; gap: 12px; }
+    .char { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #111733; }
+    .char h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .char .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+    .char .acts { display: grid; gap: 8px; }
+    .char .acts label { color: var(--muted); font-size: 12.5px; min-width: 76px; }
+    .inv { display: grid; grid-template-columns: repeat(auto-fill, 38px); gap: 4px; margin-top: 10px; }
+    .inv button { width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--line); background: #0c1129; position: relative; cursor: pointer; padding: 0; }
+    .inv button:hover { border-color: var(--bad); }
+    .inv img { width: 28px; height: 28px; image-rendering: pixelated; }
+    .inv .n { position: absolute; right: 2px; bottom: 0; font-size: 10px; text-shadow: 0 1px 2px #000; }
+    .eqline { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+    .eqline span { color: var(--text); }
+    .logs li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; list-style: none; }
+    .logs { padding: 0; margin: 0; }
+    #login { max-width: 360px; margin: 60px auto; }
+    #login label { display: block; margin-bottom: 10px; color: var(--muted); font-size: 13px; }
+    #login input { width: 100%; margin-top: 4px; padding: 8px 10px; }
+    .err { color: var(--bad); font-size: 13px; min-height: 1.4em; margin-top: 8px; }
+    #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #23305f; border: 1px solid var(--brass);
+      padding: 9px 18px; border-radius: 9px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 20; max-width: calc(100vw - 32px); }
+    #toast.show { opacity: 1; }
+    #toast.bad { border-color: var(--bad); }
+    .empty { color: var(--muted); padding: 14px 0; text-align: center; }
+    @media (max-width: 820px) {
+      .grid2 { grid-template-columns: 1fr; }
+      main { padding: 12px 16px 60px; }
+      header { padding: 10px 16px; }
+      .hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛠️ Novice Admin</h1>
+    <a href="/" target="_blank">เปิดเกม</a>
+    <span class="who" id="who"></span>
+    <button class="link" id="logout" hidden>ออกจากระบบ</button>
+  </header>
+
+  <main>
+    <!-- ล็อกอิน -->
+    <form id="login" class="card" hidden>
+      <h2>เข้าสู่เมนูแอดมิน</h2>
+      <label>ID <input id="lid" autocomplete="username" autocapitalize="none" spellcheck="false" /></label>
+      <label>รหัสผ่าน <input id="lpw" type="password" autocomplete="current-password" /></label>
+      <button class="btn gold" type="submit" id="lbtn" style="width:100%;padding:9px">เข้าสู่ระบบ</button>
+      <div class="err" id="lerr" role="alert"></div>
+      <p class="muted" id="lnote"></p>
+    </form>
+
+    <div id="app" hidden>
+      <nav class="tabs" role="tablist">
+        <button data-tab="ov" class="active" role="tab">ภาพรวม</button>
+        <button data-tab="pl" role="tab">ค้นหาผู้เล่น</button>
+        <button data-tab="an" role="tab">ประกาศ</button>
+        <button data-tab="lg" role="tab">บันทึกแอดมิน</button>
+      </nav>
+
+      <!-- ภาพรวม -->
+      <section id="tab-ov">
+        <div class="stats" id="stats"></div>
+        <div class="card">
+          <h2>ผู้เล่นออนไลน์ <span class="muted" id="ovTime"></span></h2>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>ตัวละคร</th><th>ID</th><th class="num">Lv</th><th class="hide-sm">อาชีพ</th><th class="num">HP</th>
+              <th class="num">gold</th><th class="hide-sm">ตำแหน่ง</th><th></th></tr></thead>
+            <tbody id="onlineRows"></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- ค้นหาผู้เล่น -->
+      <section id="tab-pl" hidden>
+        <div class="grid2">
+          <div class="card">
+            <h2>ค้นหาบัญชี</h2>
+            <form class="row" id="searchForm">
+              <input type="text" id="q" placeholder="ID หรือชื่อตัวละคร" style="flex:1" autocapitalize="none" />
+              <button class="btn gold" type="submit">ค้นหา</button>
+            </form>
+            <p class="muted" style="margin:8px 0">เว้นว่างแล้วกดค้นหา = บัญชีที่สมัครล่าสุด 30 บัญชี</p>
+            <div class="acc-list" id="accList"></div>
+          </div>
+          <div id="accDetail"><div class="card empty">เลือกบัญชีทางซ้ายเพื่อจัดการ</div></div>
+        </div>
+      </section>
+
+      <!-- ประกาศ -->
+      <section id="tab-an" hidden>
+        <div class="card">
+          <h2>ประกาศถึงผู้เล่นทุกคน</h2>
+          <textarea id="annText" maxlength="200" placeholder="เช่น เซิร์ฟเวอร์จะปิดปรับปรุง 5 นาที ตอน 22:00"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn gold" id="annSend">ส่งประกาศ</button>
+            <span class="muted">ขึ้นเป็นป้ายกลางจอ 8 วินาที + ในแชทของทุกคนที่ออนไลน์</span></div>
+        </div>
+      </section>
+
+      <!-- บันทึก -->
+      <section id="tab-lg" hidden>
+        <div class="card">
+          <h2>บันทึกการกระทำของแอดมิน <button class="btn" id="lgReload">รีเฟรช</button></h2>
+          <p class="muted">แสดงล่าสุดตั้งแต่เปิดเซิร์ฟเวอร์รอบนี้ (ของเก่าทั้งหมดเก็บใน Firestore คอลเลกชัน adminLogs)</p>
+          <ul class="logs" id="logs"></ul>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div id="toast" role="status"></div>
+
+  <script src="/lib/firebase-app.js"></script>
+  <script src="/lib/firebase-auth.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

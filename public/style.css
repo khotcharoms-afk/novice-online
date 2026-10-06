@@ -316,3 +316,8 @@ button { font: inherit; color: inherit; }
 .doll-mid { display: grid; gap: 6px; justify-items: center; }
 #dollPet .eq-slot { width: 96px; }
 @media (max-width: 640px) { #dollPet .eq-slot { width: 72px; } }
+#announce { position: fixed; top: 64px; left: 50%; transform: translate(-50%, -20px); z-index: 50; max-width: min(640px, calc(100vw - 32px));
+  padding: 10px 18px; border-radius: 10px; background: rgba(40, 24, 8, .92); border: 1px solid #c9a45c; color: #ffe2a0;
+  font-size: 15px; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; }
+#announce.show { opacity: 1; transform: translate(-50%, 0); }
+.acct .link + .link { margin-left: 10px; }

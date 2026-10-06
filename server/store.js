@@ -28,6 +28,17 @@ function newCharData(uid, name, look) {
     createdAt: Date.now(), updatedAt: Date.now(),
   };
 }
+// สรุปตัวละครสำหรับหน้าแอดมิน
+const adminChar = (id, c) => ({
+  id, uid: c.uid, name: c.name, level: c.level || 1, job: c.job, jobName: D.JOB_NAME[c.job] || c.job,
+  gold: c.gold || 0, exp: c.exp || 0, stats: c.stats || null, inv: c.inv || null, equip: c.equip || {}, pet: c.pet || null,
+  updatedAt: c.updatedAt || 0, createdAt: c.createdAt || 0,
+});
+// รายชื่อ ID แอดมิน: ตั้งใน Render เป็น ADMIN_IDS เช่น "sayan" หรือ "sayan,friend1" (ไม่มี = ไม่มีใครเป็นแอดมิน)
+function adminIds() {
+  return String(process.env.ADMIN_IDS || "").toLowerCase().split(/[\s,]+/).filter(Boolean);
+}
+const isAdmin = (loginId) => adminIds().includes(String(loginId || "").toLowerCase());
 const publicChar = (id, c) => ({
   id, name: c.name, look: c.look, job: c.job, jobName: D.JOB_NAME[c.job] || c.job, level: c.level,
   gear: require("./inventory").gearString({ equip: c.equip || {} }),
@@ -95,8 +106,53 @@ function firebaseStore() {
       const ref = accounts.doc(t.uid);
       const snap = await ref.get();
       if (!snap.exists) await ref.set({ loginId: local, slots: DEFAULT_SLOTS, createdAt: Date.now() });
+      if (snap.exists && snap.get("banned")) fail("บัญชีนี้ถูกระงับการใช้งาน");
       return { uid: t.uid, loginId: local, slots: snap.exists ? snap.get("slots") || DEFAULT_SLOTS : DEFAULT_SLOTS };
     },
+    // ---------- สำหรับแอดมิน ----------
+    async findAccounts(q) {
+      q = String(q || "").trim().toLowerCase();
+      const out = new Map();
+      const put = (d) => d.exists && out.set(d.id, { uid: d.id, loginId: d.get("loginId"), slots: d.get("slots") || DEFAULT_SLOTS,
+        banned: !!d.get("banned"), createdAt: d.get("createdAt") || 0 });
+      if (!q) {
+        (await accounts.orderBy("createdAt", "desc").limit(30).get()).docs.forEach(put);
+      } else {
+        (await accounts.where("loginId", ">=", q).where("loginId", "<", q + "\uf8ff").limit(20).get()).docs.forEach(put);
+        const n = await names.doc(nameKey(q)).get(); // ค้นจากชื่อตัวละครด้วย
+        if (n.exists) put(await accounts.doc(n.get("uid")).get());
+      }
+      return [...out.values()];
+    },
+    async account(uid) {
+      const a = await accounts.doc(String(uid)).get();
+      if (!a.exists) fail("ไม่พบบัญชี");
+      const q = await chars.where("uid", "==", a.id).get();
+      return { uid: a.id, loginId: a.get("loginId"), slots: a.get("slots") || DEFAULT_SLOTS, banned: !!a.get("banned"),
+        createdAt: a.get("createdAt") || 0, chars: q.docs.map((d) => adminChar(d.id, d.data())) };
+    },
+    async updateAccount(uid, patch) {
+      const ref = accounts.doc(String(uid));
+      if (!(await ref.get()).exists) fail("ไม่พบบัญชี");
+      const up = {};
+      if (patch.slots !== undefined) up.slots = Math.max(1, Math.min(12, Math.floor(patch.slots)));
+      if (patch.banned !== undefined) {
+        up.banned = !!patch.banned;
+        await auth.updateUser(String(uid), { disabled: up.banned }).catch(() => {});
+        if (up.banned) await auth.revokeRefreshTokens(String(uid)).catch(() => {});
+      }
+      await ref.update(up);
+    },
+    async setPassword(uid, pw) {
+      if (String(pw || "").length < 6) fail("รหัสผ่านต้องมีอย่างน้อย 6 ตัว");
+      await auth.updateUser(String(uid), { password: String(pw) });
+    },
+    async loadAny(charId) {
+      const snap = await chars.doc(String(charId || "x")).get();
+      if (!snap.exists) fail("ไม่พบตัวละคร");
+      return { id: snap.id, ...snap.data() };
+    },
+    async log(entry) { await db.collection("adminLogs").add(entry).catch(() => {}); },
     async list(uid) {
       const q = await chars.where("uid", "==", uid).get();
       return q.docs.map((d) => publicChar(d.id, d.data())).sort((a, b) => a.id.localeCompare(b.id));
@@ -146,9 +202,36 @@ function memoryStore() {
       const id = String(token || "").replace(/^dev:/, "").toLowerCase();
       if (!String(token).startsWith("dev:") || !ID_RE.test(id)) fail("ID ไม่ถูกต้อง");
       const uid = "dev_" + id;
-      if (!accounts.has(uid)) accounts.set(uid, { loginId: id, slots: DEFAULT_SLOTS });
+      if (!accounts.has(uid)) accounts.set(uid, { loginId: id, slots: DEFAULT_SLOTS, createdAt: Date.now() });
+      if (accounts.get(uid).banned) fail("บัญชีนี้ถูกระงับการใช้งาน");
       return { uid, loginId: id, slots: accounts.get(uid).slots };
     },
+    async findAccounts(q) {
+      q = String(q || "").trim().toLowerCase();
+      const hit = new Set();
+      for (const [uid, a] of accounts) if (!q || a.loginId.startsWith(q)) hit.add(uid);
+      for (const c of chars.values()) if (q && c.nameKey === q) hit.add(c.uid);
+      return [...hit].map((uid) => { const a = accounts.get(uid); return { uid, loginId: a.loginId, slots: a.slots, banned: !!a.banned, createdAt: a.createdAt || 0 }; });
+    },
+    async account(uid) {
+      const a = accounts.get(String(uid));
+      if (!a) fail("ไม่พบบัญชี");
+      return { uid, loginId: a.loginId, slots: a.slots, banned: !!a.banned, createdAt: a.createdAt || 0,
+        chars: [...chars].filter(([, c]) => c.uid === uid).map(([id, c]) => adminChar(id, c)) };
+    },
+    async updateAccount(uid, patch) {
+      const a = accounts.get(String(uid));
+      if (!a) fail("ไม่พบบัญชี");
+      if (patch.slots !== undefined) a.slots = Math.max(1, Math.min(12, Math.floor(patch.slots)));
+      if (patch.banned !== undefined) a.banned = !!patch.banned;
+    },
+    async setPassword() { fail("โหมดทดสอบไม่มีรหัสผ่าน (ใช้ได้เมื่อเชื่อม Firebase แล้ว)"); },
+    async loadAny(charId) {
+      const c = chars.get(String(charId));
+      if (!c) fail("ไม่พบตัวละคร");
+      return { id: String(charId), ...c };
+    },
+    async log() {},
     async list(uid) {
       return [...chars].filter(([, c]) => c.uid === uid).map(([id, c]) => publicChar(id, c));
     },
@@ -204,4 +287,4 @@ function webConfig() {
     apiKey: readApiKey(), authDomain: `${projectId}.firebaseapp.com`, projectId } };
 }
 
-module.exports = { store, webConfig, StoreError, LOGIN_DOMAIN };
+module.exports = { isAdmin, adminIds, store, webConfig, StoreError, LOGIN_DOMAIN };
