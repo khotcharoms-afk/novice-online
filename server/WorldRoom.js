@@ -23,7 +23,7 @@ const AUTO_RADIUS = 360;     // ระบบ AUTO หามอนในรัศ
 class Player extends Schema {}
 defineTypes(Player, {
   name: "string", look: "string", job: "string", jobName: "string",
-  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean",
+  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean", autoState: "string",
   level: "uint16", exp: "uint32", expNext: "uint32",
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
 });
@@ -94,7 +94,7 @@ class WorldRoom extends Room {
     p.name = sanitizeName(options && options.name) || "ชาวบ้าน" + Math.floor(Math.random() * 1000);
     p.look = D.sanitizeLook(options && options.look);
     p.job = "villager"; p.jobName = D.JOB_NAME.villager;
-    p.dir = "down"; p.moving = false; p.dead = false; p.auto = false;
+    p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.level = 1; p.exp = 0; p.expNext = D.expToNext(1);
     this.applyStats(p, true);
     const s = this.townSpawn(); p.x = s.x; p.y = s.y;
@@ -144,10 +144,11 @@ class WorldRoom extends Room {
 
   respawnMob(id) {
     const m = this.state.monsters.get(id), r = this.mr.get(id);
-    const spot = this.ringSpot(r.def.ring);
-    m.x = spot.x; m.y = spot.y; m.dir = "down"; m.moving = false; m.dead = false;
+    // จุดเกิดคงที่ของมอนแต่ละตัว → มอนเกิดใหม่ที่เดิม ความหนาแน่นในแต่ละโซนไม่เปลี่ยน
+    if (!r.spawn) r.spawn = this.ringSpot(r.def.ring);
+    m.x = r.spawn.x; m.y = r.spawn.y; m.dir = "down"; m.moving = false; m.dead = false;
     m.maxHp = r.stats.maxHp; m.hp = m.maxHp;
-    r.home = { ...spot }; r.target = null; r.wander = null; r.dmgBy.clear();
+    r.home = { ...r.spawn }; r.target = null; r.wander = null; r.returning = false; r.dmgBy.clear();
   }
 
   ringSpot([lo, hi]) {
@@ -187,7 +188,20 @@ class WorldRoom extends Room {
       if (!mob || mob.dead) { r.target = null; r.pending = null; p.moving = false; return; }
       const range = r.pending ? D.SKILLS[r.pending].range || MELEE_RANGE : MELEE_RANGE;
       const d = dist(p, mob);
-      if (d > range) { this.stepToward(p, mob, step); return; }
+      if (d > range) {
+        // เดินชนต้นไม้/หิน ไปต่อไม่ได้นานเกิน 1.2 วิ → เลิกไล่ตัวนี้ (AUTO จะข้ามตัวนี้ไปสักพัก)
+        if (!this.stepToward(p, mob, step) || d >= (r.lastChaseD ?? Infinity) - 0.5) {
+          r.stuckMs = (r.stuckMs || 0) + dt;
+          if (r.stuckMs > 1200) {
+            r.ignore = r.ignore || {}; r.ignore[r.target] = t + 8000;
+            r.target = null; r.pending = null; r.stuckMs = 0; r.lastChaseD = Infinity; p.moving = false;
+            return;
+          }
+        } else r.stuckMs = 0;
+        r.lastChaseD = d;
+        return;
+      }
+      r.stuckMs = 0; r.lastChaseD = Infinity;
       p.moving = false;
       p.dir = dirOf(mob.x - p.x, mob.y - p.y);
       if (r.pending) { const sk = r.pending; r.pending = null; this.castSkill(id, p, r, sk, r.target); return; }
@@ -319,7 +333,7 @@ class WorldRoom extends Room {
     p.hp = Math.max(0, p.hp - res.dmg);
     pr.lastHurt = now();
     if (p.hp <= 0) {
-      p.dead = true; p.moving = false; p.auto = false;
+      p.dead = true; p.moving = false; p.auto = false; p.autoState = "";
       pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0;
       pr.deadUntil = now() + RESPAWN_PLAYER_MS;
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
@@ -355,7 +369,9 @@ class WorldRoom extends Room {
     const p = this.state.players.get(pid), r = this.pr.get(pid);
     if (!p || !r || p.auto === on) return;
     p.auto = on;
+    p.autoState = on ? "wait" : "";
     r.anchor = on ? { x: p.x, y: p.y } : null;
+    r.resting = false; r.ignore = {};
     if (on) { r.moveTarget = null; r.dx = r.dy = 0; }
   }
 
@@ -369,8 +385,9 @@ class WorldRoom extends Room {
     //  2) มอนในรัศมีจากจุดเปิด AUTO ที่เลเวลไม่เกินเรา +2 และไม่ได้สู้กับคนอื่นอยู่
     // เลือดน้อยและยังฮีลไม่ได้ → พักรอเลือดฟื้นก่อนค่อยหามอนตัวต่อไป
     if (!r.target) {
-      if (p.hp < p.maxHp * 0.5) r.resting = true;
-      if (r.resting && p.hp >= p.maxHp * 0.85) r.resting = false;
+      const healReady = t >= (r.cds.firstaid || 0) && p.sp >= D.SKILLS.firstaid.sp;
+      if (p.hp < p.maxHp * 0.4 && !healReady) r.resting = true;
+      if (r.resting && (p.hp >= p.maxHp * 0.7 || healReady)) r.resting = false;
     }
     if (!r.target) {
       let best = null, bd = Infinity, attacker = false;
@@ -381,14 +398,18 @@ class WorldRoom extends Room {
         if (attacker && !onMe) return;
         if (!onMe) {
           if (r.resting) return;
+          if (r.ignore && r.ignore[mid] > now()) return;
           if (dist(m, r.anchor) > AUTO_RADIUS || m.level > p.level + 2) return;
           if (mr.target && mr.target !== pid) return;
         }
         const d = dist(m, p);
         if ((onMe && !attacker) || d < bd) { bd = d; best = mid; attacker = attacker || onMe; }
       });
-      if (best) { r.target = best; r.moveTarget = null; }
-      else if (dist(p, r.anchor) > 40) r.moveTarget = { ...r.anchor }; // ไม่มีมอน → กลับจุดเดิมรอ
+      if (best) { r.target = best; r.moveTarget = null; p.autoState = "fight"; }
+      else {
+        p.autoState = r.resting ? "rest" : "wait";
+        if (dist(p, r.anchor) > 40) r.moveTarget = { ...r.anchor }; // ไม่มีมอน → กลับจุดเดิมรอ
+      }
       return;
     }
     // ใช้ฟันซ้ำเมื่อพร้อม (เหลือ SP ไว้ฮีลเสมอ)

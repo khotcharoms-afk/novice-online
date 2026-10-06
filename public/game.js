@@ -355,7 +355,9 @@ class WorldScene extends Phaser.Scene {
       v.label.setText(`${e.name}  Lv.${lv}`);
       if (v.isMe) {
         updateStatus(e);
-        if (v.auto !== e.auto) { v.auto = e.auto; renderAuto(e.auto); if (e.auto) toast("เปิด AUTO — ตีมอนรอบ ๆ จุดนี้"); }
+        if (v.auto !== e.auto && e.auto) toast("เปิด AUTO — ตีมอนรอบ ๆ จุดนี้");
+        v.auto = e.auto;
+        renderAuto(e.auto, e.autoState);
       }
     }
     this.drawBars(v);
@@ -566,13 +568,14 @@ function buildSkillBar() {
   };
   bar.appendChild(auto);
   const me = room.state.players.get(room.sessionId);
-  if (me) renderAuto(me.auto);
+  if (me) renderAuto(me.auto, me.autoState);
 }
-function renderAuto(on) {
+const AUTO_STATE = { fight: "กำลังตี", rest: "พักเลือด", wait: "หามอน" };
+function renderAuto(on, state) {
   const b = $("autoBtn");
   if (!b) return;
   b.setAttribute("aria-pressed", String(!!on));
-  b.querySelector("small").textContent = on ? "เปิด" : "ปิด";
+  b.querySelector("small").textContent = on ? AUTO_STATE[state] || "เปิด" : "ปิด";
 }
 function castSkill(key, el) {
   if (!key) return;
