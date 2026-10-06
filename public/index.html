@@ -159,7 +159,9 @@
         <p class="ap-note">ไม่เลือกเลย = ตีทุกชนิดที่เลเวลไม่เกินเรา +2 · มอนที่มาตีเราจะสู้กลับเสมอ</p></div>
       <div class="ap-row ap-toggles">
         <label><input type="checkbox" id="apLoot" checked> เก็บของที่ดรอปอัตโนมัติ</label>
-        <label><input type="checkbox" id="apPotion" checked> กินยาแดงเมื่อ HP ต่ำกว่า 35%</label>
+        <label><input type="checkbox" id="apPotion" checked> กินยาแดงเมื่อ HP ต่ำกว่า <b id="apPctTxt">35%</b></label>
+        <input type="range" id="apPct" min="10" max="90" step="5" value="35" aria-label="เปอร์เซ็นต์ HP ที่จะกินยา">
+        <p class="ap-note">AUTO กินยาได้ทุก 10 วินาที (กดเองไม่ติดคูลดาวน์นี้)</p>
       </div>
     </section>
     <div id="toast" role="status"></div>

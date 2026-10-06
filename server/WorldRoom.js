@@ -22,6 +22,8 @@ const LEASH = 420;           // มอนไล่ไกลเกินนี้
 const RESPAWN_PLAYER_MS = 4000;
 const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
 const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
+const AUTO_POTION_PCT = 35;    // ค่าเริ่มต้น: กินยาเมื่อ HP ต่ำกว่า 35%
+const AUTO_POTION_CD = 10000;  // AUTO กินยาได้ทุก 10 วินาที
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
 class Player extends Schema {}
@@ -139,7 +141,9 @@ class WorldRoom extends Room {
       if (!r || !c) return;
       const radius = AUTO_RADII.includes(Number(c.radius)) ? Number(c.radius) : AUTO_RADII[1];
       const kinds = Array.isArray(c.kinds) ? c.kinds.filter((k) => D.MONSTERS[k]).slice(0, 10) : [];
-      r.autoCfg = { radius, kinds, loot: c.loot !== false, potion: c.potion !== false };
+      const pct = Math.round(Number(c.potionPct) / 5) * 5;
+      r.autoCfg = { radius, kinds, loot: c.loot !== false, potion: c.potion !== false,
+        potionPct: pct >= 10 && pct <= 90 ? pct : AUTO_POTION_PCT };
       p.autoR = radius;
     });
     this.onMessage("attack", (client, m) => {
@@ -694,12 +698,14 @@ class WorldRoom extends Room {
     // ฮีลตัวเองเมื่อเลือดต่ำ: สกิลก่อน ไม่พร้อม → กินยา
     if (p.hp < p.maxHp * 0.45 && p.sp >= D.SKILLS.firstaid.sp && t >= (r.cds.firstaid || 0))
       return this.castSkill(pid, p, r, "firstaid", null);
-    if (p.hp < p.maxHp * 0.35 && r.autoCfg.potion !== false && t >= r.useReady) {
+    // AUTO กินยาเมื่อ HP ต่ำกว่า % ที่ตั้งไว้ · คูลดาวน์ 10 วินาที (เฉพาะ AUTO กดให้)
+    const potPct = (r.autoCfg.potionPct || AUTO_POTION_PCT) / 100;
+    if (p.hp < p.maxHp * potPct && r.autoCfg.potion !== false && t >= r.useReady && t >= (r.autoPotionReady || 0)) {
       const miss = p.maxHp - p.hp;
       const order = miss > 120 ? ["potion_m", "potion_s"] : ["potion_s", "potion_m"];
       for (const id of order) {
         const idx = Bag.indexOf(p.bag, id);
-        if (idx >= 0) { this.useItem(pid, p, p.bag, idx); this.sendInv(pid); break; }
+        if (idx >= 0) { this.useItem(pid, p, p.bag, idx); this.sendInv(pid); r.autoPotionReady = t + AUTO_POTION_CD; break; }
       }
     }
     // เก็บของที่ดรอปใกล้ ๆ ก่อนหามอนตัวต่อไป

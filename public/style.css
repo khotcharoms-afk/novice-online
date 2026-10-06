@@ -312,3 +312,4 @@ button { font: inherit; color: inherit; }
   .doll { grid-template-columns: 1fr 72px 1fr; } #dollCanvas { width: 72px; height: 72px; }
 }
 #spDerived .bonus { color: #7dff9a; font-weight: normal; font-size: 11px; }
+#apPct { width: 100%; accent-color: #c9a45c; margin: 2px 0 0; } #apPctTxt { color: var(--name); }

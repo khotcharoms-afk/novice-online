@@ -939,8 +939,8 @@ function renderStats() {
 const WHOLE_MAP = 9999;
 const RADII = [[160, "5 ช่อง"], [360, "11 ช่อง"], [560, "17 ช่อง"], [WHOLE_MAP, "ทั้งแมพ"]];
 const autoCfg = (() => {
-  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [], loot: c.loot !== false, potion: c.potion !== false }; }
-  catch { return { radius: 360, kinds: [], loot: true, potion: true }; }
+  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [], loot: c.loot !== false, potion: c.potion !== false, potionPct: c.potionPct || 35 }; }
+  catch { return { radius: 360, kinds: [], loot: true, potion: true, potionPct: 35 }; }
 })();
 function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", autoCfg); }
 function toggleAutoPanel(force) {

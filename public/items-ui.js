@@ -266,7 +266,12 @@ function setupItemsUI() {
   $("apLoot").checked = autoCfg.loot !== false;
   $("apPotion").checked = autoCfg.potion !== false;
   $("apLoot").onchange = (e) => { autoCfg.loot = e.target.checked; sendAutoCfg(); };
-  $("apPotion").onchange = (e) => { autoCfg.potion = e.target.checked; sendAutoCfg(); };
+  $("apPotion").onchange = (e) => { autoCfg.potion = e.target.checked; $("apPct").disabled = !e.target.checked; sendAutoCfg(); };
+  $("apPct").value = autoCfg.potionPct;
+  $("apPct").disabled = autoCfg.potion === false;
+  $("apPctTxt").textContent = autoCfg.potionPct + "%";
+  $("apPct").oninput = (e) => { $("apPctTxt").textContent = e.target.value + "%"; };
+  $("apPct").onchange = (e) => { autoCfg.potionPct = Number(e.target.value); sendAutoCfg(); };
   window.addEventListener("keydown", (e) => {
     if (document.activeElement === $("chatInput") || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
