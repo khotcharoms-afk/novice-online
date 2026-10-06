@@ -435,3 +435,15 @@ button { font: inherit; color: inherit; }
 .sp-row .cost { font-style: normal; font-size: 10.5px; color: var(--muted); text-align: center; white-space: nowrap; }
 .sp-row .cost.bad { color: #ff9a9a; }
 .sp-note { font-size: 11px; color: var(--muted); margin: -2px 0 6px; }
+
+/* ---------- หน้าต่างตัวละครแบบ 2 คอลัมน์ (อุปกรณ์ซ้าย / สเตตัสขวา) ---------- */
+#statPanel { width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 200px); top: 186px; }
+.sp-cols { display: grid; grid-template-columns: 330px 1fr; gap: 14px; align-items: start; }
+.sp-left .sp-derived { margin-top: 8px; }
+@media (max-width: 760px) { .sp-cols { grid-template-columns: 1fr; } #statPanel { width: calc(100vw - 16px); } }
+
+/* ---------- ลากหน้าต่างได้ (จับที่หัวหน้าต่าง) ---------- */
+.drag-handle { cursor: move; user-select: none; touch-action: none; }
+.drag-handle button, .drag-handle input { cursor: pointer; }
+section.frame.dragged { transform: none !important; right: auto !important; bottom: auto !important; }
+section.frame.on-top { z-index: 20 !important; }

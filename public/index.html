@@ -123,18 +123,21 @@
 
     <section id="statPanel" class="frame" hidden aria-label="สเตตัส">
       <div class="ap-head"><b>ตัวละคร</b><button id="spClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="sp-cols"><div class="sp-left">
       <div class="doll">
         <div class="doll-col" id="dollL"></div>
         <div class="doll-mid"><canvas id="dollCanvas" width="64" height="64"></canvas><div id="dollPet"></div></div>
         <div class="doll-col" id="dollR"></div>
       </div>
       <p class="ap-note doll-note">ดับเบิลคลิกของในกระเป๋าเพื่อสวม · คลิกช่องอุปกรณ์เพื่อถอด · สัตว์เลี้ยงช่วยเก็บของที่ดรอป · ลากของมาวางที่ช่องได้</p>
+      <div id="spDerived" class="sp-derived"></div>
+      </div><div class="sp-right">
       <div class="sp-points">แต้มคงเหลือ <b id="spPoints">0</b></div>
       <p class="sp-note">ค่ายิ่งสูงยิ่งใช้แต้มมาก: 1–10 ใช้ 1 แต้ม/หน่วย · 11–20 ใช้ 2 · … · 91–98 ใช้ 10</p>
       <div id="spStats" class="sp-stats"></div>
       <button id="spRecommend" type="button" class="btn-ghost sp-rec">ลงแต้มแนะนำ (STR 40% · VIT 30% · AGI 20% · DEX 10%)</button>
-      <div id="spDerived" class="sp-derived"></div>
       <p class="ap-note">กด + เพื่อลง 1 แต้ม, +5 เพื่อลง 5 แต้ม · ลงแล้วคืนไม่ได้ (รีเซ็ตได้ตอนเปลี่ยนอาชีพ)</p>
+      </div></div>
     </section>
     <section id="invPanel" class="frame" hidden aria-label="กระเป๋า">
       <div class="ap-head"><b>กระเป๋า</b><span class="inv-tools"><button id="invSort" type="button" class="btn-ghost small" title="เรียงไอเทม: อุปกรณ์ → ของใช้ → สัตว์เลี้ยง → คริสตัล → วัตถุดิบ (รวมกองให้ด้วย)">เรียง</button>
@@ -198,5 +201,6 @@
   <script src="/game.js"></script>
   <script src="/items-ui.js"></script>
   <script src="/shop-ui.js"></script>
+  <script src="/windows.js"></script>
 </body>
 </html>
