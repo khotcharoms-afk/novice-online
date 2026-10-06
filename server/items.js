@@ -82,11 +82,11 @@ const goldDrop = (mobLv) => Math.round(mobLv * 2.5 + Math.random() * mobLv * 2);
 //  mult = คูณค่าพลังพื้นฐานของไอเทม · extras = จำนวนค่าพิเศษสุ่ม · weight = โอกาสดรอป (ส่วนต่อ 1000)
 // =============================================================
 const RARITY = [
-  { name: "ธรรมดา", color: "#cfd3dd", mult: 1, extras: 0, weight: 600, sell: 1 },
-  { name: "ดี", color: "#7dff9a", mult: 1.1, extras: 1, weight: 250, sell: 1.5 },
-  { name: "หายาก", color: "#6fb6ff", mult: 1.25, extras: 2, weight: 110, sell: 2.5 },
-  { name: "มหากาพย์", color: "#c38bff", mult: 1.45, extras: 3, weight: 32, sell: 4 },
-  { name: "ตำนาน", color: "#ffc145", mult: 1.7, extras: 4, weight: 8, sell: 7 },
+  { name: "ธรรมดา", color: "#cfd3dd", mult: 1, extras: 0, weight: 716, sell: 1 },
+  { name: "ดี", color: "#7dff9a", mult: 1.1, extras: 1, weight: 200, sell: 1.5 },
+  { name: "หายาก", color: "#6fb6ff", mult: 1.25, extras: 2, weight: 70, sell: 2.5 },
+  { name: "มหากาพย์", color: "#c38bff", mult: 1.45, extras: 3, weight: 12, sell: 4 },
+  { name: "ตำนาน", color: "#ffc145", mult: 1.7, extras: 4, weight: 2, sell: 7 },
 ];
 function rollRarity() {
   let x = Math.random() * RARITY.reduce((t, r) => t + r.weight, 0);
