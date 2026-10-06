@@ -58,7 +58,7 @@ function renderInv() {
         if (d.from === "inv") room.send("moveItem", { from: d.idx, to: i });
         else room.send("unequip", { slot: d.slot });
       });
-      b.addEventListener("pointerenter", () => { const s = INV.inv[i]; if (s && $("itemCard").hidden) showTip(gearName(s)); });
+      b.addEventListener("pointerenter", () => { const s = INV.inv[i]; if (s && $("itemCard").hidden) { const r = rarOf(s); showTip(gearName(s) + (r ? ` [${r.name}]` : "")); } });
       b.addEventListener("pointerleave", hideTip);
       grid.appendChild(b);
     }

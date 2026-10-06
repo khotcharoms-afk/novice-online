@@ -350,3 +350,7 @@ button { font: inherit; color: inherit; }
 .fuse-row .muted { color: var(--muted); margin-right: auto; }
 .fuse-row button { padding: 2px 8px; font-size: 11.5px; }
 .inv-slot.rr, .eq-slot.rr, .smith-item.rr { border-width: 2px; }
+/* ช่องไอเทมที่ถูกโฟกัส/ลากผ่าน → ใช้เส้นประสีขาว ไม่ให้สับสนกับกรอบทองของระดับตำนาน */
+.inv-slot:focus-visible, .eq-slot:focus-visible, .smith-item:focus-visible, #itemBar .slot:focus-visible { outline: 2px dashed #ffffff; outline-offset: 1px; }
+.inv-slot.sel { border-color: #ffffff; }
+.eq-slot.over, .inv-slot.over, .slot.over { border-color: #ffffff; box-shadow: 0 0 0 1px #ffffff; }
