@@ -322,3 +322,47 @@
 - **hair/plain** — Manuel Riecke (MrBeast), Joe White; CC-BY-SA 3.0, GPL 3.0
   - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
   - https://opengameart.org/content/ponytail-and-plain-hairstyles
+
+## อุปกรณ์ชุดโซ่ / ชุดเกราะเหล็ก / ชุดเกราะทองคำ (`equip/mailcoif, bracers, ironboots, greathelm, gauntlets, plateboots, gold*`)
+
+ภาพบนตัวละครประกอบจากชิ้นส่วน **Universal LPC Spritesheet Character Generator** ด้านล่าง · ไอคอนถุงมือ/รองเท้าวาดขึ้นใหม่สำหรับเกมนี้
+
+- **arms/armour/plate/female** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women
+  - http://opengameart.org/content/lpc-clothing-updates
+- **arms/armour/plate/male** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **arms/bracers** — Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **feet/armour/plate/female** — Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **feet/armour/plate** — Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **feet/boots/female** — bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-and-hair
+- **feet/boots** — bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-clothes-and-hair
+- **feet/boots_plating** — JaidynReiman; OGA-BY 3.0+, CC-BY 3.0+, GPL 3.0
+  - https://opengameart.org/content/lpc-relm-outfit-pieces-2-kimonos-2-sleeves-2-boots-tabi-socks
+- **hat/helmet/greathelm** — bluecarrot16; OGA-BY 3.0, CC-BY 3.0, CC-BY 4.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+- **hat/helmet/mail** — Johannes Sjölund (wulax), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+- **torso/armour/plate/female** —  adapted to female base by makrohn;  recolor by bigbeargames
+  -  color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+  -  run/jump/sit/climb/revised combat by JaidynReiman
+  - JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women
+  - http://opengameart.org/content/lpc-clothing-updates
+- **torso/armour/plate/male** —  recolor by bigbeargames;  color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+  -  run/jump/sit/climb/revised combat by JaidynReiman
+  - JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Johannes Sjölund (wulax)
+  - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-combat-armor-for-women

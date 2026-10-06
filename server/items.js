@@ -26,17 +26,30 @@ const ITEMS = {
   kite:     { name: "โล่เหล็ก", type: "equip", slot: "offhand", lv: 5, bonus: { def: 6 }, price: 420, visual: true, sexed: true },
   // ---------- หมวก / หน้า ----------
   bandana:  { name: "ผ้าโพกหัวแดง", type: "equip", slot: "head", lv: 1, bonus: { def: 1, agi: 1 }, price: 90, visual: true },
-  hood:     { name: "ฮู้ดผ้าเดินทาง", type: "equip", slot: "head", lv: 3, bonus: { def: 2, maxHp: 15 }, price: 160, visual: true },
+  hood:     { name: "ฮู้ดผ้าเดินทาง", set: "leather", type: "equip", slot: "head", lv: 3, bonus: { def: 2, maxHp: 15 }, price: 160, visual: true },
   nasal:    { name: "หมวกเหล็กนักรบ", type: "equip", slot: "head", lv: 10, bonus: { def: 6, vit: 1 }, price: 1300, visual: true },
   glasses:  { name: "แว่นกลมนักปราชญ์", type: "equip", slot: "face", lv: 5, bonus: { dex: 2, int: 1 }, price: 700, visual: true },
   // ---------- เสื้อ / เกราะ ----------
-  leather:  { name: "เสื้อหนัง", type: "equip", slot: "armor", lv: 1, bonus: { def: 5 }, price: 150, visual: true, sexed: true },
-  chain:    { name: "เสื้อเกราะโซ่", type: "equip", slot: "armor", lv: 8, bonus: { def: 12 }, price: 1150, visual: true, sexed: true },
-  plate:    { name: "เกราะเหล็ก", type: "equip", slot: "armor", lv: 15, bonus: { def: 22, vit: 2 }, price: 3800, visual: true, sexed: true },
+  leather:  { name: "เสื้อหนัง", set: "leather", type: "equip", slot: "armor", lv: 1, bonus: { def: 5 }, price: 150, visual: true, sexed: true },
+  chain:    { name: "เสื้อเกราะโซ่", set: "chain", type: "equip", slot: "armor", lv: 8, bonus: { def: 12 }, price: 1150, visual: true, sexed: true },
+  plate:    { name: "เกราะเหล็ก", set: "plate", type: "equip", slot: "armor", lv: 15, bonus: { def: 22, vit: 2 }, price: 3800, visual: true, sexed: true },
   // ---------- ถุงมือ / ผ้าคลุม / รองเท้า ----------
-  gloves:   { name: "ถุงมือหนัง", type: "equip", slot: "gloves", lv: 2, bonus: { def: 1, dex: 1 }, price: 120, visual: true, sexed: true },
+  gloves:   { name: "ถุงมือหนัง", set: "leather", type: "equip", slot: "gloves", lv: 2, bonus: { def: 1, dex: 1 }, price: 120, visual: true, sexed: true },
   cape:     { name: "ผ้าคลุมเดินทาง", type: "equip", slot: "cape", lv: 4, bonus: { def: 2, agi: 1 }, price: 280, visual: true, sexed: true, back: true },
-  boots:    { name: "รองเท้าบูทหนัง", type: "equip", slot: "shoes", lv: 2, bonus: { def: 2 }, price: 140, visual: true, sexed: true },
+  boots:    { name: "รองเท้าบูทหนัง", set: "leather", type: "equip", slot: "shoes", lv: 2, bonus: { def: 2 }, price: 140, visual: true, sexed: true },
+  // ---------- ชุดโซ่ (Lv8) — ร้านขาย ----------
+  mailcoif:   { name: "หมวกโซ่", type: "equip", slot: "head", lv: 8, bonus: { def: 4, maxHp: 20 }, price: 900, visual: true, set: "chain" },
+  bracers:    { name: "สนับแขนเหล็ก", type: "equip", slot: "gloves", lv: 8, bonus: { def: 3, str: 1 }, price: 850, visual: true, sexed: true, set: "chain" },
+  ironboots:  { name: "รองเท้าบูทเสริมเหล็ก", type: "equip", slot: "shoes", lv: 8, bonus: { def: 4 }, price: 900, visual: true, sexed: true, set: "chain" },
+  // ---------- ชุดเกราะเหล็ก (Lv15) — ดรอปเท่านั้น ----------
+  greathelm:  { name: "หมวกเกราะเหล็ก", type: "equip", slot: "head", lv: 15, bonus: { def: 9, vit: 1 }, price: 3600, visual: true, sexed: true, set: "plate" },
+  gauntlets:  { name: "ถุงมือเกราะเหล็ก", type: "equip", slot: "gloves", lv: 15, bonus: { def: 6, str: 2 }, price: 3200, visual: true, sexed: true, set: "plate" },
+  plateboots: { name: "รองเท้าเกราะเหล็ก", type: "equip", slot: "shoes", lv: 15, bonus: { def: 7, agi: 1 }, price: 3200, visual: true, sexed: true, set: "plate" },
+  // ---------- ชุดเกราะทองคำ (Lv25) — ดรอปหายากจากมอนเลเวลสูง ----------
+  goldhelm:   { name: "หมวกเกราะทองคำ", type: "equip", slot: "head", lv: 25, bonus: { def: 14, vit: 2, maxHp: 60 }, price: 9000, visual: true, sexed: true, set: "gold" },
+  goldplate:  { name: "เกราะทองคำ", type: "equip", slot: "armor", lv: 25, bonus: { def: 34, vit: 3 }, price: 14000, visual: true, sexed: true, set: "gold" },
+  goldgaunt:  { name: "ถุงมือเกราะทองคำ", type: "equip", slot: "gloves", lv: 25, bonus: { def: 9, str: 3 }, price: 8000, visual: true, sexed: true, set: "gold" },
+  goldboots:  { name: "รองเท้าเกราะทองคำ", type: "equip", slot: "shoes", lv: 25, bonus: { def: 10, agi: 2 }, price: 8000, visual: true, sexed: true, set: "gold" },
   // ---------- เครื่องประดับ (ไม่มีภาพบนตัว) ----------
   ring_copper:   { name: "แหวนทองแดง", type: "equip", slot: "acc", lv: 1, bonus: { str: 1 }, price: 220 },
   fang_necklace: { name: "สร้อยเขี้ยวหมาป่า", type: "equip", slot: "acc", lv: 5, bonus: { agi: 2, dex: 1 }, price: 900 },
@@ -74,34 +87,34 @@ const ITEMS = {
 
 // ของที่ร้านค้าขาย (เรียงตามที่แสดง)
 const SHOP = ["potion_s", "potion_m", "potion_sp", "mace", "dagger", "kite", "bandana", "hood", "leather", "chain",
-  "gloves", "cape", "boots", "ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"];
+  "gloves", "cape", "boots", "mailcoif", "bracers", "ironboots", "ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"];
 
 // ของดรอปจากมอน: [itemId, โอกาส 0–1, จำนวนต่ำสุด, สูงสุด]
 const DROPS = {
   goblin:   [["goblin_ear", 0.6, 1, 2], ["stone_1", 0.08, 1, 1], ["potion_s", 0.08, 1, 1], ["bandana", 0.015, 1, 1], ["gloves", 0.01, 1, 1]],
   wolf:     [["wolf_fang", 0.55, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.02, 1, 1], ["potion_s", 0.1, 1, 2], ["fang_necklace", 0.02, 1, 1], ["dagger", 0.01, 1, 1]],
   boar:     [["boar_tusk", 0.55, 1, 1], ["stone_1", 0.1, 1, 2], ["stone_2", 0.05, 1, 1], ["potion_m", 0.06, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.01, 1, 1]],
-  skeleton: [["old_bone", 0.55, 1, 2], ["stone_2", 0.07, 1, 1], ["stone_3", 0.015, 1, 1], ["potion_m", 0.08, 1, 1], ["glasses", 0.02, 1, 1], ["plate", 0.008, 1, 1]],
-  orc:      [["orc_scrap", 0.55, 1, 2], ["stone_2", 0.08, 1, 2], ["stone_3", 0.03, 1, 1], ["potion_m", 0.1, 1, 2], ["waraxe", 0.01, 1, 1], ["plate", 0.01, 1, 1]],
+  skeleton: [["old_bone", 0.55, 1, 2], ["stone_2", 0.07, 1, 1], ["stone_3", 0.015, 1, 1], ["potion_m", 0.08, 1, 1], ["glasses", 0.02, 1, 1], ["plate", 0.008, 1, 1], ["mailcoif", 0.01, 1, 1]],
+  orc:      [["orc_scrap", 0.55, 1, 2], ["stone_2", 0.08, 1, 2], ["stone_3", 0.03, 1, 1], ["potion_m", 0.1, 1, 2], ["waraxe", 0.01, 1, 1], ["plate", 0.01, 1, 1], ["ironboots", 0.012, 1, 1]],
   rabbit:      [["rabbit_tail", 0.6, 1, 1], ["potion_s", 0.08, 1, 1], ["stone_1", 0.06, 1, 1], ["boots", 0.012, 1, 1]],
   rat:         [["rat_tail", 0.6, 1, 2], ["stone_1", 0.08, 1, 1], ["gloves", 0.012, 1, 1], ["potion_s", 0.08, 1, 1]],
   sheep:       [["wool", 0.65, 1, 2], ["stone_1", 0.1, 1, 1], ["hood", 0.015, 1, 1], ["leather", 0.012, 1, 1]],
-  lizard:      [["lizard_scale", 0.6, 1, 2], ["stone_1", 0.14, 1, 2], ["stone_2", 0.02, 1, 1], ["kite", 0.015, 1, 1], ["dagger", 0.012, 1, 1]],
-  jack:        [["pumpkin", 0.55, 1, 1], ["stone_1", 0.14, 1, 2], ["stone_2", 0.03, 1, 1], ["cape", 0.02, 1, 1], ["potion_m", 0.08, 1, 1]],
-  zombie:      [["rotten_cloth", 0.6, 1, 2], ["stone_2", 0.06, 1, 1], ["chain", 0.012, 1, 1], ["potion_m", 0.1, 1, 1]],
-  vampire:     [["bat_wing", 0.55, 1, 2], ["stone_2", 0.09, 1, 1], ["stone_3", 0.02, 1, 1], ["fang_necklace", 0.03, 1, 1], ["glasses", 0.02, 1, 1]],
-  troll:       [["troll_hide", 0.6, 1, 2], ["stone_2", 0.1, 1, 2], ["stone_3", 0.025, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.015, 1, 1]],
-  minotaur:    [["bull_horn", 0.55, 1, 2], ["stone_2", 0.12, 1, 2], ["stone_3", 0.04, 1, 1], ["waraxe", 0.025, 1, 1], ["plate", 0.015, 1, 1]],
-  snowtroll:   [["frost_hide", 0.6, 1, 2], ["stone_3", 0.05, 1, 1], ["plate", 0.02, 1, 1], ["boar_charm", 0.025, 1, 1]],
+  lizard:      [["lizard_scale", 0.6, 1, 2], ["stone_1", 0.14, 1, 2], ["stone_2", 0.02, 1, 1], ["kite", 0.015, 1, 1], ["dagger", 0.012, 1, 1], ["bracers", 0.012, 1, 1]],
+  jack:        [["pumpkin", 0.55, 1, 1], ["stone_1", 0.14, 1, 2], ["stone_2", 0.03, 1, 1], ["cape", 0.02, 1, 1], ["potion_m", 0.08, 1, 1], ["ironboots", 0.012, 1, 1]],
+  zombie:      [["rotten_cloth", 0.6, 1, 2], ["stone_2", 0.06, 1, 1], ["chain", 0.012, 1, 1], ["potion_m", 0.1, 1, 1], ["mailcoif", 0.015, 1, 1]],
+  vampire:     [["bat_wing", 0.55, 1, 2], ["stone_2", 0.09, 1, 1], ["stone_3", 0.02, 1, 1], ["fang_necklace", 0.03, 1, 1], ["glasses", 0.02, 1, 1], ["plateboots", 0.012, 1, 1]],
+  troll:       [["troll_hide", 0.6, 1, 2], ["stone_2", 0.1, 1, 2], ["stone_3", 0.025, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.015, 1, 1], ["gauntlets", 0.015, 1, 1]],
+  minotaur:    [["bull_horn", 0.55, 1, 2], ["stone_2", 0.12, 1, 2], ["stone_3", 0.04, 1, 1], ["waraxe", 0.025, 1, 1], ["plate", 0.015, 1, 1], ["gauntlets", 0.015, 1, 1], ["goldgaunt", 0.006, 1, 1]],
+  snowtroll:   [["frost_hide", 0.6, 1, 2], ["stone_3", 0.05, 1, 1], ["plate", 0.02, 1, 1], ["boar_charm", 0.025, 1, 1], ["goldplate", 0.004, 1, 1], ["goldhelm", 0.006, 1, 1]],
   wolfpup:     [["wolf_fang", 0.4, 1, 1], ["stone_1", 0.08, 1, 1], ["potion_s", 0.08, 1, 1]],
   goblinchief: [["goblin_ear", 0.7, 1, 3], ["stone_1", 0.14, 1, 2], ["bandana", 0.02, 1, 1], ["ring_copper", 0.015, 1, 1], ["potion_s", 0.1, 1, 2]],
-  redwolf:     [["wolf_fang", 0.6, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.03, 1, 1], ["fang_necklace", 0.025, 1, 1], ["cape", 0.015, 1, 1]],
-  skelwarrior: [["old_bone", 0.6, 1, 2], ["stone_2", 0.08, 1, 1], ["nasal", 0.015, 1, 1], ["plate", 0.01, 1, 1], ["potion_m", 0.1, 1, 1]],
+  redwolf:     [["wolf_fang", 0.6, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.03, 1, 1], ["fang_necklace", 0.025, 1, 1], ["cape", 0.015, 1, 1], ["bracers", 0.01, 1, 1]],
+  skelwarrior: [["old_bone", 0.6, 1, 2], ["stone_2", 0.08, 1, 1], ["nasal", 0.015, 1, 1], ["plate", 0.01, 1, 1], ["potion_m", 0.1, 1, 1], ["greathelm", 0.012, 1, 1]],
   shadowwolf:  [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.09, 1, 1], ["fang_necklace", 0.03, 1, 1], ["boots", 0.02, 1, 1]],
-  orcchief:    [["orc_scrap", 0.7, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.03, 1, 1], ["waraxe", 0.02, 1, 1], ["plate", 0.015, 1, 1]],
+  orcchief:    [["orc_scrap", 0.7, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.03, 1, 1], ["waraxe", 0.02, 1, 1], ["plate", 0.015, 1, 1], ["plateboots", 0.015, 1, 1], ["greathelm", 0.01, 1, 1], ["goldboots", 0.004, 1, 1]],
   snowwolf:    [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.035, 1, 1], ["fang_necklace", 0.03, 1, 1]],
-  frostskel:   [["old_bone", 0.6, 2, 3], ["stone_3", 0.045, 1, 1], ["glasses", 0.02, 1, 1], ["potion_m", 0.12, 1, 2]],
-  snoworc:     [["orc_scrap", 0.65, 2, 3], ["stone_3", 0.055, 1, 1], ["waraxe", 0.02, 1, 1], ["boar_charm", 0.02, 1, 1]],
+  frostskel:   [["old_bone", 0.6, 2, 3], ["stone_3", 0.045, 1, 1], ["glasses", 0.02, 1, 1], ["potion_m", 0.12, 1, 2], ["goldhelm", 0.005, 1, 1]],
+  snoworc:     [["orc_scrap", 0.65, 2, 3], ["stone_3", 0.055, 1, 1], ["waraxe", 0.02, 1, 1], ["boar_charm", 0.02, 1, 1], ["goldboots", 0.006, 1, 1]],
 };
 // เงินที่ได้ต่อการฆ่า 1 ตัว (แบ่งตามดาเมจเหมือน EXP)
 const goldDrop = (mobLv) => Math.round(mobLv * 2.5 + Math.random() * mobLv * 2);
