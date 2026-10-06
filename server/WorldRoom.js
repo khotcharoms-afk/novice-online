@@ -156,6 +156,16 @@ class WorldRoom extends Room {
       b.gold -= can * f.gold;
       Bag.addItem(b, to, can);
       client.send("toast", `รวมหินสำเร็จ: ได้ ${I.ITEMS[to].name} ×${can}`);
+      this.saveSoon(client.sessionId);
+    }));
+    // ทิ้งไอเทม (ทำลาย) — ของที่ไม่อยากได้/ขายไม่ได้
+    this.onMessage("discard", (client, m) => this.withBag(client, m, (p, b) => {
+      const idx = Math.floor(Number(m.idx)), s = b.inv[idx];
+      if (!s) return;
+      const n = Math.max(1, Math.min(s.n, Math.floor(Number(m.n) || s.n)));
+      Bag.removeAt(b, idx, n);
+      client.send("toast", `ทิ้ง ${I.ITEMS[s.id].name} ×${n} แล้ว`);
+      if (Bag.isGearId(s.id) && (s.r >= 2 || s.up > 0)) this.saveSoon(client.sessionId);
     }));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
     this.onMessage("pickup", (client, m) => {
@@ -209,6 +219,12 @@ class WorldRoom extends Room {
     if (!p || !r || !r.charId) return Promise.resolve();
     return store.save(r.charId, this.toData(p)).catch((e) => console.error("save failed", r.charId, e.message));
   }
+  // บันทึกเร็ว ๆ หลังเหตุการณ์สำคัญ (ได้ของหายาก ตีบวก ซื้อของแพง) — รวมหลายครั้งในเวลาใกล้กันเป็นครั้งเดียว
+  saveSoon(pid) {
+    const r = this.pr.get(pid);
+    if (!r || r.saveTimer) return;
+    r.saveTimer = this.clock.setTimeout(() => { r.saveTimer = null; this.save(pid); }, 1500);
+  }
   onDispose() { rooms.delete(this); }
   async onBeforeShutdown() {
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
@@ -229,6 +245,7 @@ class WorldRoom extends Room {
     if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
     const s = Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
     p.x = s.x; p.y = s.y;
+    p.sid = client.sessionId; // (ใช้ภายในเซิร์ฟเวอร์ ไม่ซิงก์)
     this.state.players.set(client.sessionId, p);
     online.set(c.id, { room: this, sessionId: client.sessionId });
     this.pr.set(client.sessionId, {
@@ -810,6 +827,7 @@ class WorldRoom extends Room {
     if (ok) g.up = to;
     else if (before > I.SAFE_REFINE) g.up = before - 1;
     client.send("refined", { ok, up: g.up, before, id: g.id, r: g.r || 0 });
+    this.saveSoon(client.sessionId);
     if (ok && to >= 7) this.broadcast("system", `🔨 ${p.name} ตีบวก ${it.name} +${to} สำเร็จ!`);
   }
   nearNpc(p, id) {
@@ -826,6 +844,7 @@ class WorldRoom extends Room {
     if (!Bag.canFit(b, id, n)) return "กระเป๋าเต็ม";
     b.gold -= cost;
     Bag.addItem(b, id, n);
+    if (cost >= 500) this.saveSoon(p.sid);
   }
   sell(p, b, idx, n) {
     if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
@@ -835,6 +854,7 @@ class WorldRoom extends Room {
     const price = I.sellPrice(s.id, s);
     Bag.removeAt(b, idx, n);
     b.gold += price * n;
+    if (price * n >= 500) this.saveSoon(p.sid);
   }
   spawnDrop(item, n, x, y, owner, gear) {
     const id = "d" + this.drSeq++;
@@ -867,6 +887,7 @@ class WorldRoom extends Room {
     const left = Bag.addItem(p.bag, d.item, d.n, this.dr.get(did).gear);
     if (left === d.n) { if (client) client.send("toast", "กระเป๋าเต็ม"); return true; }
     if (client) client.send("loot", { item: d.item, n: d.n - left, r: d.r });
+    if (d.r >= 2) this.saveSoon(pid);
     if (left > 0) d.n = left; else { this.state.drops.delete(did); this.dr.delete(did); }
     this.sendInv(pid);
     return true;

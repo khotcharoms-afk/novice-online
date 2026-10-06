@@ -51,7 +51,10 @@ function renderInv() {
     for (let i = 0; i < size; i++) {
       const b = document.createElement("button");
       b.type = "button"; b.className = "inv-slot"; b.dataset.idx = i;
-      b.onclick = (e) => { const s = INV.inv[i]; if (s) openCard(s, { where: "inv", idx: i }, e); };
+      b.onclick = (e) => {
+        if (moveFrom !== null) { finishMove(i); return; } // โหมดย้าย (สำหรับจอสัมผัส)
+        const s = INV.inv[i]; if (s) openCard(s, { where: "inv", idx: i }, e);
+      };
       b.ondblclick = () => quickUse(i);
       makeDraggable(b, { from: "inv", idx: i });
       makeDrop(b, (d) => d.from === "inv" || d.from === "eq", (d) => {
@@ -79,7 +82,8 @@ function quickUse(idx) {
   const s = INV.inv[idx];
   if (!s) return;
   const it = itemOf(s.id);
-  if (!$("shopPanel").hidden && shopTab === "sell") return room.send("sell", { idx, n: s.n });
+  if (moveFrom !== null) return;
+  if (!$("shopPanel").hidden && shopTab === "sell") return sellAt(idx);
   if (it && it.type === "equip") room.send("equip", { idx });
   else if (it && it.type === "pet") room.send("useItem", { idx });
   else if (it && it.type === "use") room.send("useItem", { idx });
@@ -168,6 +172,7 @@ function openCard(g, ctx, ev) {
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
     if (it.type === "pet") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
     if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ขาย (${sell * INV.inv[ctx.idx].n} g)</button>`);
+    acts.push(`<button class="btn-ghost" data-a="move">ย้ายช่อง</button>`, `<button class="btn-ghost danger" data-a="discard">ทิ้ง</button>`);
     if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
   } else if (ctx.where === "eq") {
     acts.push(`<button class="btn-ghost" data-a="unequip">ถอด</button>`);
@@ -184,7 +189,9 @@ function openCard(g, ctx, ev) {
     if (a === "equip") room.send("equip", { idx: ctx.idx });
     if (a === "use") room.send("useItem", { idx: ctx.idx });
     if (a === "unequip") room.send("unequip", { slot: ctx.slot });
-    if (a === "sell") room.send("sell", { idx: ctx.idx, n: INV.inv[ctx.idx].n });
+    if (a === "sell") sellAt(ctx.idx);
+    if (a === "discard") discardAt(ctx.idx);
+    if (a === "move") startMove(ctx.idx);
     if (a === "bar") assignBar(id);
     if (a === "smith") { openSmith(); smithSel = ctx.where === "eq" ? { slot: ctx.slot } : { idx: ctx.idx }; renderSmith(); }
     if (a === "petOff") room.send("petOff");
@@ -192,7 +199,10 @@ function openCard(g, ctx, ev) {
   }));
   card.hidden = false;
   const r = card.getBoundingClientRect();
-  const x = Math.min(window.innerWidth - r.width - 8, Math.max(8, ev.clientX + 12));
+  // วางการ์ดข้างเคอร์เซอร์ โดยไม่ทับช่องที่คลิก (ไม่งั้นดับเบิลคลิกจะโดนการ์ดแทน)
+  let x = ev.clientX + 16;
+  if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - 16;
+  x = Math.max(8, x);
   const y = Math.min(window.innerHeight - r.height - 8, Math.max(8, ev.clientY - 10));
   card.style.left = x + "px"; card.style.top = y + "px";
 }
@@ -291,7 +301,7 @@ function renderShop() {
       const rr = rarOf(s);
       row.innerHTML = `<img src="${ICON(s.id)}" alt=""><div>${nameHtml(s)}${s.n > 1 ? " ×" + s.n : ""}<small>${TYPE_NAME[it.type]}${rr ? " · " + rr.name : ""}</small></div>` +
         `<span class="price">${each * s.n} g</span><span><button class="btn-ghost">ขาย</button></span>`;
-      row.querySelector("button").onclick = () => room.send("sell", { idx, n: s.n });
+      row.querySelector("button").onclick = () => sellAt(idx);
       list.appendChild(row);
     });
     if (!list.children.length) list.innerHTML = `<p class="ap-note">กระเป๋าว่าง</p>`;
@@ -320,7 +330,7 @@ function setupItemsUI() {
   $("apPct").oninput = (e) => { $("apPctTxt").textContent = e.target.value + "%"; };
   $("apPct").onchange = (e) => { autoCfg.potionPct = Number(e.target.value); sendAutoCfg(); };
   window.addEventListener("keydown", (e) => {
-    if (document.activeElement === $("chatInput") || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isTyping() || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === "i") toggleInv();
     const bi = BAR_KEYS.indexOf(k);
@@ -407,3 +417,61 @@ function renderFuse() {
     }).join("");
   box.querySelectorAll("button").forEach((b) => (b.onclick = () => room.send("fuseStone", { to: b.dataset.to, times: Number(b.dataset.t) })));
 }
+
+// ---------- ยืนยันก่อนทำสิ่งที่ย้อนกลับไม่ได้ ----------
+// ของมีค่า = อุปกรณ์ระดับหายากขึ้นไป หรือที่ตีบวกแล้ว
+const precious = (s) => isGear(s) && ((s.r || 0) >= 2 || (s.up || 0) > 0);
+// กล่องยืนยันในเกม (แทน confirm ของเบราว์เซอร์) → คืนจำนวนที่เลือก หรือ 0 ถ้ายกเลิก
+function askConfirm(html, { okText = "ยืนยัน", max = 1, danger = false } = {}) {
+  return new Promise((resolve) => {
+    let box = $("confirmBox");
+    if (!box) { box = document.createElement("div"); box.id = "confirmBox"; box.className = "frame"; box.setAttribute("role", "dialog"); document.body.appendChild(box); }
+    box.innerHTML = `<div class="cb-msg">${html}</div>` +
+      (max > 1 ? `<label class="cb-qty">จำนวน <input type="number" id="cbN" min="1" max="${max}" value="${max}"> / ${max}</label>` : "") +
+      `<div class="cb-acts"><button type="button" class="btn-ghost" id="cbNo">ยกเลิก</button>
+       <button type="button" class="${danger ? "btn-ghost danger" : "btn-gold"}" id="cbYes">${okText}</button></div>`;
+    box.hidden = false;
+    const done = (v) => { box.hidden = true; document.removeEventListener("keydown", onKey, true); resolve(v); };
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); done(0); } if (e.key === "Enter") { e.stopPropagation(); $("cbYes").click(); } };
+    document.addEventListener("keydown", onKey, true);
+    $("cbNo").onclick = () => done(0);
+    $("cbYes").onclick = () => done(max > 1 ? Math.max(1, Math.min(max, Math.floor(Number($("cbN").value) || 1))) : 1);
+    $("cbYes").focus();
+  });
+}
+async function sellAt(idx) {
+  const s = INV.inv[idx];
+  if (!s) return;
+  if (precious(s)) {
+    const r = rarOf(s), price = (s.sell ?? 0) * s.n;
+    const ok = await askConfirm(`ขาย <b style="color:${r.color}">${gearName(s)}</b> (ระดับ${r.name}) ได้ ${price.toLocaleString()} gold?<br><small>ขายแล้วซื้อคืนไม่ได้</small>`, { okText: "ขาย", danger: true });
+    if (!ok) return;
+  }
+  room.send("sell", { idx, n: s.n });
+}
+async function discardAt(idx) {
+  const s = INV.inv[idx];
+  if (!s) return;
+  const r = rarOf(s);
+  const n = await askConfirm(`ทิ้ง <b${r ? ` style="color:${r.color}"` : ""}>${gearName(s)}</b>${r ? ` (ระดับ${r.name})` : ""}?<br><small>ของที่ทิ้งจะหายไปถาวร</small>`,
+    { okText: "ทิ้ง", max: s.n, danger: true });
+  if (n) room.send("discard", { idx, n });
+}
+// โหมดย้ายช่อง (ใช้แทนการลากบนจอสัมผัส): กด "ย้ายช่อง" แล้วแตะช่องปลายทาง
+let moveFrom = null;
+function startMove(idx) {
+  moveFrom = idx;
+  $("invGrid").classList.add("moving");
+  $("invGrid").children[idx]?.classList.add("sel");
+  toast("แตะช่องที่จะย้ายไป (แตะช่องเดิมเพื่อยกเลิก)");
+}
+function finishMove(to) {
+  const from = moveFrom;
+  moveFrom = null;
+  $("invGrid").classList.remove("moving");
+  [...$("invGrid").children].forEach((c) => c.classList.remove("sel"));
+  if (from !== to) room.send("moveItem", { from, to });
+}
+
+// ปิดเมนูคลิกขวาของเบราว์เซอร์ในเกม (ยกเว้นช่องพิมพ์ข้อความ)
+document.addEventListener("contextmenu", (e) => { if (!e.target.closest("input, textarea")) e.preventDefault(); });

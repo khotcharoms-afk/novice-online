@@ -2,6 +2,7 @@
 //  ฝั่งผู้เล่น — Phaser 3 + Colyseus  (Phase 2: ต่อสู้ / มอนสเตอร์ / EXP / สกิล)
 // =============================================================
 const $ = (id) => document.getElementById(id);
+const isTyping = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement && document.activeElement.tagName) || "");
 const SERVER_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
 const T = 32;
 const COLS = 9; // เฟรมต่อแถวในไฟล์ภาพตัวละคร
@@ -804,7 +805,7 @@ class WorldScene extends Phaser.Scene {
       $("pos").textContent = `${Math.floor(me.tx / T)}, ${Math.floor(me.ty / T)}`;
     }
 
-    if (document.activeElement !== $("chatInput")) {
+    if (!isTyping()) {
       const K = this.keys;
       const dx = (K.D.isDown || K.RIGHT.isDown ? 1 : 0) - (K.A.isDown || K.LEFT.isDown ? 1 : 0);
       const dy = (K.S.isDown || K.DOWN.isDown ? 1 : 0) - (K.W.isDown || K.UP.isDown ? 1 : 0);
@@ -909,7 +910,7 @@ function castSkill(key, el) {
 }
 function setupHotkeys() {
   window.addEventListener("keydown", (e) => {
-    if (document.activeElement === $("chatInput")) return;
+    if (isTyping()) return;
     const n = Number(e.key);
     if (n >= 1 && n <= 9) {
       const key = mySkills()[n - 1];
@@ -936,7 +937,7 @@ function setupStats() {
   $("spClose").onclick = () => toggleStats(false);
   $("spRecommend").onclick = () => room.send("recommendStats");
   window.addEventListener("keydown", (e) => {
-    if (document.activeElement === $("chatInput")) return;
+    if (isTyping()) return;
     if (e.key === "c" || e.key === "C") toggleStats();
   });
   const box = $("spStats");
