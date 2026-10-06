@@ -12,29 +12,58 @@
 <body>
   <div id="game"></div>
 
-  <!-- ================= หน้าเข้าเกม: สร้างตัวละคร ================= -->
+  <!-- ================= หน้าเข้าเกม ================= -->
   <div id="login">
     <div class="login-box frame">
       <h1>Project Novice</h1>
-      <p class="sub">ทุกคนเริ่มต้นเป็นชาวบ้าน — เลือกหน้าตาของคุณ</p>
-      <div class="creator">
-        <div class="preview">
-          <canvas id="previewCanvas" width="64" height="64"></canvas>
-          <button id="turnBtn" type="button" class="turn" aria-label="หมุนตัวละคร">หมุนตัว ↻</button>
+
+      <!-- 1) ล็อกอิน / สมัครสมาชิก -->
+      <form id="scrAuth" class="scr" autocomplete="on">
+        <p class="sub" id="authSub">ล็อกอินด้วย ID ของคุณ</p>
+        <label class="field"><span>ID</span>
+          <input id="idInput" maxlength="16" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="a–z, 0–9, _ (4–16 ตัว)" /></label>
+        <label class="field"><span>รหัสผ่าน</span>
+          <input id="pwInput" type="password" maxlength="64" autocomplete="current-password" /></label>
+        <label class="field" id="pw2Field" hidden><span>ยืนยันรหัสผ่าน</span>
+          <input id="pw2Input" type="password" maxlength="64" autocomplete="new-password" /></label>
+        <button id="authBtn" class="btn-gold wide" type="submit">เข้าสู่ระบบ</button>
+        <div class="err" role="alert" id="authErr"></div>
+        <p class="switch"><span id="switchText">ยังไม่มี ID?</span> <button id="switchBtn" type="button" class="link">สมัครสมาชิก</button></p>
+        <p class="devnote" id="devNote" hidden>โหมดทดสอบ: ยังไม่ได้ต่อ Firebase — ข้อมูลจะหายเมื่อเซิร์ฟเวอร์รีสตาร์ท</p>
+      </form>
+
+      <!-- 2) เลือกตัวละคร -->
+      <section id="scrSelect" class="scr" hidden>
+        <div class="acct"><span>ID: <b id="acctId">-</b></span><button id="logoutBtn" type="button" class="link">ออกจากระบบ</button></div>
+        <p class="sub">เลือกตัวละคร</p>
+        <div id="slots" class="slots-grid"></div>
+        <div class="err" role="alert" id="selectErr"></div>
+      </section>
+
+      <!-- 3) สร้างตัวละคร -->
+      <section id="scrCreate" class="scr" hidden>
+        <p class="sub">ทุกคนเริ่มต้นเป็นชาวบ้าน — เลือกหน้าตาของคุณ</p>
+        <div class="creator">
+          <div class="preview">
+            <canvas id="previewCanvas" width="64" height="64"></canvas>
+            <button id="turnBtn" type="button" class="turn" aria-label="หมุนตัวละคร">หมุนตัว ↻</button>
+          </div>
+          <div class="opts">
+            <div class="opt"><span>เพศ</span><div id="optSex" class="chips"></div></div>
+            <div class="opt"><span>สีผิว</span><div id="optSkin" class="chips"></div></div>
+            <div class="opt"><span>ทรงผม</span><div id="optHair" class="chips"></div></div>
+            <div class="opt"><span>สีผม</span><div id="optColor" class="chips"></div></div>
+          </div>
         </div>
-        <div class="opts">
-          <div class="opt"><span>เพศ</span><div id="optSex" class="chips"></div></div>
-          <div class="opt"><span>สีผิว</span><div id="optSkin" class="chips"></div></div>
-          <div class="opt"><span>ทรงผม</span><div id="optHair" class="chips"></div></div>
-          <div class="opt"><span>สีผม</span><div id="optColor" class="chips"></div></div>
+        <label class="field"><span>ชื่อตัวละคร (ห้ามซ้ำกับคนอื่น)</span>
+          <input id="nameInput" maxlength="14" placeholder="ไทย/อังกฤษ/ตัวเลข 2–14 ตัว" autocomplete="off" /></label>
+        <div class="row2">
+          <button id="backBtn" type="button" class="btn-ghost">ย้อนกลับ</button>
+          <button id="createBtn" type="button" class="btn-gold">สร้างตัวละคร</button>
         </div>
-      </div>
-      <label class="field">
-        <span>ชื่อตัวละคร</span>
-        <input id="nameInput" maxlength="14" placeholder="เช่น Sayan" autocomplete="off" />
-      </label>
-      <button id="playBtn" class="btn-gold">เข้าเกม</button>
-      <div id="loginErr" role="alert"></div>
+        <div class="err" role="alert" id="createErr"></div>
+      </section>
+
       <a class="credits" href="/credits" target="_blank" rel="noopener">เครดิตงานภาพ (LPC)</a>
     </div>
   </div>
@@ -48,6 +77,7 @@
           <div id="stName" class="name">-</div>
           <div class="job"><span id="stJob">-</span> · Lv. <b id="stLv">1</b></div>
         </div>
+        <button id="exitBtn" class="exit-btn" type="button" title="กลับไปหน้าเลือกตัวละคร">ออก</button>
       </div>
       <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
       <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
@@ -98,6 +128,8 @@
     <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
   </div>
 
+  <script src="/lib/firebase-app.js"></script>
+  <script src="/lib/firebase-auth.js"></script>
   <script src="/lib/phaser.min.js"></script>
   <script src="/lib/colyseus.js"></script>
   <script src="/game.js"></script>

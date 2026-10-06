@@ -26,21 +26,173 @@ let scene = null;
 let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
 
 // =============================================================
-//  หน้าสร้างตัวละคร
+//  ล็อกอินด้วย ID (ใช้ Firebase Auth — ID ถูกแปลงเป็นอีเมลภายใน id@โดเมนเกม)
 // =============================================================
-const saved = (storeGet("pn_look2") || "m|light|spiked|chestnut").split("|");
-const look = { sex: saved[0], skin: saved[1], hair: saved[2], color: saved[3] };
-let previewDir = 0, previewFrame = 0;
+const ID_RE = /^[a-z0-9_]{4,16}$/;
+let cfg = null, fbAuth = null, authMode = "login", account = null;
+
+const showScreen = (id) => ["scrAuth", "scrSelect", "scrCreate"].forEach((s) => ($(s).hidden = s !== id));
+const setErr = (id, msg) => { $(id).textContent = msg || ""; };
+
+async function getToken() {
+  if (cfg.mode === "dev") return "dev:" + sessionStorage.getItem("pn_dev_id");
+  return fbAuth.currentUser.getIdToken();
+}
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method, body: body && JSON.stringify(body),
+    headers: { "content-type": "application/json", authorization: "Bearer " + (await getToken()) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
+  return data;
+}
+const FB_ERR = {
+  "auth/invalid-credential": "ID หรือรหัสผ่านไม่ถูกต้อง", "auth/wrong-password": "ID หรือรหัสผ่านไม่ถูกต้อง",
+  "auth/user-not-found": "ID หรือรหัสผ่านไม่ถูกต้อง", "auth/invalid-login-credentials": "ID หรือรหัสผ่านไม่ถูกต้อง",
+  "auth/email-already-in-use": "ID นี้มีคนใช้แล้ว", "auth/weak-password": "รหัสผ่านต้องมีอย่างน้อย 6 ตัว",
+  "auth/too-many-requests": "ลองผิดหลายครั้งเกินไป รอสักครู่แล้วลองใหม่",
+  "auth/network-request-failed": "เชื่อมต่ออินเทอร์เน็ตไม่ได้",
+};
+
+async function initAuth() {
+  try { cfg = await (await fetch("/api/config")).json(); }
+  catch { setErr("authErr", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ถ้าเพิ่งเปิดเว็บ รอประมาณ 1 นาทีแล้วรีเฟรช)"); return; }
+  $("idInput").value = storeGet("pn_id") || "";
+  if (cfg.mode === "dev") {
+    $("devNote").hidden = false;
+    if (sessionStorage.getItem("pn_dev_id")) return openSelect();
+    return showScreen("scrAuth");
+  }
+  firebase.initializeApp(cfg.firebase);
+  fbAuth = firebase.auth();
+  fbAuth.onAuthStateChanged((u) => (u ? openSelect() : showScreen("scrAuth")));
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const signup = mode === "signup";
+  $("pw2Field").hidden = !signup;
+  $("authBtn").textContent = signup ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
+  $("authSub").textContent = signup ? "สร้าง ID ใหม่" : "ล็อกอินด้วย ID ของคุณ";
+  $("switchText").textContent = signup ? "มี ID แล้ว?" : "ยังไม่มี ID?";
+  $("switchBtn").textContent = signup ? "เข้าสู่ระบบ" : "สมัครสมาชิก";
+  $("pwInput").autocomplete = signup ? "new-password" : "current-password";
+  setErr("authErr");
+}
+$("switchBtn").onclick = () => setAuthMode(authMode === "login" ? "signup" : "login");
+
+$("scrAuth").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("idInput").value.trim().toLowerCase(), pw = $("pwInput").value;
+  if (!ID_RE.test(id)) return setErr("authErr", "ID ต้องยาว 4–16 ตัว ใช้ได้แค่ a–z, 0–9 และ _");
+  if (pw.length < 6) return setErr("authErr", "รหัสผ่านต้องมีอย่างน้อย 6 ตัว");
+  if (authMode === "signup" && pw !== $("pw2Input").value) return setErr("authErr", "ยืนยันรหัสผ่านไม่ตรงกัน");
+  $("authBtn").disabled = true;
+  setErr("authErr");
+  try {
+    storeSet("pn_id", id);
+    if (cfg.mode === "dev") { sessionStorage.setItem("pn_dev_id", id); await openSelect(); return; }
+    const email = `${id}@${cfg.domain}`;
+    if (authMode === "signup") await fbAuth.createUserWithEmailAndPassword(email, pw);
+    else await fbAuth.signInWithEmailAndPassword(email, pw);
+    // onAuthStateChanged จะพาไปหน้าเลือกตัวละครเอง
+  } catch (err) {
+    setErr("authErr", FB_ERR[err.code] || err.message);
+  } finally {
+    $("authBtn").disabled = false;
+  }
+});
+
+$("logoutBtn").onclick = async () => {
+  if (cfg.mode === "dev") { sessionStorage.removeItem("pn_dev_id"); showScreen("scrAuth"); return; }
+  await fbAuth.signOut();
+};
+
+// =============================================================
+//  หน้าเลือกตัวละคร (3 ช่อง)
+// =============================================================
 const imgCache = {};
 const loadImg = (path) => {
-  if (!imgCache[path]) { const i = new Image(); i.src = `/assets/${path}.png`; i.onload = drawPreview; imgCache[path] = i; }
+  if (!imgCache[path]) { const i = new Image(); i.src = `/assets/${path}.png`; imgCache[path] = i; }
   return imgCache[path];
 };
-const lookStr = () => [look.sex, look.skin, look.hair, look.color].join("|");
 const layersFor = (lk, job = "villager") => {
   const [sex, skin, hair, color] = lk.split("|");
   return [`look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, `look/hair_${hair}_${color}`];
 };
+// วาดตัวละครลง canvas (frame 0 = ยืน, 1–8 = เดิน; row 0–3 = ขึ้น/ซ้าย/ลง/ขวา)
+function drawLook(cv, lk, job, frame, row) {
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 64, 64);
+  for (const l of layersFor(lk, job)) {
+    const img = loadImg(l);
+    if (img.complete && img.naturalWidth) ctx.drawImage(img, frame * 64, row * 64, 64, 64, 0, 0, 64, 64);
+  }
+}
+let animFrame = 0;
+const animTimer = setInterval(() => {
+  animFrame = (animFrame + 1) % 8;
+  document.querySelectorAll("#slots canvas").forEach((cv) => drawLook(cv, cv.dataset.look, cv.dataset.job, 1 + animFrame, 2));
+  if (!$("scrCreate").hidden) drawPreview();
+}, 110);
+
+async function openSelect() {
+  showScreen("scrSelect");
+  setErr("selectErr");
+  $("slots").innerHTML = `<p class="sub">กำลังโหลด…</p>`;
+  try {
+    account = await api("GET", "/api/chars");
+  } catch (e) {
+    setErr("selectErr", e.message);
+    $("slots").innerHTML = "";
+    return;
+  }
+  $("acctId").textContent = account.loginId;
+  const box = $("slots");
+  box.innerHTML = "";
+  for (let i = 0; i < account.slots; i++) {
+    const c = account.chars[i];
+    if (!c) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "slot-card empty";
+      b.innerHTML = `<span><b>+</b>สร้างตัวละคร</span>`;
+      b.onclick = openCreate;
+      box.appendChild(b);
+      continue;
+    }
+    const card = document.createElement("div");
+    card.className = "slot-card";
+    card.innerHTML = `<canvas width="64" height="64"></canvas><div class="cn"></div>
+      <div class="cj">${esc(c.jobName)} · Lv.${c.level}</div>
+      <button type="button" class="btn-gold play">เล่น</button><button type="button" class="link del">ลบ</button>`;
+    card.querySelector(".cn").textContent = c.name;
+    const cv = card.querySelector("canvas");
+    cv.dataset.look = c.look; cv.dataset.job = c.job;
+    drawLook(cv, c.look, c.job, 0, 2);
+    card.querySelector(".play").onclick = (e) => enterGame(c, e.target);
+    card.querySelector(".del").onclick = () => deleteChar(c);
+    box.appendChild(card);
+  }
+}
+
+async function deleteChar(c) {
+  const typed = prompt(`ลบ "${c.name}" ถาวร กู้คืนไม่ได้\nพิมพ์ชื่อตัวละครเพื่อยืนยัน`);
+  if (typed === null) return;
+  if (typed.trim() !== c.name) return setErr("selectErr", "ชื่อไม่ตรง ยกเลิกการลบ");
+  try { await api("DELETE", "/api/chars/" + encodeURIComponent(c.id)); openSelect(); }
+  catch (e) { setErr("selectErr", e.message); }
+}
+
+// =============================================================
+//  หน้าสร้างตัวละคร
+// =============================================================
+const saved = (storeGet("pn_look2") || "m|light|spiked|chestnut").split("|");
+const look = { sex: saved[0], skin: saved[1], hair: saved[2], color: saved[3] };
+let previewDir = 0;
+const lookStr = () => [look.sex, look.skin, look.hair, look.color].join("|");
 
 function chipGroup(el, items, key, swatch) {
   el.innerHTML = "";
@@ -71,34 +223,39 @@ function buildCreator() {
 }
 function drawPreview() {
   const cv = $("previewCanvas");
-  if (!cv) return;
-  const ctx = cv.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, 64, 64);
-  const row = [2, 1, 0, 3][previewDir]; // ลง ซ้าย ขึ้น ขวา
-  for (const l of layersFor(lookStr())) {
-    const img = loadImg(l);
-    if (img.complete && img.naturalWidth) ctx.drawImage(img, (1 + previewFrame) * 64, row * 64, 64, 64, 0, 0, 64, 64);
-  }
+  if (cv) drawLook(cv, lookStr(), "villager", 1 + animFrame, [2, 1, 0, 3][previewDir]);
 }
-buildCreator();
-const previewTimer = setInterval(() => { previewFrame = (previewFrame + 1) % 8; drawPreview(); }, 110);
 $("turnBtn").onclick = () => { previewDir = (previewDir + 1) % 4; drawPreview(); };
-
-$("nameInput").value = storeGet("pn_name") || "";
-$("nameInput").addEventListener("keydown", (e) => e.key === "Enter" && join());
-$("playBtn").addEventListener("click", join);
-
-async function join() {
+function openCreate() {
+  showScreen("scrCreate");
+  setErr("createErr");
+  $("nameInput").value = "";
+  buildCreator();
+  $("nameInput").focus();
+}
+$("backBtn").onclick = openSelect;
+$("nameInput").addEventListener("keydown", (e) => e.key === "Enter" && $("createBtn").click());
+$("createBtn").onclick = async () => {
   const name = $("nameInput").value.trim();
-  if (!name) { $("loginErr").textContent = "ใส่ชื่อตัวละครก่อนเข้าเกม"; $("nameInput").focus(); return; }
-  $("playBtn").disabled = true;
-  $("loginErr").textContent = "";
+  if (!name) return setErr("createErr", "ใส่ชื่อตัวละครก่อน");
+  $("createBtn").disabled = true;
+  try {
+    await api("POST", "/api/chars", { name, look: lookStr() });
+    storeSet("pn_look2", lookStr());
+    openSelect();
+  } catch (e) { setErr("createErr", e.message); }
+  finally { $("createBtn").disabled = false; }
+};
+
+// =============================================================
+//  เข้าเกม
+// =============================================================
+async function enterGame(c, btn) {
+  btn.disabled = true;
+  setErr("selectErr");
   try {
     const client = new Colyseus.Client(SERVER_URL);
-    room = await client.joinOrCreate("world", { name, look: lookStr() });
-    storeSet("pn_name", name);
-    storeSet("pn_look2", lookStr());
+    room = await client.joinOrCreate("world", { token: await getToken(), charId: c.id });
     room.onMessage("system", (text) => addChat("system", esc(text)));
     room.onMessage("chat", ({ id, name, text }) => {
       addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
@@ -106,17 +263,23 @@ async function join() {
       if (v) scene.showBubble(v, text);
     });
     room.onMessage("toast", toast);
-    room.onLeave(() => addChat("system", "หลุดการเชื่อมต่อ — รีเฟรชหน้าเพื่อเข้าใหม่"));
-    clearInterval(previewTimer);
+    room.onLeave((code) => {
+      if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
+      else if (code !== 1000) addChat("system", "หลุดการเชื่อมต่อ — รีเฟรชหน้าเพื่อเข้าใหม่");
+    });
+    clearInterval(animTimer);
     $("login").remove();
     $("hud").hidden = false;
+    $("exitBtn").onclick = async () => { await room.leave(); location.reload(); };
     startGame();
   } catch (err) {
     console.error(err);
-    $("loginErr").textContent = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ถ้าเพิ่งเปิดเว็บ รอประมาณ 1 นาทีแล้วกดใหม่)";
-    $("playBtn").disabled = false;
+    setErr("selectErr", err.message || "เข้าเกมไม่ได้ ลองใหม่อีกครั้ง");
+    btn.disabled = false;
   }
 }
+
+initAuth();
 
 // =============================================================
 //  ฉากเกม

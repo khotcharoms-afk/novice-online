@@ -16,9 +16,11 @@
     "colyseus": "^0.16.5",
     "colyseus.js": "^0.16.22",
     "express": "^4.22.3",
+    "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
     "phaser": "^3.90.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

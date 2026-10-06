@@ -48,8 +48,6 @@ button { font: inherit; color: inherit; }
 .field { display: grid; gap: 6px; text-align: left; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
 .field input, #chatInput { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3561;
   background: #0d1124; color: var(--text); font: inherit; font-size: 16px; }
-#playBtn { width: 100%; padding: 11px; font-size: 17px; }
-#loginErr { color: #ff9a9a; min-height: 20px; margin-top: 8px; font-size: 13px; }
 
 /* ---------- HUD ---------- */
 #hud > * { position: fixed; z-index: 5; }
@@ -196,3 +194,31 @@ button { font: inherit; color: inherit; }
   .gear-btn { width: 60px; height: 30px; margin: 4px 0 0; }
   #autoPanel { right: 80px; bottom: auto; top: 140px; width: min(320px, calc(100vw - 100px)); }
 }
+
+/* ---------- ล็อกอิน / เลือกตัวละคร ---------- */
+.btn-gold.wide { width: 100%; padding: 11px; font-size: 17px; }
+.btn-ghost { border: 1px solid #2c3561; background: rgba(13, 17, 36, .6); color: var(--text); border-radius: 8px;
+  cursor: pointer; padding: 10px 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.row2 .btn-gold { padding: 10px; font-size: 16px; }
+.err { color: #ff9a9a; min-height: 20px; margin-top: 8px; font-size: 13px; }
+.link { background: none; border: 0; color: var(--name); cursor: pointer; text-decoration: underline; padding: 0; }
+.switch { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+.devnote { margin: 10px 0 0; font-size: 12px; color: #ffb86b; }
+.acct { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; color: var(--muted);
+  margin: 6px 0 2px; }
+.acct b { color: var(--text); font-weight: 500; }
+.slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
+.slot-card { border: 1px solid #2c3561; border-radius: 10px; background: rgba(13, 17, 36, .6); padding: 10px 6px;
+  display: grid; justify-items: center; gap: 4px; min-height: 196px; align-content: start; }
+.slot-card canvas { width: 72px; height: 72px; image-rendering: pixelated; }
+.slot-card .cn { color: var(--name); font-weight: 500; font-size: 15px; word-break: break-all; }
+.slot-card .cj { color: var(--muted); font-size: 12.5px; }
+.slot-card .play { width: 100%; padding: 7px; margin-top: 4px; }
+.slot-card .del { font-size: 12px; color: var(--muted); }
+.slot-card.empty { place-content: center; color: var(--muted); cursor: pointer; border-style: dashed; font: inherit; }
+.slot-card.empty:hover { border-color: var(--brass); color: var(--name); }
+.slot-card.empty b { font-size: 28px; font-weight: 400; display: block; }
+.exit-btn { margin-left: auto; align-self: start; font-size: 12px; padding: 3px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #2c3561; background: rgba(13, 17, 36, .6); color: var(--muted); }
+@media (max-width: 520px) { .slots-grid { gap: 6px; } .slot-card { min-height: 170px; padding: 8px 4px; } .slot-card .cn { font-size: 13px; } }

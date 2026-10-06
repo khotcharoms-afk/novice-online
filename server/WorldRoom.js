@@ -2,7 +2,8 @@
 //  ห้องโลกเกม — เซิร์ฟเวอร์เป็นตัวตัดสินทุกอย่าง (เดิน / ตี / ดาเมจ / EXP)
 //  ผู้เล่นส่งมาแค่ "อยากทำอะไร" เช่น เดินไปตรงนี้ / ตีตัวนี้ / ใช้สกิลนี้
 // =============================================================
-const { Room } = require("colyseus");
+const { Room, ServerError } = require("colyseus");
+const { store, StoreError } = require("./store");
 const { Schema, MapSchema, defineTypes } = require("@colyseus/schema");
 const { generateMap, isWalkable } = require("./map");
 const D = require("./data");
@@ -44,7 +45,32 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const dirOf = (dx, dy) => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
 const rand = (a, b) => a + Math.random() * (b - a);
 
+const SAVE_EVERY_MS = 60000;
+const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
+
 class WorldRoom extends Room {
+  static isOnline(charId) { return online.has(String(charId)); }
+
+  // ตรวจตั๋วล็อกอิน + ความเป็นเจ้าของตัวละคร ก่อนให้เข้าห้อง
+  async onAuth(client, options) {
+    try {
+      const user = await store.verify(options && options.token);
+      let char = await store.load(user.uid, options && options.charId);
+      const live = online.get(char.id);
+      if (live) {
+        // ตัวละครนี้ออนไลน์อยู่ในอีกหน้าต่าง → ใช้ข้อมูลล่าสุดจากในเกม แล้วเตะหน้าต่างเก่าออก
+        const lp = live.room.state.players.get(live.sessionId);
+        if (lp) char = { ...char, ...live.room.toData(lp) };
+        const old = live.room.clients.find((c) => c.sessionId === live.sessionId);
+        if (old) { old.send("system", "ตัวละครนี้ถูกเข้าเกมจากที่อื่น"); old.leave(4001); }
+      }
+      return { user, char };
+    } catch (e) {
+      if (!(e instanceof StoreError)) console.error("auth failed:", e.message);
+      throw new ServerError(401, e instanceof StoreError ? e.message : "กรุณาล็อกอินใหม่");
+    }
+  }
+
   onCreate() {
     this.maxClients = 100;
     this.map = generateMap();
@@ -97,21 +123,47 @@ class WorldRoom extends Room {
 
     this.setSimulationInterval((dt) => this.update(dt), TICK_MS);
     this.clock.setInterval(() => this.regen(), 1000);
+    this.clock.setInterval(() => this.state.players.forEach((_p, id) => this.save(id)), SAVE_EVERY_MS);
+  }
+
+  // ================= บันทึกตัวละคร =================
+  toData(p) {
+    const dead = p.dead || p.hp <= 0;
+    const spot = dead ? this.townSpawn() : p;
+    return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp,
+      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job };
+  }
+  save(pid) {
+    const p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || !r.charId) return Promise.resolve();
+    return store.save(r.charId, this.toData(p)).catch((e) => console.error("save failed", r.charId, e.message));
+  }
+  async onBeforeShutdown() {
+    await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
+    this.disconnect();
   }
 
   // ================= ผู้เล่นเข้า/ออก =================
-  onJoin(client, options) {
+  onJoin(client, options, auth) {
+    const c = auth.char;
     const p = new Player();
-    p.name = sanitizeName(options && options.name) || "ชาวบ้าน" + Math.floor(Math.random() * 1000);
-    p.look = D.sanitizeLook(options && options.look);
-    p.job = "villager"; p.jobName = D.JOB_NAME.villager;
+    p.name = c.name;
+    p.look = D.sanitizeLook(c.look);
+    p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = AUTO_RADII[1];
-    p.level = 1; p.exp = 0; p.expNext = D.expToNext(1);
+    p.level = Math.max(1, Math.min(D.MAX_LEVEL, c.level || 1));
+    p.expNext = D.expToNext(p.level);
+    p.exp = Math.min(c.exp || 0, Math.max(0, p.expNext - 1));
     this.applyStats(p, true);
-    const s = this.townSpawn(); p.x = s.x; p.y = s.y;
+    if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
+    if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
+    const s = Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
+    p.x = s.x; p.y = s.y;
     this.state.players.set(client.sessionId, p);
+    online.set(c.id, { room: this, sessionId: client.sessionId });
     this.pr.set(client.sessionId, {
+      charId: c.id, uid: auth.user.uid,
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       autoCfg: { radius: AUTO_RADII[1], kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0,
@@ -120,7 +172,12 @@ class WorldRoom extends Room {
   }
 
   onLeave(client) {
-    const p = this.state.players.get(client.sessionId);
+    const p = this.state.players.get(client.sessionId), r = this.pr.get(client.sessionId);
+    if (r && r.charId) {
+      this.save(client.sessionId);
+      const o = online.get(r.charId);
+      if (o && o.room === this && o.sessionId === client.sessionId) online.delete(r.charId);
+    }
     if (p) this.broadcast("system", `${p.name} ออกจากเกม`);
     this.state.players.delete(client.sessionId);
     this.pr.delete(client.sessionId);
@@ -371,6 +428,7 @@ class WorldRoom extends Room {
     if (leveled) {
       this.applyStats(p, true);
       this.broadcast("lvup", { id: pid, level: p.level });
+      this.save(pid);
       this.broadcast("system", `${p.name} เลเวลอัปเป็น Lv.${p.level}!`);
       if (p.level === D.JOB_CHANGE_LEVEL && client)
         client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! เควสเปลี่ยนอาชีพจะเปิดในอัปเดตถัดไป`);
@@ -503,11 +561,6 @@ class WorldRoom extends Room {
     }
     return { x: cx, y: cy };
   }
-}
-
-function sanitizeName(name) {
-  if (typeof name !== "string") return "";
-  return name.replace(/[<>]/g, "").trim().slice(0, 14);
 }
 
 module.exports = { WorldRoom };
