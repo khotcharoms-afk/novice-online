@@ -481,7 +481,7 @@ class WorldScene extends Phaser.Scene {
 
     // วงขอบเขต AUTO
     const meP = room.state.players.get(room.sessionId);
-    const showRing = !!(meP && meP.auto);
+    const showRing = !!(meP && meP.auto && meP.autoR < WHOLE_MAP);
     this.autoRing.setVisible(showRing);
     if (showRing) {
       this.autoRing.setPosition(meP.autoX, meP.autoY);
@@ -629,7 +629,8 @@ function renderCooldowns() {
 }
 
 // ---------- ตั้งค่า AUTO ----------
-const RADII = [[160, "เล็ก · 5 ช่อง"], [360, "กลาง · 11 ช่อง"], [560, "ใหญ่ · 17 ช่อง"]];
+const WHOLE_MAP = 9999;
+const RADII = [[160, "5 ช่อง"], [360, "11 ช่อง"], [560, "17 ช่อง"], [WHOLE_MAP, "ทั้งแมพ"]];
 const autoCfg = (() => {
   try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [] }; }
   catch { return { radius: 360, kinds: [] }; }

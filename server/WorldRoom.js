@@ -17,7 +17,8 @@ const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
 const LEASH = 420;           // มอนไล่ไกลเกินนี้จะกลับบ้าน
 const RESPAWN_PLAYER_MS = 4000;
-const AUTO_RADII = [160, 360, 560]; // ขอบเขต AUTO: เล็ก / กลาง / ใหญ่ (px รอบจุดที่เปิด AUTO)
+const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
+const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
 class Player extends Schema {}
@@ -423,7 +424,8 @@ class WorldRoom extends Room {
       if (best) { r.target = best; r.moveTarget = null; p.autoState = "fight"; }
       else {
         p.autoState = r.resting ? "rest" : "wait";
-        if (dist(p, r.anchor) > 40) r.moveTarget = { ...r.anchor }; // ไม่มีมอน → กลับจุดเดิมรอ
+        // ไม่มีมอน → กลับจุดเดิมรอ (โหมดทั้งแมพ: ยืนรออยู่ที่เดิม)
+        if (r.autoCfg.radius !== WHOLE_MAP && dist(p, r.anchor) > 40) r.moveTarget = { ...r.anchor };
       }
       return;
     }
