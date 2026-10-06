@@ -402,12 +402,12 @@ function onRefined(res) {
   if (me && res.ok) scene.sparkle(me.root.x, me.root.y - 20, 0xffd36b);
 }
 
-// รวมหิน 5 ก้อน → ขั้นสูงขึ้น 1 ก้อน
+// รวมคริสตัล 5 ก้อน → ขั้นสูงขึ้น 1 ก้อน
 function renderFuse() {
   const box = $("smithFuse");
   if (!box || !gameData.stoneFuse) return;
   const have = (id) => INV.inv.reduce((t, s) => t + (s && s.id === id ? s.n : 0), 0);
-  box.innerHTML = `<div class="ap-note" style="margin:0 0 4px">รวมหิน (${Object.values(gameData.stoneFuse)[0].n} ก้อน → ขั้นสูงขึ้น 1 ก้อน)</div>` +
+  box.innerHTML = `<div class="ap-note" style="margin:0 0 4px">รวมคริสตัล (${Object.values(gameData.stoneFuse)[0].n} ก้อน → ขั้นสูงขึ้น 1 ก้อน)</div>` +
     Object.entries(gameData.stoneFuse).map(([to, f]) => {
       const h = have(f.from), max = Math.min(Math.floor(h / f.n), Math.floor(INV.gold / f.gold));
       return `<div class="fuse-row"><img src="${ICON(f.from)}" alt="" width="20" height="20"><span>${h}/${f.n}</span><span>→</span>

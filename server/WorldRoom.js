@@ -155,7 +155,7 @@ class WorldRoom extends Room {
       }
       b.gold -= can * f.gold;
       Bag.addItem(b, to, can);
-      client.send("toast", `รวมหินสำเร็จ: ได้ ${I.ITEMS[to].name} ×${can}`);
+      client.send("toast", `รวมคริสตัลสำเร็จ: ได้ ${I.ITEMS[to].name} ×${can}`);
       this.saveSoon(client.sessionId);
     }));
     // ทิ้งไอเทม (ทำลาย) — ของที่ไม่อยากได้/ขายไม่ได้

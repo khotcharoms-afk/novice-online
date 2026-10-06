@@ -149,7 +149,7 @@
 
 ## อุปกรณ์สวมใส่ (`equip/*.png`) และ NPC (`npc_merchant.png`, `npc_smith.png`) และไอคอนอุปกรณ์บางส่วน (`icons/*.png`)
 
-ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** เช่นเดียวกับตัวละคร (สัญญาอนุญาต CC-BY-SA 3.0 / GPL 3.0 / OGA-BY 3.0 / CC-BY 4.0 ตามแต่ละชิ้น) — ไอคอนยา เงิน ของดรอป และเครื่องประดับ รวมถึงสัตว์เลี้ยง (`pets/*.png`) วาดขึ้นใหม่สำหรับเกมนี้
+ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** เช่นเดียวกับตัวละคร (สัญญาอนุญาต CC-BY-SA 3.0 / GPL 3.0 / OGA-BY 3.0 / CC-BY 4.0 ตามแต่ละชิ้น) — ไอคอนยา เงิน ของดรอป และเครื่องประดับ รวมถึงสัตว์เลี้ยง (`pets/*.png`) และคริสตัลตีบวก วาดขึ้นใหม่สำหรับเกมนี้
 
 - **arms/gloves/female** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
   - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites

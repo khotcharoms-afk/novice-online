@@ -50,10 +50,10 @@ const ITEMS = {
   pet_sparrow:  { name: "นกกระจอกน้อย", type: "pet", lv: 1, price: 300, pet: { range: 160, speed: 210 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 5 ช่อง" },
   pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
   pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
-  // ---------- หินตีบวก (ใช้ที่ลุงเหล็กกล้า) · frame = สีกรอบในกระเป๋า ----------
-  stone_1: { name: "หินตีบวกขั้นต้น", type: "material", price: 30, frame: "#a9c29b", desc: "ใช้ตีบวก +1 ถึง +4" },
-  stone_2: { name: "หินตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
-  stone_3: { name: "หินตีบวกขั้นสูง", type: "material", sell: 200, frame: "#d08bff", desc: "ใช้ตีบวก +8 ถึง +10" },
+  // ---------- คริสตัลตีบวก (ใช้ที่ลุงเหล็กกล้า) · frame = สีกรอบในกระเป๋า ----------
+  stone_1: { name: "คริสตัลตีบวกขั้นต้น", type: "material", price: 30, frame: "#f0954a", desc: "ใช้ตีบวก +1 ถึง +4" },
+  stone_2: { name: "คริสตัลตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
+  stone_3: { name: "คริสตัลตีบวกขั้นสูง", type: "material", sell: 200, frame: "#d08bff", desc: "ใช้ตีบวก +8 ถึง +10" },
   // ---------- ของดรอป (ขายที่ร้าน) ----------
   goblin_ear: { name: "หูก็อบลิน", type: "material", sell: 4 },
   wolf_fang:  { name: "เขี้ยวหมาป่า", type: "material", sell: 10 },
@@ -114,7 +114,7 @@ function makeGear(id, r) {
 
 // =============================================================
 //  ตีบวก (+1 ถึง +10) ที่ NPC ช่างตีบวก — ใช้ได้กับอาวุธ/ของที่มีค่าป้องกัน
-//  rate = โอกาสสำเร็จ · mats = หินตีบวกที่ใช้ (ขั้นสูงขึ้น = หินขั้นสูงขึ้น + ใช้จำนวนมากขึ้น)
+//  rate = โอกาสสำเร็จ · mats = คริสตัลตีบวกที่ใช้ (ขั้นสูงขึ้น = คริสตัลขั้นสูงขึ้น + ใช้จำนวนมากขึ้น)
 //  ล้มเหลวตั้งแต่ +5 ขึ้นไป ระดับลด 1 (ของไม่แตก)
 // =============================================================
 const MAX_REFINE = 10;
@@ -131,7 +131,7 @@ const REFINE = [null,
   { rate: 0.15, mats: [["stone_3", 5]] },
 ];
 const SAFE_REFINE = 4;
-// รวมหิน: หินขั้นต่ำกว่า 5 ก้อน + gold → หินขั้นสูงกว่า 1 ก้อน
+// รวมคริสตัล: ขั้นต่ำกว่า 5 ก้อน + gold → ขั้นสูงกว่า 1 ก้อน
 const STONE_FUSE = { stone_2: { from: "stone_1", n: 5, gold: 100 }, stone_3: { from: "stone_2", n: 5, gold: 500 } }; // ตีถึง +4 ไม่มีวันลดระดับ
 const canRefine = (it) => !!(it && it.type === "equip" && it.bonus && (it.bonus.atk || it.bonus.def));
 const refineGold = (it, to) => Math.round(((40 + (it.lv || 1) * 15) * Math.pow(to, 1.6)) / 10) * 10;
