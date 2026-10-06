@@ -321,7 +321,7 @@ class WorldScene extends Phaser.Scene {
       $("apClose").onclick = () => toggleAutoPanel(false);
     });
     // วงขอบเขต AUTO บนพื้น
-    this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.05).setStrokeStyle(2, 0xffd36b, 0.45)
+    this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.08).setStrokeStyle(3, 0xffd36b, 0.85)
       .setDepth(-9500).setVisible(false);
     room.send("getMap");
 
@@ -645,11 +645,17 @@ class WorldScene extends Phaser.Scene {
 
     // วงขอบเขต AUTO
     const meP = room.state.players.get(room.sessionId);
-    const showRing = !!(meP && meP.auto && meP.autoR < WHOLE_MAP);
-    this.autoRing.setVisible(showRing);
-    if (showRing) {
-      this.autoRing.setPosition(meP.autoX, meP.autoY);
-      if (this.autoRing.width !== meP.autoR * 2) this.autoRing.setSize(meP.autoR * 2, meP.autoR * 2 * 0.9);
+    // เปิด AUTO อยู่ → วงที่จุดเปิด AUTO; ยังไม่เปิดแต่เปิดหน้าตั้งค่าอยู่ → วงตัวอย่างรอบตัวเรา
+    let ring = null;
+    if (meP && meP.auto && meP.autoR < WHOLE_MAP) ring = { x: meP.autoX, y: meP.autoY, r: meP.autoR };
+    else if (meP && !meP.auto && !$("autoPanel").hidden && autoCfg.radius < WHOLE_MAP) {
+      const mv = this.views.get(room.sessionId);
+      if (mv) ring = { x: mv.root.x, y: mv.root.y, r: autoCfg.radius };
+    }
+    this.autoRing.setVisible(!!ring);
+    if (ring) {
+      this.autoRing.setPosition(ring.x, ring.y);
+      if (this.autoRing.width !== ring.r * 2) this.autoRing.setSize(ring.r * 2, ring.r * 2 * 0.9);
     }
 
     // วงแดงใต้เป้าหมาย

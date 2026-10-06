@@ -48,7 +48,7 @@ const monsterStats = (lv) => ({
   def: lv,
   exp: Math.round(6 * Math.pow(lv, 1.5)),
 });
-const MONSTER_RESPAWN_MS = 12000;
+const MONSTER_RESPAWN_MS = 8000;
 
 // ---------- สกิล ----------
 // target: "self" = ใช้กับตัวเอง, "mob" = ต้องมีเป้าหมายมอนสเตอร์

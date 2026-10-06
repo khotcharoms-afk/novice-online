@@ -6,6 +6,7 @@ const { Room, ServerError } = require("colyseus");
 const { store, StoreError } = require("./store");
 const { Schema, MapSchema, defineTypes } = require("@colyseus/schema");
 const { generateMap, isWalkable } = require("./map");
+const { NavGrid } = require("./path");
 const D = require("./data");
 
 const SPEED = 170;           // ความเร็วเดินผู้เล่น (px/วินาที)
@@ -74,6 +75,8 @@ class WorldRoom extends Room {
   onCreate() {
     this.maxClients = 100;
     this.map = generateMap();
+    const T = this.map.tile;
+    this.nav = new NavGrid(this.map.width, this.map.height, T, (tx, ty) => this.canStand(tx * T + T / 2, ty * T + T / 2));
     this.setState(new WorldState());
     this.pr = new Map(); // ข้อมูลภายในของผู้เล่น (ไม่ส่งให้ client)
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
@@ -259,19 +262,17 @@ class WorldRoom extends Room {
       const range = r.pending ? D.SKILLS[r.pending].range || MELEE_RANGE : MELEE_RANGE;
       const d = dist(p, mob);
       if (d > range) {
-        // เดินชนต้นไม้/หิน ไปต่อไม่ได้นานเกิน 1.2 วิ → เลิกไล่ตัวนี้ (AUTO จะข้ามตัวนี้ไปสักพัก)
-        if (!this.stepToward(p, mob, step) || d >= (r.lastChaseD ?? Infinity) - 0.5) {
+        // เดินอ้อมสิ่งกีดขวางไปหามอน — ถ้าไม่มีทางไปถึงนานเกิน 1.2 วิ → เลิกไล่ตัวนี้ (AUTO ข้ามตัวนี้ไปสักพัก)
+        if (!this.navTo(p, r, mob, step, t)) {
           r.stuckMs = (r.stuckMs || 0) + dt;
           if (r.stuckMs > 1200) {
             r.ignore = r.ignore || {}; r.ignore[r.target] = t + 8000;
-            r.target = null; r.pending = null; r.stuckMs = 0; r.lastChaseD = Infinity; p.moving = false;
-            return;
+            r.target = null; r.pending = null; r.stuckMs = 0; p.moving = false;
           }
         } else r.stuckMs = 0;
-        r.lastChaseD = d;
         return;
       }
-      r.stuckMs = 0; r.lastChaseD = Infinity;
+      r.stuckMs = 0; r.nav = null;
       p.moving = false;
       p.dir = dirOf(mob.x - p.x, mob.y - p.y);
       if (r.pending) { const sk = r.pending; r.pending = null; this.castSkill(id, p, r, sk, r.target); return; }
@@ -283,18 +284,51 @@ class WorldRoom extends Room {
       return;
     }
 
-    let vx = 0, vy = 0;
-    if (r.dx || r.dy) { vx = r.dx; vy = r.dy; }
-    else if (r.moveTarget) {
-      const d = dist(p, r.moveTarget);
-      if (d < step) {
+    // ปุ่มทิศทาง = เดินตรง ๆ (ไม่ใช้ระบบนำทาง)
+    if (r.dx || r.dy) { r.nav = null; this.move(p, r.dx, r.dy, step); return; }
+    // คลิกเดิน = หาทางอ้อมสิ่งกีดขวาง
+    if (r.moveTarget) {
+      if (dist(p, r.moveTarget) < step) {
         if (this.canStand(r.moveTarget.x, r.moveTarget.y)) { p.x = r.moveTarget.x; p.y = r.moveTarget.y; }
-        r.moveTarget = null;
-      } else { vx = (r.moveTarget.x - p.x) / d; vy = (r.moveTarget.y - p.y) / d; }
+        r.moveTarget = null; r.nav = null; p.moving = false;
+      } else if (!this.navTo(p, r, r.moveTarget, step, t)) { r.moveTarget = null; r.nav = null; p.moving = false; }
+      return;
     }
-    if (!vx && !vy) { p.moving = false; return; }
-    const moved = this.move(p, vx, vy, step);
-    if (!moved) r.moveTarget = null;
+    p.moving = false;
+  }
+
+  // ---------- เดินตามเส้นทาง ----------
+  // เห็นเป้าหมายตรง ๆ → เดินตรง; มีของขวาง → ใช้ A* หาทางอ้อม (คำนวณใหม่เมื่อเป้าหมายขยับ)
+  // คืนค่า false เมื่อไปไม่ได้
+  navTo(e, r, goal, step, t) {
+    if (this.lineClear(e, goal)) { r.nav = null; return this.stepToward(e, goal, step); }
+    let nav = r.nav;
+    const stale = !nav || !nav.path || !nav.path.length || (dist(nav.goal, goal) > 24 && t - nav.at > 500);
+    if (stale) {
+      const path = this.nav.find(e, goal);
+      nav = r.nav = { path, goal: { x: goal.x, y: goal.y }, at: t };
+      if (!path || !path.length) return false;
+    }
+    // ข้ามจุดที่มองเห็นได้ตรง ๆ (เส้นทางจะได้ไม่หักเป็นมุมฉาก)
+    while (nav.path.length > 1 && this.lineClear(e, nav.path[1])) nav.path.shift();
+    const wp = nav.path[0];
+    if (dist(e, wp) <= step) {
+      e.x = wp.x; e.y = wp.y; e.moving = true;
+      nav.path.shift();
+      return true;
+    }
+    if (!this.stepToward(e, wp, step)) { r.nav = null; return false; }
+    return true;
+  }
+
+  // เส้นตรงจาก a ไป b เดินผ่านได้ตลอดทางไหม
+  lineClear(a, b) {
+    const d = dist(a, b), n = Math.ceil(d / 6);
+    for (let i = 1; i <= n; i++) {
+      const k = i / n;
+      if (!this.canStand(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k)) return false;
+    }
+    return true;
   }
 
   stepToward(e, to, step) {
@@ -330,7 +364,7 @@ class WorldRoom extends Room {
       if (!p || p.dead || dist(m, r.home) > LEASH) { r.target = null; r.returning = true; }
       else {
         const d = dist(m, p);
-        if (d > MOB_RANGE) { this.stepToward(m, p, step * 1.25); }
+        if (d > MOB_RANGE) { if (!this.navTo(m, r, p, step * 1.25, t)) { r.target = null; r.returning = true; } }
         else {
           m.moving = false; m.dir = dirOf(p.x - m.x, p.y - m.y);
           if (t >= r.atkReady) {
@@ -345,7 +379,7 @@ class WorldRoom extends Room {
 
     if (r.returning) {
       if (dist(m, r.home) < 8) { r.returning = false; m.hp = m.maxHp; m.moving = false; r.dmgBy.clear(); }
-      else if (!this.stepToward(m, r.home, step * 1.5)) { m.x = r.home.x; m.y = r.home.y; }
+      else if (!this.navTo(m, r, r.home, step * 1.5, t)) { m.x = r.home.x; m.y = r.home.y; r.nav = null; }
       return;
     }
 
@@ -471,7 +505,9 @@ class WorldRoom extends Room {
         if (!onMe) {
           if (r.resting) return;
           if (r.ignore && r.ignore[mid] > now()) return;
-          if (dist(m, r.anchor) > r.autoCfg.radius) return;
+          // มอนอยู่ในวง หรือ "จุดเกิด" ของมอนอยู่ใกล้ขอบวง (มอนที่เกิดใหม่ตรงขอบวงจะถูกนับด้วย)
+          const R = r.autoCfg.radius;
+          if (dist(m, r.anchor) > R + 48 && dist(mr.home, r.anchor) > R + 96) return;
           const picked = r.autoCfg.kinds;
           if (picked.length ? !picked.includes(m.kind) : m.level > p.level + 2) return;
           if (mr.target && mr.target !== pid) return;
