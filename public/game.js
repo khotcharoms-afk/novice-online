@@ -152,7 +152,13 @@ class WorldScene extends Phaser.Scene {
     MOB_KINDS.forEach((k) => this.buildSheet("mob_" + k, ["mobsrc_" + k]));
     this.targetRing = this.add.ellipse(0, 0, 34, 14).setStrokeStyle(2, 0xff5a5a, 0.9).setDepth(-9000).setVisible(false);
 
-    room.onMessage("map", (data) => { gameData = data; this.buildMap(data); buildSkillBar(); });
+    room.onMessage("map", (data) => {
+      gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
+      $("apClose").onclick = () => toggleAutoPanel(false);
+    });
+    // วงขอบเขต AUTO บนพื้น
+    this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.05).setStrokeStyle(2, 0xffd36b, 0.45)
+      .setDepth(-9500).setVisible(false);
     room.send("getMap");
 
     const $s = Colyseus.getStateCallbacks(room);
@@ -473,6 +479,15 @@ class WorldScene extends Phaser.Scene {
       else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
     });
 
+    // วงขอบเขต AUTO
+    const meP = room.state.players.get(room.sessionId);
+    const showRing = !!(meP && meP.auto);
+    this.autoRing.setVisible(showRing);
+    if (showRing) {
+      this.autoRing.setPosition(meP.autoX, meP.autoY);
+      if (this.autoRing.width !== meP.autoR * 2) this.autoRing.setSize(meP.autoR * 2, meP.autoR * 2 * 0.9);
+    }
+
     // วงแดงใต้เป้าหมาย
     const tv = this.myTarget && this.views.get(this.myTarget);
     this.targetRing.setVisible(!!tv);
@@ -567,6 +582,15 @@ function buildSkillBar() {
     room.send("auto", !(me && me.auto));
   };
   bar.appendChild(auto);
+  const gear = document.createElement("button");
+  gear.className = "gear-btn";
+  gear.title = "ตั้งค่า AUTO";
+  gear.setAttribute("aria-label", "ตั้งค่า AUTO");
+  gear.setAttribute("aria-expanded", "false");
+  gear.textContent = "⚙";
+  gear.onclick = () => toggleAutoPanel();
+  bar.appendChild(gear);
+  buildAutoPanel();
   const me = room.state.players.get(room.sessionId);
   if (me) renderAuto(me.auto, me.autoState);
 }
@@ -601,6 +625,47 @@ function renderCooldowns() {
       if (!cd) { cd = document.createElement("span"); cd.className = "cd"; el.appendChild(cd); }
       cd.textContent = Math.ceil(left / 1000);
     } else if (cd) cd.remove();
+  });
+}
+
+// ---------- ตั้งค่า AUTO ----------
+const RADII = [[160, "เล็ก · 5 ช่อง"], [360, "กลาง · 11 ช่อง"], [560, "ใหญ่ · 17 ช่อง"]];
+const autoCfg = (() => {
+  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [] }; }
+  catch { return { radius: 360, kinds: [] }; }
+})();
+function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", autoCfg); }
+function toggleAutoPanel(force) {
+  const p = $("autoPanel"), open = force ?? p.hidden;
+  p.hidden = !open;
+  const g = document.querySelector(".gear-btn");
+  if (g) g.setAttribute("aria-expanded", String(open));
+  if (open) buildAutoPanel();
+}
+function buildAutoPanel() {
+  const rad = $("apRadius");
+  rad.innerHTML = "";
+  RADII.forEach(([r, label]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = label;
+    b.setAttribute("aria-checked", String(autoCfg.radius === r));
+    b.onclick = () => { autoCfg.radius = r; sendAutoCfg(); buildAutoPanel(); };
+    rad.appendChild(b);
+  });
+  const kinds = $("apKinds");
+  kinds.innerHTML = "";
+  const me = room.state.players.get(room.sessionId);
+  Object.entries(gameData.mobs).forEach(([k, m]) => {
+    const diff = me ? m.level - me.level : 0;
+    const color = diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ecebe4";
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" ${autoCfg.kinds.includes(k) ? "checked" : ""}> ${m.name}<span class="lv" style="color:${color}">Lv.${m.level}</span>`;
+    lab.querySelector("input").onchange = (e) => {
+      autoCfg.kinds = e.target.checked ? [...new Set([...autoCfg.kinds, k])] : autoCfg.kinds.filter((x) => x !== k);
+      sendAutoCfg();
+      buildAutoPanel();
+    };
+    kinds.appendChild(lab);
   });
 }
 

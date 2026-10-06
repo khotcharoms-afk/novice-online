@@ -87,6 +87,12 @@
       <div id="skillBar" class="frame slots"></div>
     </section>
 
+    <section id="autoPanel" class="frame" hidden aria-label="ตั้งค่า AUTO">
+      <div class="ap-head"><b>ตั้งค่า AUTO</b><button id="apClose" type="button" aria-label="ปิด">✕</button></div>
+      <div class="ap-row"><span>ขอบเขตการตี (รอบจุดที่กดเปิด AUTO)</span><div id="apRadius" class="chips"></div></div>
+      <div class="ap-row"><span>มอนสเตอร์ที่จะตี</span><div id="apKinds" class="ap-kinds"></div>
+        <p class="ap-note">ไม่เลือกเลย = ตีทุกชนิดที่เลเวลไม่เกินเรา +2 · มอนที่มาตีเราจะสู้กลับเสมอ</p></div>
+    </section>
     <div id="toast" role="status"></div>
     <div id="deathMsg" hidden>คุณถูกล้ม — กำลังฟื้นที่ลานกลางเมือง…</div>
     <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>

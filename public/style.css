@@ -174,3 +174,25 @@ button { font: inherit; color: inherit; }
 .auto-btn[aria-pressed="true"] { color: #2b1d05; border-color: #f1d38f;
   background: linear-gradient(180deg, #e9c779, #b48a3e); box-shadow: 0 0 10px rgba(233, 199, 121, .45); }
 @media (max-width: 1100px) { .auto-btn { margin: 4px 0 0; } }
+
+/* ---------- ตั้งค่า AUTO ---------- */
+.gear-btn { width: 28px; height: 46px; border-radius: 7px; cursor: pointer; border: 1px solid var(--brass-dim);
+  background: linear-gradient(180deg, #2a3466, #171d3d); color: var(--muted); font-size: 15px; margin-left: 2px; }
+.gear-btn[aria-expanded="true"] { color: var(--name); border-color: var(--brass); }
+#autoPanel { right: 10px; bottom: 136px; width: 330px; padding: 10px 12px 12px; }
+.ap-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.ap-head b { color: var(--name); font-weight: 500; }
+.ap-head button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; }
+.ap-row { margin-bottom: 10px; }
+.ap-row > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; }
+.ap-kinds { display: grid; gap: 4px; }
+.ap-kinds label { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+  border: 1px solid #2c3561; background: rgba(13, 17, 36, .6); font-size: 13px; }
+.ap-kinds label:has(input:checked) { border-color: var(--brass); background: rgba(201, 164, 92, .14); }
+.ap-kinds input { accent-color: #c9a45c; }
+.ap-kinds .lv { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ap-note { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+@media (max-width: 1100px) {
+  .gear-btn { width: 60px; height: 30px; margin: 4px 0 0; }
+  #autoPanel { right: 80px; bottom: auto; top: 140px; width: min(320px, calc(100vw - 100px)); }
+}

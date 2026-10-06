@@ -17,13 +17,13 @@ const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
 const LEASH = 420;           // มอนไล่ไกลเกินนี้จะกลับบ้าน
 const RESPAWN_PLAYER_MS = 4000;
-const AUTO_RADIUS = 360;     // ระบบ AUTO หามอนในรัศมีนี้รอบจุดที่เปิด AUTO
+const AUTO_RADII = [160, 360, 560]; // ขอบเขต AUTO: เล็ก / กลาง / ใหญ่ (px รอบจุดที่เปิด AUTO)
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
 class Player extends Schema {}
 defineTypes(Player, {
   name: "string", look: "string", job: "string", jobName: "string",
-  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean", autoState: "string",
+  x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean", autoState: "string", autoX: "number", autoY: "number", autoR: "uint16",
   level: "uint16", exp: "uint32", expNext: "uint32",
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
 });
@@ -54,7 +54,8 @@ class WorldRoom extends Room {
     this.spawnMonsters();
 
     this.onMessage("getMap", (client) =>
-      client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS })
+      client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
+        mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) })
     );
 
     this.onMessage("moveTo", (client, m) => {
@@ -68,6 +69,15 @@ class WorldRoom extends Room {
       if (r.dx || r.dy) { r.moveTarget = null; r.target = null; r.pending = null; this.setAuto(client.sessionId, false); }
     });
     this.onMessage("auto", (client, on) => { if (this.alive(client)) this.setAuto(client.sessionId, !!on); });
+    // ตั้งค่า AUTO: ขอบเขต + ชนิดมอนที่จะตี (ว่าง = ตีทุกชนิดที่เลเวลไม่เกินเรา +2)
+    this.onMessage("autoCfg", (client, c) => {
+      const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
+      if (!r || !c) return;
+      const radius = AUTO_RADII.includes(Number(c.radius)) ? Number(c.radius) : AUTO_RADII[1];
+      const kinds = Array.isArray(c.kinds) ? c.kinds.filter((k) => D.MONSTERS[k]).slice(0, 10) : [];
+      r.autoCfg = { radius, kinds };
+      p.autoR = radius;
+    });
     this.onMessage("attack", (client, m) => {
       const r = this.alive(client); if (!r || !m) return;
       const mob = this.state.monsters.get(String(m.id));
@@ -95,12 +105,14 @@ class WorldRoom extends Room {
     p.look = D.sanitizeLook(options && options.look);
     p.job = "villager"; p.jobName = D.JOB_NAME.villager;
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
+    p.autoX = 0; p.autoY = 0; p.autoR = AUTO_RADII[1];
     p.level = 1; p.exp = 0; p.expNext = D.expToNext(1);
     this.applyStats(p, true);
     const s = this.townSpawn(); p.x = s.x; p.y = s.y;
     this.state.players.set(client.sessionId, p);
     this.pr.set(client.sessionId, {
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
+      autoCfg: { radius: AUTO_RADII[1], kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0,
     });
     this.broadcast("system", `${p.name} เข้าสู่เกม`);
@@ -371,6 +383,7 @@ class WorldRoom extends Room {
     p.auto = on;
     p.autoState = on ? "wait" : "";
     r.anchor = on ? { x: p.x, y: p.y } : null;
+    if (on) { p.autoX = p.x; p.autoY = p.y; }
     r.resting = false; r.ignore = {};
     if (on) { r.moveTarget = null; r.dx = r.dy = 0; }
   }
@@ -382,7 +395,7 @@ class WorldRoom extends Room {
       return this.castSkill(pid, p, r, "firstaid", null);
     // หาเป้าหมายใหม่ (ใกล้สุดก่อน):
     //  1) มอนที่กำลังตีเราอยู่ — ป้องกันตัวเสมอ
-    //  2) มอนในรัศมีจากจุดเปิด AUTO ที่เลเวลไม่เกินเรา +2 และไม่ได้สู้กับคนอื่นอยู่
+    //  2) มอนในขอบเขต AUTO ตามชนิดที่เลือกไว้ (ไม่ได้เลือก = เลเวลไม่เกินเรา +2) ที่ไม่ได้สู้กับคนอื่นอยู่
     // เลือดน้อยและยังฮีลไม่ได้ → พักรอเลือดฟื้นก่อนค่อยหามอนตัวต่อไป
     if (!r.target) {
       const healReady = t >= (r.cds.firstaid || 0) && p.sp >= D.SKILLS.firstaid.sp;
@@ -399,7 +412,9 @@ class WorldRoom extends Room {
         if (!onMe) {
           if (r.resting) return;
           if (r.ignore && r.ignore[mid] > now()) return;
-          if (dist(m, r.anchor) > AUTO_RADIUS || m.level > p.level + 2) return;
+          if (dist(m, r.anchor) > r.autoCfg.radius) return;
+          const picked = r.autoCfg.kinds;
+          if (picked.length ? !picked.includes(m.kind) : m.level > p.level + 2) return;
           if (mr.target && mr.target !== pid) return;
         }
         const d = dist(m, p);
