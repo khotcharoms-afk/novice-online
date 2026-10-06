@@ -150,6 +150,14 @@
       <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="shopGold">0</b> gold</span>
         <button id="sellJunk" type="button" class="btn-ghost small" hidden>ขายของดรอปทั้งหมด</button></div>
     </section>
+    <section id="smithPanel" class="frame" hidden aria-label="ตีบวก">
+      <div class="ap-head"><b>ลุงเหล็กกล้า · ตีบวกอุปกรณ์</b><button id="smithClose" type="button" aria-label="ปิด">✕</button></div>
+      <p class="ap-note">อาวุธได้ ATK · ของป้องกันได้ DEF · ถึง +4 ไม่มีวันลดระดับ · ตั้งแต่ +5 ขึ้นไปถ้าล้มเหลวระดับลด 1 (ของไม่แตก)</p>
+      <div id="smithList" class="smith-list"></div>
+      <div id="smithInfo" class="smith-info"></div>
+      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="smithGold">0</b> gold</span></div>
+    </section>
+    <div id="refineFx" aria-live="polite"></div>
     <div id="itemCard" class="frame" hidden></div>
     <div id="tip" hidden></div>
     <section id="autoPanel" class="frame" hidden aria-label="ตั้งค่า AUTO">

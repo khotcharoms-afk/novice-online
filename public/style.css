@@ -321,3 +321,26 @@ button { font: inherit; color: inherit; }
   font-size: 15px; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; }
 #announce.show { opacity: 1; transform: translate(-50%, 0); }
 .acct .link + .link { margin-left: 10px; }
+
+/* ---------- ระดับไอเทม + ตีบวก ---------- */
+.inv-slot.rr, .eq-slot.rr, .smith-item.rr { border-color: var(--rc); box-shadow: inset 0 0 8px color-mix(in srgb, var(--rc) 45%, transparent); }
+.inv-slot .up, .smith-item .up { position: absolute; left: 2px; top: 0; font-size: 10px; color: #ffe08a; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.eq-slot .up { color: #ffe08a; margin-right: 2px; }
+#itemCard .rar { font-size: 11.5px; margin-bottom: 4px; }
+#itemCard ul.extra { color: #9fd0ff; }
+#itemCard .refl { color: #ffe08a; }
+#smithPanel { left: 360px; top: 210px; width: 340px; padding: 10px 12px; z-index: 8; }
+.smith-list { display: grid; grid-template-columns: repeat(auto-fill, 42px); gap: 4px; margin: 6px 0; max-height: 140px; overflow-y: auto; }
+.smith-item { position: relative; width: 42px; height: 42px; border-radius: 6px; border: 1px solid #2c3561; background: rgba(10,13,30,.75); padding: 0; cursor: pointer; }
+.smith-item img { width: 30px; height: 30px; image-rendering: pixelated; }
+.smith-item.sel { outline: 2px solid var(--name); }
+.smith-item .eqm { position: absolute; right: 2px; bottom: 0; font-size: 9px; color: #9fe3ff; }
+.smith-info { border-top: 1px solid #2c3561; padding-top: 8px; font-size: 12.5px; min-height: 120px; }
+.smith-info h4 { margin: 0 0 4px; font-weight: 500; font-size: 14px; }
+.smith-info .line { display: flex; justify-content: space-between; padding: 2px 0; }
+.smith-info .bad { color: #ff9a9a; } .smith-info .ok { color: #7dff9a; }
+.smith-info .go { width: 100%; margin-top: 8px; padding: 8px; font-size: 15px; }
+#refineFx { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(.6); z-index: 40; font-size: 34px; font-weight: 500;
+  text-shadow: 0 2px 0 #000, 0 0 18px currentColor; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+#refineFx.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+@media (max-width: 900px) { #smithPanel { left: 8px; right: 8px; width: auto; top: 110px; max-height: calc(100vh - 130px); overflow-y: auto; } }

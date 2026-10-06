@@ -5,7 +5,9 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString();
 const when = (t) => (t ? new Date(t).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "-");
-let cfg = null, fbAuth = null, ITEMS = [], ITEM_BY = {}, curUid = null, ovTimer = null;
+let cfg = null, fbAuth = null, ITEMS = [], ITEM_BY = {}, RAR = [], curUid = null, ovTimer = null;
+const gName = (g) => { const it = ITEM_BY[g.id] || {}; return (g.up ? `+${g.up} ` : "") + (it.name || g.id); };
+const gCol = (g) => (ITEM_BY[g.id] || {}).type === "equip" && g.r > 0 && RAR[g.r] ? RAR[g.r].color : "";
 
 // ---------- เชื่อมเซิร์ฟเวอร์ ----------
 async function token() {
@@ -49,7 +51,7 @@ async function checkAdmin() {
     $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
     $("who").textContent = `แอดมิน: ${me.loginId}` + (me.mode === "dev" ? " · โหมดทดสอบ" : "");
     const it = await api("GET", "/api/admin/items");
-    ITEMS = it.items; ITEM_BY = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
+    ITEMS = it.items; ITEM_BY = Object.fromEntries(ITEMS.map((i) => [i.id, i])); RAR = it.rarity || [];
     openTab("ov");
   } catch (e) { showLogin(e.message); }
 }
@@ -129,9 +131,11 @@ async function openAccount(uid) {
   const itemOpts = ITEMS.map((i) => `<option value="${i.id}">${esc(i.name)}${i.lv ? " (Lv" + i.lv + ")" : ""}</option>`).join("");
   const chars = a.chars.map((c) => {
     const st = c.stats ? Object.entries(c.stats).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ") : "สเตตัสเริ่มต้น";
-    const inv = (c.inv || []).map((s, i) => s ? `<button title="${esc((ITEM_BY[s.id] || {}).name || s.id)} ×${s.n} — คลิกเพื่อลบ" data-rm="${i}" data-char="${c.id}" data-cname="${esc(c.name)}">
-      <img src="/assets/icons/${esc(s.id)}.png" alt=""><span class="n">${s.n > 1 ? s.n : ""}</span></button>` : "").join("");
-    const eq = Object.entries(c.equip || {}).map(([sl, id]) => `<span>${esc((ITEM_BY[id] || {}).name || id)}</span>`).join(", ");
+    const inv = (c.inv || []).map((s, i) => s ? `<button title="${esc(gName(s))}${gCol(s) ? " [" + RAR[s.r].name + "]" : ""} ×${s.n} — คลิกเพื่อลบ" data-rm="${i}" data-char="${c.id}" data-cname="${esc(c.name)}"
+      ${gCol(s) ? `style="border-color:${gCol(s)}"` : ""}>
+      <img src="/assets/icons/${esc(s.id)}.png" alt="">${s.up ? `<span class="upb">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span></button>` : "").join("");
+    const eq = Object.entries(c.equip || {}).map(([sl, g0]) => { const g = typeof g0 === "string" ? { id: g0 } : g0;
+      return `<span style="${gCol(g) ? "color:" + gCol(g) : ""}">${esc(gName(g))}</span>`; }).join(", ");
     return `<div class="char" data-id="${c.id}" data-name="${esc(c.name)}">
       <h3>${esc(c.name)} <span class="pill">${esc(c.jobName)} Lv.${c.level}</span>
         ${c.online ? '<span class="pill on">ออนไลน์</span>' : '<span class="pill">ออฟไลน์</span>'}</h3>
@@ -141,6 +145,8 @@ async function openAccount(uid) {
           <button class="btn" data-a="gold+">เพิ่ม</button><button class="btn" data-a="gold-">ลด</button></div>
         <div class="row"><label>ให้ไอเทม</label><select data-f="item" style="max-width:220px">${itemOpts}</select>
           <input type="number" data-f="n" value="1" min="1" max="999" style="width:70px"><button class="btn" data-a="item">ให้</button></div>
+        <div class="row"><label>(อุปกรณ์)</label><select data-f="r"><option value="0">ระดับ: ธรรมดา</option>${RAR.slice(1).map((r, i) => `<option value="${i + 1}" style="color:${r.color}">ระดับ: ${r.name}</option>`).join("")}<option value="rand">ระดับ: สุ่มแบบดรอป</option></select>
+          <label style="min-width:auto">ตีบวก +</label><input type="number" data-f="up" value="0" min="0" max="10" style="width:60px"></div>
         <div class="row"><label>เลเวล</label><input type="number" data-f="lv" value="${c.level}" min="1" max="99" style="width:80px">
           <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button></div>
         <div class="row"><label>อื่น ๆ</label><button class="btn" data-a="town">ส่งกลับเมือง</button>
@@ -187,7 +193,7 @@ async function openAccount(uid) {
       const a2 = b.dataset.a;
       let body = { action: a2, name };
       if (a2 === "gold+" || a2 === "gold-") body = { action: "gold", name, n: (a2 === "gold-" ? -1 : 1) * Math.abs(Number(f("gold")) || 0) };
-      if (a2 === "item") body = { action: "item", name, id: f("item"), n: Number(f("n")) };
+      if (a2 === "item") body = { action: "item", name, id: f("item"), n: Number(f("n")), r: f("r"), up: Number(f("up")) };
       if (a2 === "level") body = { action: "level", name, lv: Number(f("lv")) };
       if (a2 === "resetStats" && !confirm(`รีเซ็ตสเตตัสของ ${name}? (คืนแต้มทั้งหมดให้ลงใหม่)`)) return;
       if (a2 === "kick" && !confirm(`เตะ ${name} ออกจากเกม?`)) return;

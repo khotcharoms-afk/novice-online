@@ -27,9 +27,19 @@ const ACTIONS = {
     const n = Math.max(1, Math.min(999, Math.floor(Number(a.n) || 1)));
     if (!it) fail("ไม่มีไอเทมนี้");
     return withBag(c, (b) => {
-      const left = Bag.addItem(b, a.id, n);
+      let left = n, tag = "";
+      if (it.type === "equip") {
+        // อุปกรณ์: เลือกระดับได้ (r = 0–4, "rand" = สุ่มแบบดรอป) + ตีบวก
+        left = 0;
+        for (let i = 0; i < n; i++) {
+          const g = I.makeGear(a.id, a.r === "rand" || a.r === undefined ? undefined : Number(a.r));
+          g.up = Math.max(0, Math.min(I.MAX_REFINE, Math.floor(Number(a.up) || 0)));
+          if (Bag.addItem(b, a.id, 1, g)) left++;
+          else if (n === 1) tag = ` [${I.RARITY[g.r].name}${g.up ? " +" + g.up : ""}]`;
+        }
+      } else left = Bag.addItem(b, a.id, n);
       if (left === n) fail("กระเป๋าเต็ม");
-      return `ให้ ${it.name} ×${n - left}` + (left ? ` (กระเป๋าเต็ม ใส่ไม่ลง ${left})` : "");
+      return `ให้ ${it.name}${tag} ×${n - left}` + (left ? ` (กระเป๋าเต็ม ใส่ไม่ลง ${left})` : "");
     });
   },
   removeItem(c, a) {
@@ -87,6 +97,7 @@ function mount(app, api) {
   })));
   app.get("/api/admin/items", admin(async () => ({
     items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0 })),
+    rarity: I.RARITY.map((r) => ({ name: r.name, color: r.color })),
     online: WorldRoom.onlineList().map((o) => o.charId),
   })));
   app.get("/api/admin/accounts", admin(async (_u, req) => ({ accounts: await store.findAccounts(req.query.q) })));

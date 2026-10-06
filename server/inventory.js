@@ -7,6 +7,18 @@ const I = require("./items");
 
 const STARTER = { inv: [{ id: "mace", n: 1 }, { id: "potion_s", n: 5 }], gold: 50 };
 
+const isGearId = (id) => I.ITEMS[id] && I.ITEMS[id].type === "equip";
+// อุปกรณ์ 1 ชิ้น = { id, r: ระดับความหายาก, up: ตีบวก, x: ค่าพิเศษ } (ข้อมูลเก่าที่เป็นแค่ชื่อ → ระดับธรรมดา +0)
+function normGear(o) {
+  if (!o) return null;
+  if (typeof o === "string") o = { id: o };
+  if (!isGearId(o.id)) return null;
+  const x = {};
+  for (const [k, v] of Object.entries(o.x || {})) if (Number.isFinite(v)) x[k] = Math.round(v);
+  return { id: o.id, r: Math.max(0, Math.min(I.RARITY.length - 1, o.r | 0)), up: Math.max(0, Math.min(I.MAX_REFINE, o.up | 0)), x };
+}
+const gearSlot = (g) => ({ ...g, n: 1 });
+const plain = (g) => ({ id: g.id, r: g.r, up: g.up, x: { ...g.x } });
 function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0, pet: null }; }
 
 // โหลดจากฐานข้อมูล — ตัดไอเทมที่ไม่รู้จักทิ้ง; ตัวละครเก่าที่ยังไม่มีกระเป๋าได้ของเริ่มต้น
@@ -18,23 +30,32 @@ function loadBag(c) {
     return bag;
   }
   c.inv.slice(0, I.INVENTORY_SIZE).forEach((s, i) => {
-    if (s && I.ITEMS[s.id] && Number.isInteger(s.n) && s.n > 0) bag.inv[i] = { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
+    if (!s || !I.ITEMS[s.id] || !Number.isInteger(s.n) || s.n <= 0) return;
+    bag.inv[i] = isGearId(s.id) ? gearSlot(normGear(s)) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
   });
   for (const slot of I.EQUIP_SLOTS) {
-    const id = c.equip && c.equip[slot];
-    if (id && I.fitsSlot(I.ITEMS[id], slot)) bag.equip[slot] = id;
+    const g = normGear(c.equip && c.equip[slot]);
+    if (g && I.fitsSlot(I.ITEMS[g.id], slot)) bag.equip[slot] = g;
   }
   bag.gold = Math.max(0, Math.floor(Number(c.gold) || 0));
   if (c.pet && I.ITEMS[c.pet] && I.ITEMS[c.pet].type === "pet") bag.pet = c.pet;
   return bag;
 }
-const saveBag = (b) => ({ inv: b.inv.map((s) => (s ? { id: s.id, n: s.n } : null)), equip: { ...b.equip }, gold: b.gold, pet: b.pet || null });
+const saveBag = (b) => ({
+  inv: b.inv.map((s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : { id: s.id, n: s.n })),
+  equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null });
 
 const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet") ? 1 : I.MAX_STACK);
 
 // ใส่ของเข้ากระเป๋า → คืนจำนวนที่ใส่ไม่ลง (กระเป๋าเต็ม)
-function addItem(b, id, n) {
+// gear = ข้อมูลอุปกรณ์ (ระดับ/ตีบวก) ถ้าไม่ใส่ = ระดับธรรมดา
+function addItem(b, id, n, gear) {
   if (!I.ITEMS[id]) return n;
+  if (isGearId(id)) {
+    for (let i = 0; i < b.inv.length && n > 0; i++)
+      if (!b.inv[i]) { b.inv[i] = gearSlot(normGear(gear || { id })); n--; gear = null; }
+    return n;
+  }
   const cap = maxStack(id);
   for (const s of b.inv) if (n > 0 && s && s.id === id && s.n < cap) { const k = Math.min(n, cap - s.n); s.n += k; n -= k; }
   for (let i = 0; i < b.inv.length && n > 0; i++) if (!b.inv[i]) { const k = Math.min(n, cap); b.inv[i] = { id, n: k }; n -= k; }
@@ -59,8 +80,8 @@ const indexOf = (b, id) => b.inv.findIndex((s) => s && s.id === id);
 // ค่าพลังรวมจากของที่สวม
 function gearBonus(b) {
   const sum = { atk: 0, def: 0, str: 0, agi: 0, vit: 0, int: 0, dex: 0, maxHp: 0, maxSp: 0 };
-  for (const id of Object.values(b.equip)) {
-    const bonus = (I.ITEMS[id] && I.ITEMS[id].bonus) || {};
+  for (const g of Object.values(b.equip)) {
+    const bonus = I.gearStats(g);
     for (const k in bonus) sum[k] = (sum[k] || 0) + bonus[k];
   }
   return sum;
@@ -68,7 +89,9 @@ function gearBonus(b) {
 // รายการของที่ต้องวาดบนตัวละคร (ตามลำดับชั้นภาพ) → ส่งให้ทุกคนเห็น
 const DRAW_ORDER = ["shoes", "armor", "gloves", "cape", "face", "head", "weapon", "offhand"];
 // รูปแบบ "ช่อง:ไอเทม" เช่น "armor:chain,head:nasal,weapon:sword"
-const gearString = (b) => DRAW_ORDER.filter((s) => b.equip[s] && I.ITEMS[b.equip[s]].visual).map((s) => `${s}:${b.equip[s]}`).join(",");
+const idOf = (g) => (typeof g === "string" ? g : g && g.id);
+const gearString = (b) => DRAW_ORDER.filter((s) => I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
+  .map((s) => `${s}:${idOf(b.equip[s])}`).join(",");
 
 // สวมของจากช่องกระเป๋า idx (ของที่ใส่อยู่เดิมสลับกลับเข้ากระเป๋าช่องเดิม)
 function equipFrom(b, idx, level, want) {
@@ -79,16 +102,16 @@ function equipFrom(b, idx, level, want) {
   let slot = it.slot;
   if (slot === "acc") slot = want === "acc1" || want === "acc2" ? want : !b.equip.acc1 ? "acc1" : !b.equip.acc2 ? "acc2" : "acc1";
   const old = b.equip[slot];
-  b.equip[slot] = s.id;
-  b.inv[idx] = old ? { id: old, n: 1 } : null;
+  b.equip[slot] = plain(normGear(s));
+  b.inv[idx] = old ? gearSlot(old) : null;
   return null;
 }
 function unequip(b, slot) {
-  const id = b.equip[slot];
-  if (!id) return null;
+  const g = b.equip[slot];
+  if (!g) return null;
   const free = b.inv.findIndex((x) => !x);
   if (free < 0) return "กระเป๋าเต็ม";
-  b.inv[free] = { id, n: 1 };
+  b.inv[free] = gearSlot(g);
   delete b.equip[slot];
   return null;
 }
@@ -122,5 +145,5 @@ function moveSlot(b, from, to) {
   b.inv[from] = c; b.inv[to] = a;
 }
 
-module.exports = { emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
+module.exports = { normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
   equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER };

@@ -319,6 +319,7 @@ class WorldScene extends Phaser.Scene {
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
     (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
+    this.load.image("npcsrc_smith", "/assets/npc_smith.png");
   }
 
   create() {
@@ -383,15 +384,20 @@ class WorldScene extends Phaser.Scene {
     });
     this.dropViews = new Map();
     $s(room.state).drops.onAdd((d, id) => this.addDrop(d, id));
-    $s(room.state).drops.onRemove((_d, id) => { const o = this.dropViews.get(id); if (o) o.destroy(); this.dropViews.delete(id); });
+    $s(room.state).drops.onRemove((_d, id) => {
+      const o = this.dropViews.get(id);
+      if (o) { const g = o.getData("glow"); if (g) g.destroy(); o.destroy(); }
+      this.dropViews.delete(id);
+    });
     room.onMessage("inv", (v) => {
       onInv(v);
       const me = this.views.get(room.sessionId);
       if (v.gold && v.at) this.floatText(v.at.x, v.at.y - 40, `+${v.gold} gold`, "#ffd36b", 12, 1000);
     });
-    room.onMessage("loot", ({ item, n }) => {
+    room.onMessage("loot", ({ item, n, r }) => {
       const me = this.views.get(room.sessionId), it = gameData && gameData.items[item];
-      if (me && it) this.floatText(me.root.x, me.root.y - 88, `+${it.name}${n > 1 ? " ×" + n : ""}`, "#9fe3ff", 12, 1100);
+      const col = it && it.type === "equip" && r > 0 ? gameData.rarity[r].color : "#9fe3ff";
+      if (me && it) this.floatText(me.root.x, me.root.y - 88, `+${it.name}${n > 1 ? " ×" + n : ""}`, col, 12, 1100);
     });
 
     // ---------- เหตุการณ์ต่อสู้ ----------
@@ -414,6 +420,7 @@ class WorldScene extends Phaser.Scene {
     });
     room.onMessage("lvup", ({ id }) => this.levelUpFx(id));
     room.onMessage("cd", ({ skill, until }) => { this.cdEnd[skill] = performance.now() + until; });
+    room.onMessage("refined", (res) => onRefined(res));
     room.onMessage("derived", (d) => { derived = d; renderStats(); });
 
     // ---------- คลิก ----------
@@ -639,14 +646,22 @@ class WorldScene extends Phaser.Scene {
     img.setInteractive({ cursor: "pointer" });
     img.setData("dropId", id);
     const it = gameData && gameData.items[d.item];
-    img.on("pointerover", () => showTip(`${it ? it.name : d.item}${d.n > 1 ? " ×" + d.n : ""}`));
+    // อุปกรณ์ระดับดีขึ้นไป → มีแสงสีตามระดับใต้ไอเทม
+    const rar = it && it.type === "equip" && gameData.rarity && gameData.rarity[d.r || 0];
+    if (rar && d.r > 0) {
+      const col = Phaser.Display.Color.HexStringToColor(rar.color).color;
+      const glow = this.add.ellipse(d.x, d.y + 2, 30, 12, col, 0.35).setStrokeStyle(1.5, col, 0.9).setDepth(d.y - 21);
+      this.tweens.add({ targets: glow, alpha: { from: 1, to: 0.4 }, duration: 700, yoyo: true, repeat: -1 });
+      img.setData("glow", glow);
+    }
+    img.on("pointerover", () => showTip(`${it ? it.name : d.item}${rar && d.r > 0 ? ` [${rar.name}]` : ""}${d.n > 1 ? " ×" + d.n : ""}`));
     img.on("pointerout", hideTip);
     this.tweens.add({ targets: img, y: { from: d.y - 18, to: d.y }, duration: 380, ease: "Bounce.easeOut" });
     this.dropViews.set(id, img);
   }
   buildNpcs(list) {
     for (const n of list) {
-      const key = this.buildSheet("npc_" + n.id, [n.sprite === "npc_merchant" ? "npcsrc_merchant" : n.sprite]);
+      const key = this.buildSheet("npc_" + n.id, [n.sprite.replace(/^npc_/, "npcsrc_")]);
       const sp = this.add.sprite(n.x, n.y, key, DIR_ROW.down * COLS).setOrigin(0.5, 0.97).setDepth(n.y);
       sp.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 8, 28, 56), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
       sp.setData("npcId", n.id); sp.setData("npc", n);
@@ -769,7 +784,8 @@ class WorldScene extends Phaser.Scene {
     if (this.pendingNpc) {
       const mv = this.views.get(room.sessionId);
       if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
-        openShop(); this.pendingNpc = null;
+        if (this.pendingNpc.id === "smith") openSmith(); else openShop();
+        this.pendingNpc = null;
       }
     }
 

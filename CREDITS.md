@@ -147,7 +147,7 @@
   - https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
   - http://opengameart.org/content/lpc-clothing-updates
 
-## อุปกรณ์สวมใส่ (`equip/*.png`) และไอคอนอุปกรณ์บางส่วน (`icons/*.png`)
+## อุปกรณ์สวมใส่ (`equip/*.png`) และ NPC (`npc_merchant.png`, `npc_smith.png`) และไอคอนอุปกรณ์บางส่วน (`icons/*.png`)
 
 ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** เช่นเดียวกับตัวละคร (สัญญาอนุญาต CC-BY-SA 3.0 / GPL 3.0 / OGA-BY 3.0 / CC-BY 4.0 ตามแต่ละชิ้น) — ไอคอนยา เงิน ของดรอป และเครื่องประดับ รวมถึงสัตว์เลี้ยง (`pets/*.png`) วาดขึ้นใหม่สำหรับเกมนี้
 

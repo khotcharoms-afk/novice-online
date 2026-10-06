@@ -11,12 +11,17 @@ const DOLL_R = ["weapon", "offhand", "cape", "shoes", "acc2"];
 const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง" };
 const BONUS_NAME = { atk: "พลังโจมตี", def: "ป้องกัน", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP สูงสุด", maxSp: "SP สูงสุด" };
 const itemOf = (id) => gameData && gameData.items[id];
+// ระดับความหายาก / ชื่อพร้อม +ตีบวก
+const isGear = (g) => !!(g && itemOf(g.id) && itemOf(g.id).type === "equip");
+const rarOf = (g) => (isGear(g) && gameData.rarity ? gameData.rarity[g.r || 0] : null);
+const gearName = (g) => (g && g.up ? `+${g.up} ` : "") + (itemOf(g && g.id)?.name || (g && g.id) || "");
+const nameHtml = (g) => { const r = rarOf(g); return `<span style="color:${r && g.r > 0 ? r.color : "inherit"}">${gearName(g)}</span>`; };
 const myPlayer = () => room && room.state.players.get(room.sessionId);
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
 function onInv(v) {
   INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null };
-  renderInv(); renderPaperDoll(); renderShop(); renderItemBar();
+  renderInv(); renderPaperDoll(); renderShop(); renderItemBar(); renderSmith();
   hideCard();
 }
 
@@ -43,14 +48,14 @@ function renderInv() {
     for (let i = 0; i < size; i++) {
       const b = document.createElement("button");
       b.type = "button"; b.className = "inv-slot"; b.dataset.idx = i;
-      b.onclick = (e) => { const s = INV.inv[i]; if (s) openCard(s.id, { where: "inv", idx: i }, e); };
+      b.onclick = (e) => { const s = INV.inv[i]; if (s) openCard(s, { where: "inv", idx: i }, e); };
       b.ondblclick = () => quickUse(i);
       makeDraggable(b, { from: "inv", idx: i });
       makeDrop(b, (d) => d.from === "inv" || d.from === "eq", (d) => {
         if (d.from === "inv") room.send("moveItem", { from: d.idx, to: i });
         else room.send("unequip", { slot: d.slot });
       });
-      b.addEventListener("pointerenter", () => { const s = INV.inv[i]; if (s && $("itemCard").hidden) showTip(itemOf(s.id)?.name || s.id); });
+      b.addEventListener("pointerenter", () => { const s = INV.inv[i]; if (s && $("itemCard").hidden) showTip(gearName(s)); });
       b.addEventListener("pointerleave", hideTip);
       grid.appendChild(b);
     }
@@ -60,7 +65,10 @@ function renderInv() {
     const s = INV.inv[i];
     b.draggable = !!s;
     if (s) used++;
-    b.innerHTML = s ? `<img src="${ICON(s.id)}" alt=""><span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
+    b.innerHTML = s ? `<img src="${ICON(s.id)}" alt="">${s.up ? `<span class="up">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
+    const rr = rarOf(s);
+    b.classList.toggle("rr", !!(rr && s.r > 0));
+    b.style.setProperty("--rc", rr ? rr.color : "");
     b.setAttribute("aria-label", s ? `${itemOf(s.id)?.name || s.id} ×${s.n}` : "ช่องว่าง");
   });
   $("goldTxt").textContent = INV.gold.toLocaleString();
@@ -88,12 +96,14 @@ function renderPaperDoll() {
   const build = (col, slots) => {
     col.innerHTML = "";
     for (const slot of slots) {
-      const id = INV.equip[slot], it = itemOf(id);
+      const g = INV.equip[slot], id = g && g.id;
       const b = document.createElement("button");
       b.type = "button";
       b.className = "eq-slot" + (id ? " filled" : "");
-      b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${it ? it.name : id}</span>` : `<span>${gameData.slotName[slot]}</span>`;
-      b.onclick = (e) => { if (id) openCard(id, { where: "eq", slot }, e); };
+      const rr = rarOf(g);
+      if (rr && g.r > 0) { b.classList.add("rr"); b.style.setProperty("--rc", rr.color); }
+      b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${nameHtml(g)}</span>` : `<span>${gameData.slotName[slot]}</span>`;
+      b.onclick = (e) => { if (id) openCard(g, { where: "eq", slot }, e); };
       b.ondblclick = () => id && room.send("unequip", { slot });
       if (id) makeDraggable(b, { from: "eq", slot });
       makeDrop(b, (d) => d.from === "inv" && fits(INV.inv[d.idx], slot), (d) => room.send("equip", { idx: d.idx, slot }));
@@ -112,7 +122,7 @@ function renderPaperDoll() {
     b.className = "eq-slot" + (id ? " filled" : "");
     b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${it ? it.name : id}</span>` : `<span>สัตว์เลี้ยง</span>`;
     b.title = id ? "สัตว์เลี้ยงกำลังช่วยเก็บของ" : "ซื้อสัตว์เลี้ยงที่ร้านลุงสมปอง แล้วดับเบิลคลิกเพื่อเรียกออกมา";
-    b.onclick = (e) => { if (id) openCard(id, { where: "pet" }, e); };
+    b.onclick = (e) => { if (id) openCard({ id }, { where: "pet" }, e); };
     b.ondblclick = () => id && room.send("petOff");
     makeDrop(b, (d) => d.from === "inv" && itemOf(INV.inv[d.idx]?.id)?.type === "pet", (d) => room.send("useItem", { idx: d.idx }));
     pb.appendChild(b);
@@ -134,26 +144,40 @@ function drawDoll() {
 }
 
 // ---------- การ์ดรายละเอียดไอเทม ----------
-function openCard(id, ctx, ev) {
-  const it = itemOf(id), card = $("itemCard"), me = myPlayer();
+function openCard(g, ctx, ev) {
+  const id = g.id, it = itemOf(id), card = $("itemCard"), me = myPlayer();
   if (!it) return;
   hideTip();
-  const lines = [];
-  for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
+  const lines = [], extra = [];
+  const rr = rarOf(g);
+  if (g.st) {
+    // ค่าพลังรวมของชิ้นนี้ (แยกค่าพิเศษไว้อีกกลุ่ม)
+    for (const [k, v] of Object.entries(g.st)) {
+      const ex = (g.x && g.x[k]) || 0, main = v - ex;
+      if (main) lines.push(`<li>${BONUS_NAME[k] || k} +${main}</li>`);
+    }
+    for (const [k, v] of Object.entries(g.x || {})) extra.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
+  } else for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
   const slotTxt = it.type === "equip" ? ` · ${it.slot === "acc" ? "เครื่องประดับ" : gameData.slotName[it.slot]}` : "";
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
-  const sell = it.sell ?? Math.floor((it.price || 0) / 2);
+  const sell = g.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
   const acts = [];
   if (ctx.where === "inv") {
     if (it.type === "equip") acts.push(`<button class="btn-gold" data-a="equip">สวม</button>`);
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
     if (it.type === "pet") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
     if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ขาย (${sell * INV.inv[ctx.idx].n} g)</button>`);
-  } else if (ctx.where === "eq") acts.push(`<button class="btn-ghost" data-a="unequip">ถอด</button>`);
+    if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
+  } else if (ctx.where === "eq") {
+    acts.push(`<button class="btn-ghost" data-a="unequip">ถอด</button>`);
+    if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
+  }
   else if (ctx.where === "pet") acts.push(`<button class="btn-ghost" data-a="petOff">เก็บกลับเข้ากระเป๋า</button>`);
-  card.innerHTML = `<h4>${it.name}</h4><div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}` +
-    (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (it.desc ? `<div>${it.desc}</div>` : "") +
+  const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
+  card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}` +
+    (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
+    (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
   card.querySelectorAll("button").forEach((b) => (b.onclick = () => {
     const a = b.dataset.a;
@@ -162,6 +186,7 @@ function openCard(id, ctx, ev) {
     if (a === "unequip") room.send("unequip", { slot: ctx.slot });
     if (a === "sell") room.send("sell", { idx: ctx.idx, n: INV.inv[ctx.idx].n });
     if (a === "bar") assignBar(id);
+    if (a === "smith") { openSmith(); smithSel = ctx.where === "eq" ? { slot: ctx.slot } : { idx: ctx.idx }; renderSmith(); }
     if (a === "petOff") room.send("petOff");
     hideCard();
   }));
@@ -260,10 +285,11 @@ function renderShop() {
     INV.inv.forEach((s, idx) => {
       if (!s) return;
       const it = itemOf(s.id);
-      const each = it.sell ?? Math.floor((it.price || 0) / 2);
+      const each = s.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
       const row = document.createElement("div");
       row.className = "shop-row";
-      row.innerHTML = `<img src="${ICON(s.id)}" alt=""><div>${it.name}${s.n > 1 ? " ×" + s.n : ""}<small>${TYPE_NAME[it.type]}</small></div>` +
+      const rr = rarOf(s);
+      row.innerHTML = `<img src="${ICON(s.id)}" alt=""><div>${nameHtml(s)}${s.n > 1 ? " ×" + s.n : ""}<small>${TYPE_NAME[it.type]}${rr ? " · " + rr.name : ""}</small></div>` +
         `<span class="price">${each * s.n} g</span><span><button class="btn-ghost">ขาย</button></span>`;
       row.querySelector("button").onclick = () => room.send("sell", { idx, n: s.n });
       list.appendChild(row);
@@ -277,6 +303,7 @@ function setupItemsUI() {
   $("invBtn").onclick = () => toggleInv();
   $("invClose").onclick = () => toggleInv(false);
   $("shopClose").onclick = closeShop;
+  $("smithClose").onclick = closeSmith;
   document.querySelectorAll("[data-shop]").forEach((t) => (t.onclick = () => { shopTab = t.dataset.shop; setShopTab(); }));
   $("sellJunk").onclick = () => {
     // ขายของดรอปทั้งหมด (เรียงจากช่องท้ายสุด เพื่อไม่ให้ลำดับช่องเลื่อน)
@@ -298,13 +325,69 @@ function setupItemsUI() {
     if (k === "i") toggleInv();
     const bi = BAR_KEYS.indexOf(k);
     if (bi >= 0) useBar(bi);
-    if (k === "escape") { hideCard(); closeShop(); toggleInv(false); }
+    if (k === "escape") { hideCard(); closeShop(); closeSmith(); toggleInv(false); }
   });
   // เดินออกห่างร้าน → ปิดร้าน
   setInterval(() => {
-    if ($("shopPanel").hidden || !gameData) return;
-    const me = myPlayer(), n = gameData.npcs.find((x) => x.id === "merchant");
-    if (me && n && Math.hypot(me.x - n.x, me.y - n.y) > 200) closeShop();
+    if (!gameData) return;
+    const me = myPlayer(), far = (id) => { const n = gameData.npcs.find((x) => x.id === id); return me && n && Math.hypot(me.x - n.x, me.y - n.y) > 200; };
+    if (!$("shopPanel").hidden && far("merchant")) closeShop();
+    if (!$("smithPanel").hidden && far("smith")) closeSmith();
   }, 500);
   renderInv(); renderPaperDoll(); renderItemBar();
+}
+
+// ---------- ตีบวก (ลุงเหล็กกล้า) ----------
+let smithSel = null; // { idx } หรือ { slot }
+const smithGear = () => (!smithSel ? null : smithSel.slot ? INV.equip[smithSel.slot] : INV.inv[smithSel.idx]);
+function openSmith() { closeShop(); $("smithPanel").hidden = false; toggleInv(true); renderSmith(); }
+function closeSmith() { const p = $("smithPanel"); if (p) p.hidden = true; }
+function renderSmith() {
+  const panel = $("smithPanel");
+  if (!panel || panel.hidden || !gameData) return;
+  $("smithGold").textContent = INV.gold.toLocaleString();
+  // รายการของที่ตีบวกได้: ที่สวมอยู่ก่อน แล้วค่อยในกระเป๋า
+  const list = [];
+  for (const [slot, g] of Object.entries(INV.equip)) if (g && (g.nx || g.up >= gameData.maxRefine) && isRefinable(g)) list.push({ g, key: { slot }, eq: true });
+  INV.inv.forEach((g, idx) => { if (g && isRefinable(g)) list.push({ g, key: { idx }, eq: false }); });
+  const same = (a, b) => a && b && a.slot === b.slot && a.idx === b.idx;
+  if (!list.some((x) => same(x.key, smithSel))) smithSel = list.length ? list[0].key : null;
+  $("smithList").innerHTML = "";
+  for (const x of list) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "smith-item" + (same(x.key, smithSel) ? " sel" : "");
+    const rr = rarOf(x.g);
+    if (rr && x.g.r > 0) { b.classList.add("rr"); b.style.setProperty("--rc", rr.color); }
+    b.title = gearName(x.g) + (x.eq ? " (สวมอยู่)" : "");
+    b.innerHTML = `<img src="${ICON(x.g.id)}" alt="">${x.g.up ? `<span class="up">+${x.g.up}</span>` : ""}${x.eq ? '<span class="eqm">สวม</span>' : ""}`;
+    b.onclick = () => { smithSel = x.key; renderSmith(); };
+    $("smithList").appendChild(b);
+  }
+  if (!list.length) $("smithList").innerHTML = `<p class="ap-note">ไม่มีอาวุธหรือชุดเกราะที่ตีบวกได้</p>`;
+  const g = smithGear(), info = $("smithInfo");
+  if (!g) { info.innerHTML = `<p class="ap-note">เลือกอุปกรณ์ที่จะตีบวก</p>`; return; }
+  if (!g.nx) { info.innerHTML = `<h4>${nameHtml(g)}</h4><p class="ok">ตีบวกสูงสุดแล้ว (+${gameData.maxRefine})</p>`; return; }
+  const nx = g.nx, have = (id) => INV.inv.reduce((t, s) => t + (s && s.id === id ? s.n : 0), 0);
+  const gain = Object.entries(nx.add).map(([k, v]) => `${BONUS_NAME[k] || k} +${v}`).join(", ");
+  const mats = nx.mats.map(([id, n]) => { const h = have(id); return `<div class="line"><span><img src="${ICON(id)}" alt="" width="16" height="16"> ${itemOf(id).name}</span><span class="${h >= n ? "ok" : "bad"}">${h}/${n}</span></div>`; }).join("");
+  const goldOk = INV.gold >= nx.gold, matsOk = nx.mats.every(([id, n]) => have(id) >= n);
+  const risk = (g.up || 0) > gameData.safeRefine ? `<p class="bad">ถ้าล้มเหลว: ลดเหลือ +${g.up - 1}</p>` : `<p class="ap-note">ถ้าล้มเหลว: ระดับไม่ลด (เสียแค่ gold และวัตถุดิบ)</p>`;
+  info.innerHTML = `<h4>${nameHtml(g)} → <span class="refl">+${nx.to}</span></h4>
+    <div class="line"><span>ค่าที่เพิ่ม</span><span class="ok">${gain}</span></div>
+    <div class="line"><span>โอกาสสำเร็จ</span><span class="${nx.rate >= 0.7 ? "ok" : nx.rate >= 0.4 ? "" : "bad"}">${Math.round(nx.rate * 100)}%</span></div>
+    <div class="line"><span>ค่าตีบวก</span><span class="${goldOk ? "" : "bad"}">${nx.gold.toLocaleString()} gold</span></div>
+    ${mats}${risk}
+    <button type="button" class="btn-gold go" id="smithGo" ${goldOk && matsOk ? "" : "disabled"}>ตีบวก</button>`;
+  $("smithGo").onclick = () => { $("smithGo").disabled = true; room.send("refine", smithSel); };
+}
+function isRefinable(g) { const it = itemOf(g.id); return it && it.type === "equip" && it.bonus && (it.bonus.atk || it.bonus.def); }
+function onRefined(res) {
+  const fx = $("refineFx"), name = itemOf(res.id)?.name || "";
+  fx.textContent = res.ok ? `สำเร็จ! +${res.up} ${name}` : res.up < res.before ? `ล้มเหลว… ลดเหลือ +${res.up}` : "ล้มเหลว…";
+  fx.style.color = res.ok ? "#ffe08a" : "#ff8a8a";
+  fx.classList.remove("show"); void fx.offsetWidth; fx.classList.add("show");
+  clearTimeout(onRefined.t); onRefined.t = setTimeout(() => fx.classList.remove("show"), 1400);
+  const me = scene && scene.views.get(room.sessionId);
+  if (me && res.ok) scene.sparkle(me.root.x, me.root.y - 20, 0xffd36b);
 }
