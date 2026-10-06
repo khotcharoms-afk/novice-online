@@ -232,7 +232,7 @@ button { font: inherit; color: inherit; }
 .sp-points { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 .sp-points b { color: var(--name); font-size: 16px; font-weight: 500; }
 .sp-stats { display: grid; gap: 4px; margin-bottom: 8px; }
-.sp-row { display: grid; grid-template-columns: 44px 1fr 34px 30px 34px; align-items: center; gap: 6px;
+.sp-row { display: grid; grid-template-columns: 40px 1fr 44px 40px 28px 32px; align-items: center; gap: 6px;
   padding: 4px 6px; border-radius: 7px; background: rgba(13, 17, 36, .6); border: 1px solid #2c3561; }
 .sp-row b { font-weight: 500; color: var(--name); font-size: 13px; }
 .sp-row span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -432,3 +432,6 @@ button { font: inherit; color: inherit; }
 .shop-row .nm b, .cart-row .nm { color: #ffffff; }
 .inv-tools { display: flex; align-items: center; gap: 6px; }
 #invSort { color: var(--text); font-size: 12px; padding: 2px 10px; border: 1px solid #3a4478; border-radius: 6px; }
+.sp-row .cost { font-style: normal; font-size: 10.5px; color: var(--muted); text-align: center; white-space: nowrap; }
+.sp-row .cost.bad { color: #ff9a9a; }
+.sp-note { font-size: 11px; color: var(--muted); margin: -2px 0 6px; }

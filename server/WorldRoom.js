@@ -116,7 +116,7 @@ class WorldRoom extends Room {
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
-        items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
+        statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs,
         mobs: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { name: m.name, level: m.level }])) });
 
@@ -382,24 +382,20 @@ class WorldRoom extends Room {
   addStat(pid, stat, n) {
     const p = this.state.players.get(pid);
     if (!p || !D.STAT_KEYS.includes(stat)) return;
-    n = Math.max(1, Math.min(Number(n) || 1, p.statPoints, D.STAT_MAX - p[stat]));
-    if (!(n > 0)) return;
-    p[stat] += n; p.statPoints -= n;
-    this.applyStats(p, false);
+    n = Math.max(1, Math.min(99, Math.floor(Number(n) || 1)));
+    let added = 0;
+    // เพิ่มทีละหน่วย (ค่าแต้มต่อหน่วยแพงขึ้นตามค่าปัจจุบัน)
+    while (added < n && p[stat] < D.STAT_MAX && D.statCost(p[stat]) <= p.statPoints) {
+      p.statPoints -= D.statCost(p[stat]); p[stat]++; added++;
+    }
+    if (added) this.applyStats(p, false);
   }
   recommendStats(pid) {
     const p = this.state.players.get(pid);
     if (!p || p.statPoints <= 0) return;
-    const pts = p.statPoints;
-    const keys = D.STAT_KEYS.filter((k) => D.RECOMMEND[k] > 0);
-    for (const k of keys) {
-      const n = Math.floor(pts * D.RECOMMEND[k]);
-      const add = Math.min(n, D.STAT_MAX - p[k], p.statPoints);
-      p[k] += add; p.statPoints -= add;
-    }
-    // เศษที่เหลือ → ตามลำดับความสำคัญ
-    for (const k of keys.sort((a, b) => D.RECOMMEND[b] - D.RECOMMEND[a]))
-      while (p.statPoints > 0 && p[k] < D.STAT_MAX) { p[k]++; p.statPoints--; }
+    const st = Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]]));
+    p.statPoints = D.allocate(st, p.statPoints, D.RECOMMEND);
+    for (const k of D.STAT_KEYS) p[k] = st[k];
     this.applyStats(p, false);
   }
 
@@ -746,7 +742,7 @@ class WorldRoom extends Room {
     while (p.expNext > 0 && p.exp >= p.expNext) {
       p.exp -= p.expNext;
       p.level += 1;
-      p.statPoints += D.POINTS_PER_LEVEL;
+      p.statPoints += D.pointsAtLevel(p.level);
       p.expNext = D.expToNext(p.level);
       leveled = true;
     }

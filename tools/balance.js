@@ -28,8 +28,8 @@ const BUILDS = {
   "DEX ล้วน": { dex: 1 },
 };
 function statsFor(split, lv) {
-  const st = D.baseStats(), pts = D.totalPoints(lv);
-  for (const [k, f] of Object.entries(split)) st[k] = Math.min(D.STAT_MAX, st[k] + Math.round(pts * f));
+  const st = D.baseStats();
+  D.allocate(st, D.totalPoints(lv), split);
   return st;
 }
 function sim(lv, st, m) {

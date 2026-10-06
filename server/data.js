@@ -28,7 +28,10 @@ const JOB_CHANGE_LEVEL = 20;
 const expToNext = (lv) => (lv >= MAX_LEVEL ? 0 : Math.round(30 * Math.pow(lv, 2.2)));
 
 // ---------- สเตตัส ----------
-// ทุกค่าเริ่มที่ 1; แต้มรวม = START_POINTS + (เลเวล-1) × POINTS_PER_LEVEL
+// ทุกค่าเริ่มที่ 1
+// แต้มที่ได้ต่อเลเวล = 3 + floor(เลเวล/5) (เลเวลสูงได้มากขึ้น) · รวมที่ Lv99 = 1,249 แต้ม
+// ค่าใช้แต้มเพิ่มตามค่าปัจจุบัน: 1–10 ใช้ 1 แต้ม/หน่วย, 11–20 ใช้ 2, … 91–98 ใช้ 10 → อัป 1 ค่าถึง 99 ใช้ 530 แต้ม
+// ⇒ Lv99 อัปได้ประมาณ 99 / 80 / 60 / 45 / 30 — ไม่มีทางได้ 99 ทุกค่า
 const STAT_KEYS = ["str", "agi", "vit", "int", "dex"];
 const STAT_INFO = {
   str: { name: "STR", th: "พลัง", desc: "พลังโจมตีระยะใกล้" },
@@ -38,11 +41,32 @@ const STAT_INFO = {
   dex: { name: "DEX", th: "แม่นยำ", desc: "ตีโดนแม่น, คริติคอล, พลังโจมตีเล็กน้อย" },
 };
 const START_POINTS = 5;
-const POINTS_PER_LEVEL = 5;
 const STAT_MAX = 99;
-const totalPoints = (lv) => START_POINTS + (lv - 1) * POINTS_PER_LEVEL;
+const STAT_COST_STEP = 10;
+const pointsAtLevel = (lv) => 3 + Math.floor(lv / 5);                       // แต้มที่ได้ตอนขึ้นเลเวล lv
+const statCost = (x) => 1 + Math.floor((x - 1) / STAT_COST_STEP);           // แต้มที่ใช้เพื่อเพิ่มจาก x เป็น x+1
+const costTo = (v) => { let t = 0; for (let x = 1; x < v; x++) t += statCost(x); return t; };
+const totalPoints = (lv) => { let t = START_POINTS; for (let l = 2; l <= lv; l++) t += pointsAtLevel(l); return t; };
 const baseStats = () => ({ str: 1, agi: 1, vit: 1, int: 1, dex: 1 });
-const spentPoints = (st) => STAT_KEYS.reduce((n, k) => n + (st[k] - 1), 0);
+const spentPoints = (st) => STAT_KEYS.reduce((n, k) => n + costTo(st[k]), 0);
+// ลงแต้มตามสัดส่วน (ใช้กับปุ่มแนะนำ และตารางจำลองสมดุล): เลือกค่าที่ "ลงไปแล้ว/น้ำหนัก" น้อยสุดทีละหน่วย
+function allocate(st, points, split) {
+  const keys = Object.keys(split).filter((k) => split[k] > 0);
+  const used = Object.fromEntries(keys.map((k) => [k, 0]));
+  for (;;) {
+    let best = null, bv = Infinity;
+    for (const k of keys) {
+      const c = statCost(st[k]);
+      if (st[k] >= STAT_MAX || c > points) continue;
+      const v = (used[k] + c) / split[k];
+      if (v < bv) { bv = v; best = k; }
+    }
+    if (!best) break;
+    const c = statCost(st[best]);
+    st[best]++; used[best] += c; points -= c;
+  }
+  return points;
+}
 // ลงแต้มแนะนำสำหรับชาวบ้าน (สัดส่วน)
 const RECOMMEND = { str: 0.4, vit: 0.3, agi: 0.2, dex: 0.1, int: 0 };
 
@@ -88,6 +112,6 @@ const JOB_NAME = { villager: "ชาวบ้าน" };
 
 module.exports = {
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
-  STAT_KEYS, STAT_INFO, START_POINTS, POINTS_PER_LEVEL, STAT_MAX, totalPoints, baseStats, spentPoints, RECOMMEND,
+  STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
 };

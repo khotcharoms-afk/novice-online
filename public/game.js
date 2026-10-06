@@ -947,7 +947,7 @@ function setupStats() {
     const row = document.createElement("div");
     row.className = "sp-row";
     row.title = info.desc;
-    row.innerHTML = `<b>${info.name}</b><span>${info.th} · ${info.desc}</span><em data-v="${k}">1</em>` +
+    row.innerHTML = `<b>${info.name}</b><span>${info.th} · ${info.desc}</span><em data-v="${k}">1</em><i class="cost" data-c="${k}" title="แต้มที่ใช้ต่อ 1 หน่วย">1</i>` +
       `<button type="button" data-k="${k}" data-n="1" aria-label="เพิ่ม ${info.name} 1 แต้ม">+</button>` +
       `<button type="button" data-k="${k}" data-n="5" aria-label="เพิ่ม ${info.name} 5 แต้ม">+5</button>`;
     row.querySelectorAll("button").forEach((b) => (b.onclick = () => room.send("addStat", { stat: b.dataset.k, n: Number(b.dataset.n) })));
@@ -972,7 +972,11 @@ function renderStats() {
     const v = $("spStats").querySelector(`[data-v="${k}"]`);
     const gb = (derived && derived.bonus && derived.bonus[k]) || 0;
     if (v) v.innerHTML = me[k] + (gb ? ` <span class="bonus">+${gb}</span>` : "");
-    $("spStats").querySelectorAll(`button[data-k="${k}"]`).forEach((b) => (b.disabled = pts <= 0 || me[k] >= gameData.statMax));
+    // ค่าแต้มต่อหน่วย: 1–10 = 1, 11–20 = 2, … (ค่ายิ่งสูงยิ่งแพง)
+    const cost = 1 + Math.floor((me[k] - 1) / (gameData.statCostStep || 10));
+    const c = $("spStats").querySelector(`[data-c="${k}"]`);
+    if (c) { c.textContent = me[k] >= gameData.statMax ? "MAX" : `ใช้ ${cost}`; c.classList.toggle("bad", cost > pts && me[k] < gameData.statMax); }
+    $("spStats").querySelectorAll(`button[data-k="${k}"]`).forEach((b) => (b.disabled = cost > pts || me[k] >= gameData.statMax));
   }
   $("spRecommend").disabled = pts <= 0;
   if (!derived) return;
