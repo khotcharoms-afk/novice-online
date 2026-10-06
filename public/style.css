@@ -503,3 +503,18 @@ section.frame.on-top { z-index: 20 !important; }
 .wm-info .links small { display: block; color: var(--muted); font-size: 10.5px; }
 .wm-info .hint { color: var(--muted); font-size: 11.5px; margin-top: 10px; }
 @media (max-width: 900px) { .wm-body { grid-template-columns: 1fr; } .wm-pin .lbl small { display: none; } .wm-pin .lbl { font-size: 10.5px; padding: 1px 4px; } }
+
+/* ---------- เคอร์เซอร์ของเกม ---------- */
+html, body, #game, #game canvas { cursor: url(/assets/cursors/arrow.png) 2 2, auto; }
+button:not(:disabled), a, label, select, [role="tab"], .slot.skill, .inv-slot, .eq-slot, .smith-item, .shop-row .nm, .cat, .wm-pin,
+.slot-card, #itemBar .slot, #miniCanvas, .cart-row button { cursor: url(/assets/cursors/hand.png) 12 2, pointer !important; }
+input, textarea { cursor: text; }
+.drag-handle { cursor: move !important; }
+.drag-handle button { cursor: url(/assets/cursors/hand.png) 12 2, pointer !important; }
+
+.wm-go { width: 100%; margin: 12px 0 2px; padding: 9px; font-size: 14.5px; }
+.wm-go small { font-size: 11.5px; opacity: .8; }
+#travelBar { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 44; padding: 6px 14px; border-radius: 99px; font: inherit; font-size: 13px;
+  background: rgba(20, 40, 70, .92); border: 1px solid #7fd1ff; color: #dff4ff; white-space: nowrap; }
+#travelBar b { color: #fff; font-weight: 500; }
+#travelBar span { margin-left: 8px; color: #ff9a9a; font-size: 12px; }

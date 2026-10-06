@@ -41,8 +41,11 @@ function renderWorld() {
     <div>${m.desc}</div>
     ${m.mobs.length ? `<h4>มอนสเตอร์และของดรอป</h4>${mobs}` : ""}
     ${m.services.length ? `<h4>บริการ</h4>${m.services.map((s) => `<div class="row">${s}</div>`).join("")}` : ""}
+    ${m.id !== room.mapId ? `<button type="button" class="btn-gold wm-go" id="wmGo">🧭 เดินทางไปที่นี่ <small>(${routeTo(m.id).length - 1} แผนที่)</small></button>` : ""}
     <h4>เชื่อมต่อกับ</h4><div class="links">${m.exits.map((id) => { const x = byId(id); return `<button type="button" data-go="${id}">${x.name}<small>${x.lv ? `Lv.${x.lv[0]}–${x.lv[1]}` : "ปลอดภัย"}</small></button>`; }).join("")}</div>
     <p class="hint">เดินทาง: เดินไปที่วงเวทสีฟ้าที่ขอบแผนที่ (ดูจุดสีฟ้าบนมินิแมพ)</p>`;
+  const go = $("wmGo");
+  if (go) go.onclick = () => { startTravel(m.id); toggleWorld(false); };
   $("wmInfo").querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => { wmSel = b.dataset.go; renderWorld(); }));
 }
 function setupWorldUI() {
@@ -54,3 +57,57 @@ function setupWorldUI() {
     if (e.key === "Escape") toggleWorld(false);
   });
 }
+
+// ---------- เดินทางอัตโนมัติข้ามแผนที่ ----------
+// หาเส้นทาง (BFS) ตามทางเชื่อม แล้วเดินไปวงเวทของแผนที่ถัดไปทีละแผนที่ · คลิกเดินเอง/กด WASD/เปิด AUTO = ยกเลิก
+let travelTarget = null;
+function routeTo(target) {
+  const prev = { [room.mapId]: null }, q = [room.mapId];
+  while (q.length) {
+    const id = q.shift();
+    if (id === target) break;
+    for (const nx of (WORLD.maps.find((m) => m.id === id) || { exits: [] }).exits) if (!(nx in prev)) { prev[nx] = id; q.push(nx); }
+  }
+  if (!(target in prev)) return [room.mapId];
+  const path = [];
+  for (let at = target; at; at = prev[at]) path.unshift(at);
+  return path;
+}
+function startTravel(target) {
+  travelTarget = target;
+  if (room.state.players.get(room.sessionId).auto) room.send("auto", false);
+  continueTravel();
+}
+function stopTravel() {
+  if (!travelTarget) return;
+  travelTarget = null;
+  renderTravelBar();
+}
+function continueTravel() {
+  if (!travelTarget || !gameData) return renderTravelBar();
+  if (room.mapId === travelTarget) {
+    toast(`ถึง ${WORLD.maps.find((m) => m.id === travelTarget).name} แล้ว`);
+    travelTarget = null;
+    return renderTravelBar();
+  }
+  const path = routeTo(travelTarget), next = path[1];
+  const pt = next && (gameData.portals || []).find((p) => p.to === next);
+  if (!pt) { toast("ไม่พบเส้นทาง"); travelTarget = null; return renderTravelBar(); }
+  room.send("moveTo", { x: (pt.box.x0 + pt.box.x1) / 2, y: (pt.box.y0 + pt.box.y1) / 2 });
+  renderTravelBar(path);
+}
+function renderTravelBar(path) {
+  let b = $("travelBar");
+  if (!travelTarget) { if (b) b.hidden = true; return; }
+  if (!b) { b = document.createElement("button"); b.id = "travelBar"; b.type = "button"; document.body.appendChild(b); b.onclick = () => { stopTravel(); room.send("dir", { dx: 0, dy: 0 }); }; }
+  const name = (id) => (WORLD.maps.find((m) => m.id === id) || {}).name || id;
+  path = path || routeTo(travelTarget);
+  b.hidden = false;
+  b.innerHTML = `🧭 กำลังเดินทางไป <b>${name(travelTarget)}</b> · เหลือ ${path.length - 1} แผนที่ <span>✕ ยกเลิก</span>`;
+}
+// กันค้าง: ถ้าหยุดเดินระหว่างเดินทาง (เช่น ทางถูกบัง) ให้สั่งเดินต่อ
+setInterval(() => {
+  if (!travelTarget || !room || leavingForWarp) return;
+  const me = room.state.players && room.state.players.get(room.sessionId);
+  if (me && !me.moving && !me.dead) continueTravel();
+}, 2500);

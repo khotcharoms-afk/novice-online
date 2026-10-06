@@ -2,6 +2,13 @@
 //  ฝั่งผู้เล่น — Phaser 3 + Colyseus  (Phase 2: ต่อสู้ / มอนสเตอร์ / EXP / สกิล)
 // =============================================================
 const $ = (id) => document.getElementById(id);
+// เคอร์เซอร์เมาส์ของเกม (พิกเซลอาร์ต 32px · ตัวเลข = จุดคลิก)
+const CUR = {
+  arrow: "url(/assets/cursors/arrow.png) 2 2, auto",
+  hand: "url(/assets/cursors/hand.png) 12 2, pointer",
+  sword: "url(/assets/cursors/sword.png) 2 2, crosshair",
+  talk: "url(/assets/cursors/talk.png) 2 2, pointer",
+};
 const isTyping = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement && document.activeElement.tagName) || "");
 const SERVER_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
 const T = 32;
@@ -26,7 +33,7 @@ let room = null;
 let MANIFEST = { equip: [], icons: [] };
 let scene = null;
 let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
-let WORLD = null, CUR_MAP = null, leavingForWarp = false; // ข้อมูลโลก (ทุกแผนที่) / แผนที่ปัจจุบัน
+let WORLD = null, CUR_MAP = null, leavingForWarp = false, gameClient = null, myChar = null, phaserGame = null; // ข้อมูลโลก (ทุกแผนที่) / แผนที่ปัจจุบัน
 
 // =============================================================
 //  ล็อกอินด้วย ID (ใช้ Firebase Auth — ID ถูกแปลงเป็นอีเมลภายใน id@โดเมนเกม)
@@ -274,11 +281,11 @@ $("createBtn").onclick = async () => {
 //  เข้าเกม
 // =============================================================
 // เข้าห้องของแผนที่ที่ตัวละครอยู่ (ถ้าเซิร์ฟเวอร์บอกว่าอยู่แผนที่อื่น → เข้าห้องนั้นแทน)
-async function joinMap(client, c, mapId, tries = 0) {
-  try { const r = await client.joinOrCreate("world", { token: await getToken(), charId: c.id, mapId }); r.mapId = mapId; return r; }
+async function joinMap(client, c, mapId, tries = 0, warp = false) {
+  try { const r = await client.joinOrCreate("world", { token: await getToken(), charId: c.id, mapId, warp }); r.mapId = mapId; return r; }
   catch (e) {
     const m = /MAP:(\w+)/.exec(e.message || "");
-    if (m && tries < 2) return joinMap(client, c, m[1], tries + 1);
+    if (m && tries < 2) return joinMap(client, c, m[1], tries + 1, warp);
     throw e;
   }
 }
@@ -288,10 +295,29 @@ async function enterGame(c, btn) {
   try {
     MANIFEST = await (await fetch("/assets/manifest.json")).json();
     if (!WORLD) WORLD = await (await fetch("/api/world")).json();
-    const client = new Colyseus.Client(SERVER_URL);
-    room = await joinMap(client, c, c.map || "town");
-    room.onMessage("warp", (w) => travelTo(c, w));
+    gameClient = new Colyseus.Client(SERVER_URL);
+    myChar = c;
+    room = await joinMap(gameClient, c, c.map || "town");
+    bindRoom(room);
     myCharId = c.id;
+    clearInterval(animTimer);
+    restoreChat();
+    $("login").remove();
+    $("hud").hidden = false;
+    $("exitBtn").onclick = async () => { await room.leave(); location.reload(); };
+    startGame();
+  } catch (err) {
+    console.error(err);
+    setErr("selectErr", err.message || "เข้าเกมไม่ได้ ลองใหม่อีกครั้ง");
+    btn.disabled = false;
+    const t = $("travel"); if (t) t.classList.remove("show");
+  }
+}
+// ผูกข้อความจากห้อง (เรียกทุกครั้งที่เข้าห้องใหม่ — ตอนเข้าเกมและตอนย้ายแผนที่)
+function bindRoom(room) {
+    room.onMessage("warp", (w) => travelTo(myChar, w));
+    room.onMessage("sold", () => { sellCart.clear(); renderShop(); });
+    room.onMessage("bought", () => { buyCart.clear(); renderShop(); });
     room.onMessage("online", (n) => { $("online").textContent = n; });
     room.onMessage("system", (text) => addChat("system", esc(text)));
     room.onMessage("maint", (info) => onMaint(info));
@@ -311,17 +337,6 @@ async function enterGame(c, btn) {
       else if (code === 4005 || leavingForWarp) return;
       else if (code !== 1000) showDownScreen(code === 4004 ? "restart" : "lost");
     });
-    clearInterval(animTimer);
-    restoreChat();
-    $("login").remove();
-    $("hud").hidden = false;
-    $("exitBtn").onclick = async () => { await room.leave(); location.reload(); };
-    startGame();
-  } catch (err) {
-    console.error(err);
-    setErr("selectErr", err.message || "เข้าเกมไม่ได้ ลองใหม่อีกครั้ง");
-    btn.disabled = false;
-  }
 }
 
 initAuth();
@@ -334,8 +349,9 @@ class WorldScene extends Phaser.Scene {
 
   preload() {
     const season = (WORLD && WORLD.maps.find((m) => m.id === room.mapId) || {}).season || "summer";
-    this.load.image("terrain", `/assets/terrain_${season}.png`);
-    this.load.atlas("obj", `/assets/objects_${season}.png`, `/assets/objects_${season}.json`);
+    this.tKey = "terrain_" + season; this.oKey = "obj_" + season;
+    this.load.image(this.tKey, `/assets/terrain_${season}.png`);
+    this.load.atlas(this.oKey, `/assets/objects_${season}.png`, `/assets/objects_${season}.json`);
     const paths = new Set();
     for (const [sex] of LOOK_OPTS.sex) {
       for (const [skin] of LOOK_OPTS.skin) paths.add(`look/base_${sex}_${skin}`);
@@ -353,6 +369,7 @@ class WorldScene extends Phaser.Scene {
 
   create() {
     scene = this;
+    this.input.setDefaultCursor(CUR.arrow);
     this.views = new Map();      // id -> ตัวละคร/มอนสเตอร์บนจอ
     this.trees = [];
     this.lastDir = { dx: 0, dy: 0 };
@@ -369,8 +386,9 @@ class WorldScene extends Phaser.Scene {
     room.onMessage("map", (data) => {
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
       setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 300);
+      setTimeout(continueTravel, 600); // เดินทางอัตโนมัติไปแผนที่ปลายทางต่อ
       $("apClose").onclick = () => toggleAutoPanel(false);
-      setupStats();
+      if (!window._statsUI) { window._statsUI = 1; setupStats(); } else renderStats();
       if (!window._itemsUI) { window._itemsUI = 1; setupItemsUI(); setupWorldUI(); } else renderItemBar();
     });
     // วงขอบเขต AUTO บนพื้น
@@ -472,14 +490,14 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       this.myTarget = null;
+      stopTravel();
       room.send("moveTo", { x: p.worldX, y: p.worldY });
       this.clickMarker(p.worldX, p.worldY);
     });
     this.keys = this.input.keyboard.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT", false);
     $("zoomIn").onclick = () => this.setZoomIdx(this.zoomIdx + 1);
     $("zoomOut").onclick = () => this.setZoomIdx(this.zoomIdx - 1);
-    setupChat(this);
-    setupHotkeys();
+    if (!window._onceUI) { window._onceUI = 1; setupChat(this); setupHotkeys(); }
     this.time.addEvent({ delay: 100, loop: true, callback: renderCooldowns });
   }
 
@@ -521,7 +539,7 @@ class WorldScene extends Phaser.Scene {
   buildMap(map) {
     this.map = map;
     const { width: W, height: H, ground, objects } = map;
-    const tex = this.textures.get("terrain");
+    const tex = this.textures.get(this.tKey);
     const full = (c, r) => { const n = `t${c}_${r}`; if (!tex.has(n)) tex.add(n, 0, c * T, r * T, T, T); return n; };
     const quad = (c, r, qx, qy) => {
       const n = `q${c}_${r}_${qx}${qy}`;
@@ -540,18 +558,18 @@ class WorldScene extends Phaser.Scene {
       for (let x = 0; x < W; x++) {
         const v = at(x, y), px = x * T, py = y * T, h = hash(x, y);
         const dirt = DIRT[h % DIRT.length];
-        if (v === 1) { rt.batchDrawFrame("terrain", full(dirt[0], dirt[1]), px, py); continue; }
+        if (v === 1) { rt.batchDrawFrame(this.tKey, full(dirt[0], dirt[1]), px, py); continue; }
         if (v === 2) {
           const c = at(x - 1, y) !== 2 ? 0 : at(x + 1, y) !== 2 ? 2 : 1;
           const r = at(x, y - 1) !== 2 ? 10 : at(x, y + 1) !== 2 ? 12 : 11;
-          rt.batchDrawFrame("terrain", full(c, r), px, py);
+          rt.batchDrawFrame(this.tKey, full(c, r), px, py);
           continue;
         }
         const g = GRASS[h % 11 < 9 ? h % 3 : 3 + (h % 4)];
         const n = grassy(x, y - 1), s = grassy(x, y + 1), w = grassy(x - 1, y), e = grassy(x + 1, y);
         const all = n && s && w && e && grassy(x - 1, y - 1) && grassy(x + 1, y - 1) && grassy(x - 1, y + 1) && grassy(x + 1, y + 1);
-        if (all) { rt.batchDrawFrame("terrain", full(g[0], g[1]), px, py); continue; }
-        rt.batchDrawFrame("terrain", full(dirt[0], dirt[1]), px, py);
+        if (all) { rt.batchDrawFrame(this.tKey, full(g[0], g[1]), px, py); continue; }
+        rt.batchDrawFrame(this.tKey, full(dirt[0], dirt[1]), px, py);
         for (let qy = 0; qy < 2; qy++) for (let qx = 0; qx < 2; qx++) {
           const hn = qx ? e : w, vn = qy ? s : n;
           const dn = grassy(x + (qx ? 1 : -1), y + (qy ? 1 : -1));
@@ -559,23 +577,23 @@ class WorldScene extends Phaser.Scene {
           if (hn && vn) {
             if (dn) { c = g[0]; r = g[1]; } else { c = qx ? 0 : 1; r = 6 + (qy ? 0 : 1); }
           } else { c = hn ? 1 : qx ? 2 : 0; r = vn ? 1 : qy ? 2 : 0; }
-          rt.batchDrawFrame("terrain", quad(c, r, qx, qy), px + qx * 16, py + qy * 16);
+          rt.batchDrawFrame(this.tKey, quad(c, r, qx, qy), px + qx * 16, py + qy * 16);
         }
       }
     }
     const flat = /^(wf|flower)/;
     for (const o of objects) {
       if (!flat.test(o.k)) continue;
-      const f = this.textures.getFrame("obj", o.k);
-      rt.batchDrawFrame("obj", o.k, o.x - (f.width >> 1), o.y - f.height);
+      const f = this.textures.getFrame(this.oKey, o.k);
+      rt.batchDrawFrame(this.oKey, o.k, o.x - (f.width >> 1), o.y - f.height);
     }
     rt.endDraw();
 
     for (const o of objects) {
       if (flat.test(o.k)) continue;
-      const img = this.add.image(o.x, o.y, "obj", o.k).setOrigin(0.5, 1).setDepth(o.y);
+      const img = this.add.image(o.x, o.y, this.oKey, o.k).setOrigin(0.5, 1).setDepth(o.y);
       if (o.b && /oak|pine|dead/.test(o.k)) {
-        this.add.image(o.x + 4, o.y - 2, "obj", "shadow").setAlpha(0.28).setScale(1.1, 0.8).setDepth(-1e5);
+        this.add.image(o.x + 4, o.y - 2, this.oKey, "shadow").setAlpha(0.28).setScale(1.1, 0.8).setDepth(-1e5);
         this.trees.push(img);
       }
     }
@@ -618,7 +636,7 @@ class WorldScene extends Phaser.Scene {
     root.add([shadow, sprite, bars, label]);
     if (isMob && e.scale && e.scale !== 1) { sprite.setScale(e.scale); shadow.setScale(e.scale); label.y = -58 * e.scale; }
     if (isMob) {
-      sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
+      sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: CUR.sword });
       sprite.setData("mobId", id);
       sprite.on("pointerover", () => { v.hover = true; });
       sprite.on("pointerout", () => { v.hover = false; });
@@ -637,7 +655,7 @@ class WorldScene extends Phaser.Scene {
       if (!v.dead) { v.deadShown = false; v.root.setAlpha(1); if (v.isMob) v.sprite.setInteractive(); }
       else {
         if (v.isMob) { v.sprite.disableInteractive(); if (this.myTarget === v.id) this.myTarget = null; }
-        if (v.isMe) $("deathMsg").hidden = false;
+        if (v.isMe) { $("deathMsg").hidden = false; stopTravel(); }
       }
       if (v.isMe && !v.dead) $("deathMsg").hidden = true;
     }
@@ -701,7 +719,7 @@ class WorldScene extends Phaser.Scene {
   addDrop(d, id) {
     const key = "icon/" + d.item;
     const img = this.add.image(d.x, d.y, this.textures.exists(key) ? key : "icon/gold").setScale(0.75).setDepth(d.y - 20);
-    img.setInteractive({ cursor: "pointer" });
+    img.setInteractive({ cursor: CUR.hand });
     img.setData("dropId", id);
     const it = gameData && gameData.items[d.item];
     // อุปกรณ์ระดับดีขึ้นไป → มีแสงสีตามระดับใต้ไอเทม
@@ -721,7 +739,7 @@ class WorldScene extends Phaser.Scene {
     for (const n of list) {
       const key = this.buildSheet("npc_" + n.id, [n.sprite.replace(/^npc_/, "npcsrc_")]);
       const sp = this.add.sprite(n.x, n.y, key, DIR_ROW.down * COLS).setOrigin(0.5, 0.97).setDepth(n.y);
-      sp.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 8, 28, 56), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
+      sp.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 8, 28, 56), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: CUR.talk });
       sp.setData("npcId", n.id); sp.setData("npc", n);
       this.add.ellipse(n.x, n.y - 1, 26, 9, 0x000000, 0.28).setDepth(n.y - 1);
       this.add.text(n.x, n.y - 58, n.name, { fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#9fe3ff",
@@ -868,7 +886,7 @@ class WorldScene extends Phaser.Scene {
       const dy = (K.S.isDown || K.DOWN.isDown ? 1 : 0) - (K.W.isDown || K.UP.isDown ? 1 : 0);
       if (dx !== this.lastDir.dx || dy !== this.lastDir.dy) {
         this.lastDir = { dx, dy };
-        if (dx || dy) this.myTarget = null;
+        if (dx || dy) { this.myTarget = null; stopTravel(); }
         room.send("dir", { dx, dy });
       }
     }
@@ -876,7 +894,7 @@ class WorldScene extends Phaser.Scene {
 }
 
 function startGame() {
-  new Phaser.Game({
+  phaserGame = new Phaser.Game({
     type: location.search.includes("canvas") ? Phaser.CANVAS : Phaser.AUTO,
     parent: "game",
     backgroundColor: "#0d1124",
@@ -937,6 +955,7 @@ function buildSkillBar() {
   auto.title = "ตีมอนอัตโนมัติรอบ ๆ จุดที่ยืนอยู่ (คลิกเดินเองเพื่อหยุด)";
   auto.innerHTML = `AUTO<small>ปิด</small>`;
   auto.onclick = () => {
+    stopTravel();
     const me = room.state.players.get(room.sessionId);
     room.send("auto", !(me && me.auto));
   };
@@ -1157,12 +1176,28 @@ function showDownScreen(kind) {
 }
 // ---------- ย้ายแผนที่ ----------
 // เซิร์ฟเวอร์บันทึกตำแหน่งใหม่แล้ว → ออกจากห้องนี้ แล้วโหลดหน้าใหม่ให้เข้าแผนที่ปลายทางอัตโนมัติ
+// ย้ายแผนที่ในหน้าเดิม: ออกจากห้องเก่า → เข้าห้องแผนที่ใหม่ → เริ่มฉากใหม่ (ไม่ต้องโหลดหน้า)
 async function travelTo(c, w) {
+  if (leavingForWarp) return;
   leavingForWarp = true;
   showTravel(w.map, w.name);
-  saveChat();
-  try { sessionStorage.setItem("pn_auto", c.id); } catch {}
+  hideCard(); hideTip();
   try { await room.leave(true); } catch {}
+  for (let i = 0; i < 4; i++) {
+    try {
+      room = await joinMap(gameClient, c, w.map, 0, true);
+      bindRoom(room);
+      leavingForWarp = false;
+      scene.scene.restart();
+      return;
+    } catch (e) {
+      console.warn("warp join failed", e);
+      await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  // ไม่สำเร็จ → โหลดหน้าใหม่แล้วเข้าเกมอัตโนมัติ
+  try { sessionStorage.setItem("pn_auto", c.id); } catch {}
+  saveChat();
   location.reload();
 }
 function showTravel(mapId, name) {
@@ -1226,7 +1261,7 @@ function buildMinimap(map) {
       y: ((e.clientY - r.top) / r.height) * map.height * T,
     });
   };
-  setInterval(drawMinimap, 150);
+  if (!window._miniTimer) window._miniTimer = setInterval(drawMinimap, 150);
 }
 function drawMinimap() {
   if (!scene || !scene.map) return;
@@ -1253,7 +1288,7 @@ function setupChat(sc) {
     if (e.key === "Enter" && document.activeElement !== input) { e.preventDefault(); input.focus(); }
   });
   input.addEventListener("focus", () => {
-    sc.lastDir = { dx: 0, dy: 0 };
+    scene.lastDir = { dx: 0, dy: 0 };
     room.send("dir", { dx: 0, dy: 0 });
   });
   input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Escape") input.blur(); });

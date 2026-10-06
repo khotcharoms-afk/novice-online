@@ -313,7 +313,7 @@ class WorldRoom extends Room {
     });
     this.syncPet(client.sessionId);
     this.sendInv(client.sessionId);
-    this.broadcast("system", `${p.name} เข้าสู่เกม`);
+    if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
   }
 
   // ใส่ข้อมูลที่บันทึกไว้ (เลเวล สเตตัส กระเป๋า) ลงตัวละครในเกม — ใช้ตอนเข้าเกม และตอนแอดมินแก้ข้อมูล
@@ -420,7 +420,7 @@ class WorldRoom extends Room {
       const o = online.get(r.charId);
       if (o && o.room === this && o.sessionId === client.sessionId) online.delete(r.charId);
     }
-    if (p) this.broadcast("system", `${p.name} ออกจากเกม`);
+    if (p && !p.warp) this.broadcast("system", `${p.name} ออกจากเกม`);
     this.state.players.delete(client.sessionId);
     this.state.pets.delete(client.sessionId);
     this.pr.delete(client.sessionId);

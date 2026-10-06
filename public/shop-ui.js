@@ -170,6 +170,4 @@ function setupShop() {
   $("shopClose").onclick = closeShop;
   document.querySelectorAll(".shop-mode").forEach((b) => (b.onclick = () => { shopTab = b.dataset.shop; shopCat = "all"; renderShop(); }));
   $("cartClear").onclick = () => { (shopTab === "buy" ? buyCart : sellCart).clear(); renderShop(); };
-  room.onMessage("sold", () => { sellCart.clear(); renderShop(); });
-  room.onMessage("bought", () => { buyCart.clear(); renderShop(); });
 }
