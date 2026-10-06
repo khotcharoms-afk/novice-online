@@ -704,7 +704,7 @@ class WorldRoom extends Room {
     r.dmgBy.forEach((dmg, pid) => {
       if (dmg > topDmg) { topDmg = dmg; top = pid; }
       const pp = this.state.players.get(pid), g = Math.max(1, Math.round((gold * dmg) / total));
-      if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { gold: g, at: { x: m.x, y: m.y } }); }
+      if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { goldGain: g, at: { x: m.x, y: m.y } }); }
     });
     for (const [id, chance, lo, hi] of I.DROPS[m.kind] || [])
       if (Math.random() < chance) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, I.makeGear(id));

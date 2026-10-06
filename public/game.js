@@ -393,7 +393,7 @@ class WorldScene extends Phaser.Scene {
     room.onMessage("inv", (v) => {
       onInv(v);
       const me = this.views.get(room.sessionId);
-      if (v.gold && v.at) this.floatText(v.at.x, v.at.y - 40, `+${v.gold} gold`, "#ffd36b", 12, 1000);
+      if (v.goldGain && v.at) this.floatText(v.at.x, v.at.y - 40, `+${v.goldGain} gold`, "#ffd36b", 12, 1000);
     });
     room.onMessage("loot", ({ item, n, r }) => {
       const me = this.views.get(room.sessionId), it = gameData && gameData.items[item];
