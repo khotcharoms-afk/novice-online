@@ -73,6 +73,10 @@
     .eqline span { color: var(--text); }
     .logs li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; list-style: none; }
     .logs { padding: 0; margin: 0; }
+    dialog { background: var(--ink); color: var(--text); border: 1px solid var(--brass-dim); border-radius: 12px; padding: 16px 18px; width: min(460px, calc(100vw - 32px)); }
+    dialog::backdrop { background: rgba(0, 0, 0, .55); }
+    dialog h2 { margin: 0 0 4px; font-size: 16px; font-weight: 500; }
+    dialog .row label { color: var(--muted); font-size: 13px; }
     #login { max-width: 360px; margin: 60px auto; }
     #login label { display: block; margin-bottom: 10px; color: var(--muted); font-size: 13px; }
     #login input { width: 100%; margin-top: 4px; padding: 8px 10px; }
@@ -114,6 +118,7 @@
         <button data-tab="ov" class="active" role="tab">ภาพรวม</button>
         <button data-tab="pl" role="tab">ค้นหาผู้เล่น</button>
         <button data-tab="an" role="tab">ประกาศ</button>
+        <button data-tab="gd" role="tab">ข้อมูลเกม</button>
         <button data-tab="lg" role="tab">บันทึกแอดมิน</button>
       </nav>
 
@@ -156,6 +161,9 @@
         </div>
       </section>
 
+      <!-- ข้อมูลเกม -->
+      <section id="tab-gd" hidden><div id="gdBody"><div class="card empty">กำลังโหลด…</div></div></section>
+
       <!-- บันทึก -->
       <section id="tab-lg" hidden>
         <div class="card">
@@ -166,6 +174,7 @@
       </section>
     </div>
   </main>
+  <dialog id="gearDlg"></dialog>
   <div id="toast" role="status"></div>
 
   <script src="/lib/firebase-app.js"></script>

@@ -58,6 +58,41 @@ const ACTIONS = {
     if (D.spentPoints(st) > D.totalPoints(lv)) c.stats = D.baseStats(); // ลดเลเวลจนแต้มไม่พอ → คืนแต้มทั้งหมด
     return `ตั้งเลเวลเป็น ${lv}`;
   },
+  // แก้อุปกรณ์ที่มีอยู่: where = "inv" (idx) หรือ "eq" (slot) · r = ระดับใหม่ · up = ตีบวก · reroll = สุ่มค่าพิเศษใหม่
+  editGear(c, a) {
+    return withBag(c, (b) => {
+      const g = a.where === "eq" ? b.equip[String(a.slot)] : b.inv[Math.floor(Number(a.idx))];
+      if (!g || !Bag.isGearId(g.id)) fail("ไม่พบอุปกรณ์ชิ้นนี้");
+      const it = I.ITEMS[g.id], changes = [];
+      if (a.r !== undefined && a.r !== "" && Number(a.r) !== g.r) {
+        const ng = I.makeGear(g.id, Number(a.r));
+        g.r = ng.r; g.x = ng.x; changes.push(`ระดับ${I.RARITY[g.r].name}`);
+      } else if (a.reroll) { g.x = I.makeGear(g.id, g.r).x; changes.push("สุ่มค่าพิเศษใหม่"); }
+      if (a.up !== undefined && a.up !== "") {
+        const up = Math.max(0, Math.min(I.MAX_REFINE, Math.floor(Number(a.up) || 0)));
+        if (up && !I.canRefine(it)) fail("ไอเทมนี้ตีบวกไม่ได้");
+        if (up !== (g.up || 0)) { g.up = up; changes.push(`ตีบวก +${up}`); }
+      }
+      if (!changes.length) fail("ไม่มีอะไรเปลี่ยน");
+      return `แก้ ${it.name}: ${changes.join(", ")}`;
+    });
+  },
+  removeEquip(c, a) {
+    return withBag(c, (b) => {
+      const g = b.equip[String(a.slot)];
+      if (!g) fail("ช่องนี้ว่าง");
+      delete b.equip[String(a.slot)];
+      return `ลบ ${I.ITEMS[g.id].name} ที่สวมอยู่`;
+    });
+  },
+  pet(c, a) {
+    return withBag(c, (b) => {
+      if (!a.id) { if (!b.pet) fail("ไม่มีสัตว์เลี้ยงออกมา"); const old = b.pet; b.pet = null; return `ลบสัตว์เลี้ยง ${I.ITEMS[old].name}`; }
+      if (!I.ITEMS[a.id] || I.ITEMS[a.id].type !== "pet") fail("ไม่ใช่สัตว์เลี้ยง");
+      b.pet = a.id;
+      return `ให้สัตว์เลี้ยง ${I.ITEMS[a.id].name} (ออกมาทันที)`;
+    });
+  },
   resetStats(c) { c.stats = D.baseStats(); return "รีเซ็ตสเตตัส (คืนแต้มทั้งหมด)"; },
   town(c) { c.x = null; c.y = null; return "ส่งกลับเมือง"; },
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
@@ -142,6 +177,16 @@ function mount(app, api) {
     WorldRoom.announce(text);
     audit(user, `ประกาศ: ${text}`);
     return { msg: "ประกาศแล้ว" };
+  }));
+  // ข้อมูลเกมทั้งหมด (อ่านอย่างเดียว) สำหรับแท็บ "ข้อมูลเกม"
+  app.get("/api/admin/gamedata", admin(async () => {
+    const items = Object.fromEntries(Object.entries(I.ITEMS).map(([id, it]) => [id, { ...it,
+      sellPrice: I.sellPrice(id), refinable: I.canRefine(it),
+      refine10: I.canRefine(it) ? I.refineBonus(it, 10) : null }]));
+    const refine = I.REFINE.slice(1).map((r, i) => ({ to: i + 1, rate: r.rate, mats: r.mats,
+      goldLv1: I.refineGold({ lv: 1 }, i + 1), goldLv10: I.refineGold({ lv: 10 }, i + 1), goldLv20: I.refineGold({ lv: 20 }, i + 1) }));
+    return { items, rarity: I.RARITY, refine, safeRefine: I.SAFE_REFINE, shop: I.SHOP, drops: I.DROPS,
+      monsters: Object.fromEntries(Object.entries(D.MONSTERS).map(([k, m]) => [k, { ...m, ...D.monsterStats(m.level) }])) };
   }));
   app.get("/api/admin/logs", admin(async () => ({ logs })));
 }

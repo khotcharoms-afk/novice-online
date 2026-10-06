@@ -73,11 +73,12 @@ $("logout").onclick = async () => {
 // ---------- แท็บ ----------
 function openTab(t) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === t));
-  ["ov", "pl", "an", "lg"].forEach((k) => ($("tab-" + k).hidden = k !== t));
+  ["ov", "pl", "an", "lg", "gd"].forEach((k) => ($("tab-" + k).hidden = k !== t));
   clearInterval(ovTimer);
   if (t === "ov") { loadOverview(); ovTimer = setInterval(loadOverview, 5000); }
   if (t === "pl" && !$("accList").children.length) search();
   if (t === "lg") loadLogs();
+  if (t === "gd") loadGameData();
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
 
@@ -129,13 +130,16 @@ async function openAccount(uid) {
   let a;
   try { a = await api("GET", "/api/admin/account/" + encodeURIComponent(uid)); } catch (e) { return toast(e.message, true); }
   const itemOpts = ITEMS.map((i) => `<option value="${i.id}">${esc(i.name)}${i.lv ? " (Lv" + i.lv + ")" : ""}</option>`).join("");
+  CHARS = Object.fromEntries(a.chars.map((c) => [c.id, c]));
+  const petOpts = ITEMS.filter((i) => i.type === "pet").map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
   const chars = a.chars.map((c) => {
     const st = c.stats ? Object.entries(c.stats).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ") : "สเตตัสเริ่มต้น";
-    const inv = (c.inv || []).map((s, i) => s ? `<button title="${esc(gName(s))}${gCol(s) ? " [" + RAR[s.r].name + "]" : ""} ×${s.n} — คลิกเพื่อลบ" data-rm="${i}" data-char="${c.id}" data-cname="${esc(c.name)}"
+    const inv = (c.inv || []).map((s, i) => s ? `<button title="${esc(gName(s))}${gCol(s) ? " [" + RAR[s.r].name + "]" : ""} ×${s.n} — คลิกเพื่อแก้/ลบ" data-ed="inv" data-i="${i}" data-char="${c.id}"
       ${gCol(s) ? `style="border-color:${gCol(s)}"` : ""}>
       <img src="/assets/icons/${esc(s.id)}.png" alt="">${s.up ? `<span class="upb">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span></button>` : "").join("");
     const eq = Object.entries(c.equip || {}).map(([sl, g0]) => { const g = typeof g0 === "string" ? { id: g0 } : g0;
-      return `<span style="${gCol(g) ? "color:" + gCol(g) : ""}">${esc(gName(g))}</span>`; }).join(", ");
+      return `<button title="${esc(SLOT_TH[sl] || sl)}: ${esc(gName(g))}${gCol(g) ? " [" + RAR[g.r].name + "]" : ""} — คลิกเพื่อแก้/ลบ" data-ed="eq" data-i="${sl}" data-char="${c.id}"
+        ${gCol(g) ? `style="border-color:${gCol(g)}"` : ""}><img src="/assets/icons/${esc(g.id)}.png" alt="">${g.up ? `<span class="upb">+${g.up}</span>` : ""}</button>`; }).join("");
     return `<div class="char" data-id="${c.id}" data-name="${esc(c.name)}">
       <h3>${esc(c.name)} <span class="pill">${esc(c.jobName)} Lv.${c.level}</span>
         ${c.online ? '<span class="pill on">ออนไลน์</span>' : '<span class="pill">ออฟไลน์</span>'}</h3>
@@ -153,9 +157,14 @@ async function openAccount(uid) {
           <button class="btn" data-a="heal" ${c.online ? "" : "disabled"}>ฟื้นเลือดเต็ม</button>
           <button class="btn danger" data-a="kick" ${c.online ? "" : "disabled"}>เตะออกจากเกม</button></div>
       </div>
-      ${eq ? `<div class="eqline">สวมอยู่: ${eq}${c.pet ? ` · สัตว์เลี้ยง: <span>${esc((ITEM_BY[c.pet] || {}).name || c.pet)}</span>` : ""}</div>` : ""}
-      <div class="muted" style="margin-top:8px">กระเป๋า (คลิกไอเทมเพื่อลบ):</div>
-      <div class="inv">${inv || '<span class="muted">ว่าง</span>'}</div>
+      <div class="muted" style="margin-top:10px">ของที่สวมอยู่ (คลิกเพื่อแก้ระดับ/ตีบวก/ลบ):</div>
+      <div class="inv">${eq || '<span class="muted" style="grid-column:1/-1">ไม่ได้สวมอะไร</span>'}</div>
+      <div class="row" style="margin-top:8px"><span class="muted" style="min-width:76px">สัตว์เลี้ยง</span>
+        ${c.pet ? `<img src="/assets/icons/${esc(c.pet)}.png" alt="" width="24" height="24" style="image-rendering:pixelated"><b>${esc((ITEM_BY[c.pet] || {}).name || c.pet)}</b>
+          <button class="btn danger" data-a="petRemove">ลบสัตว์เลี้ยง</button>` : '<span class="muted">ไม่มี</span>'}
+        <select data-f="pet">${petOpts}</select><button class="btn" data-a="petSet">${c.pet ? "เปลี่ยนเป็นตัวนี้" : "ให้สัตว์เลี้ยง"}</button></div>
+      <div class="muted" style="margin-top:8px">กระเป๋า (คลิกไอเทมเพื่อแก้/ลบ):</div>
+      <div class="inv">${inv || '<span class="muted" style="grid-column:1/-1">ว่าง</span>'}</div>
     </div>`;
   }).join("");
   $("accDetail").innerHTML = `<div class="card">
@@ -195,17 +204,90 @@ async function openAccount(uid) {
       if (a2 === "gold+" || a2 === "gold-") body = { action: "gold", name, n: (a2 === "gold-" ? -1 : 1) * Math.abs(Number(f("gold")) || 0) };
       if (a2 === "item") body = { action: "item", name, id: f("item"), n: Number(f("n")), r: f("r"), up: Number(f("up")) };
       if (a2 === "level") body = { action: "level", name, lv: Number(f("lv")) };
+      if (a2 === "petSet") body = { action: "pet", name, id: f("pet") };
+      if (a2 === "petRemove") { if (!confirm(`ลบสัตว์เลี้ยงของ ${name}?`)) return; body = { action: "pet", name, id: null }; }
       if (a2 === "resetStats" && !confirm(`รีเซ็ตสเตตัสของ ${name}? (คืนแต้มทั้งหมดให้ลงใหม่)`)) return;
       if (a2 === "kick" && !confirm(`เตะ ${name} ออกจากเกม?`)) return;
       await run(() => api("POST", "/api/admin/char/" + id, body));
       setTimeout(() => openAccount(uid), a2 === "kick" ? 500 : 0);
     }));
   });
-  d.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = async () => {
-    if (!confirm(`ลบไอเทมนี้ออกจากกระเป๋าของ ${b.dataset.cname}?\n(${b.title.split(" — ")[0]})`)) return;
-    await run(() => api("POST", "/api/admin/char/" + b.dataset.char, { action: "removeItem", name: b.dataset.cname, idx: Number(b.dataset.rm) }));
-    openAccount(uid);
-  }));
+  d.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => openGearEditor(b.dataset.char, b.dataset.ed, b.dataset.i)));
+}
+
+// ---------- หน้าต่างแก้ไอเทม (ระดับ / ตีบวก / ค่าพิเศษ / ลบ) ----------
+let CHARS = {};
+const SLOT_TH = { head: "หมวก", face: "หน้า", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", acc1: "เครื่องประดับ 1", weapon: "อาวุธ",
+  offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", acc2: "เครื่องประดับ 2" };
+const STAT_TH = { atk: "ATK", def: "DEF", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP", maxSp: "SP" };
+function openGearEditor(charId, where, key) {
+  const c = CHARS[charId];
+  const g0 = where === "eq" ? c.equip[key] : c.inv[Number(key)];
+  if (!g0) return;
+  const g = typeof g0 === "string" ? { id: g0, r: 0, up: 0, x: {} } : g0;
+  const it = ITEM_BY[g.id] || {}, gear = it.type === "equip", dlg = $("gearDlg");
+  const extras = Object.entries(g.x || {}).map(([k, v]) => `${STAT_TH[k] || k} +${v}`).join(" · ") || "ไม่มี";
+  dlg.innerHTML = `<form method="dialog">
+    <h2 style="color:${gCol(g) || "var(--gold)"}"><img src="/assets/icons/${esc(g.id)}.png" alt="" width="28" height="28" style="image-rendering:pixelated;vertical-align:middle"> ${esc(gName(g))}</h2>
+    <p class="muted">${esc(c.name)} · ${where === "eq" ? "สวมอยู่ช่อง" + (SLOT_TH[key] || key) : "กระเป๋าช่องที่ " + (Number(key) + 1)}${g.n > 1 ? " · จำนวน " + g.n : ""}</p>
+    ${gear ? `<p class="muted">ค่าพิเศษตอนนี้: <span style="color:#9fd0ff">${esc(extras)}</span></p>
+      <div class="row"><label style="min-width:90px">ระดับ</label><select id="gdR">${RAR.map((r, i) => `<option value="${i}" ${i === (g.r || 0) ? "selected" : ""} style="color:${r.color}">${r.name}</option>`).join("")}</select>
+        <span class="muted">เปลี่ยนระดับ = สุ่มค่าพิเศษใหม่ตามจำนวนของระดับนั้น</span></div>
+      <div class="row"><label style="min-width:90px">ตีบวก</label><input type="number" id="gdUp" min="0" max="10" value="${g.up || 0}" style="width:70px"></div>
+      <div class="row"><label style="min-width:90px"></label><label><input type="checkbox" id="gdReroll"> สุ่มค่าพิเศษใหม่ (ระดับเดิม)</label></div>
+      <div class="row" style="margin-top:12px"><button class="btn gold" type="button" id="gdSave">บันทึก</button>` :
+      `<div class="row">${g.n > 1 ? `<label>ลบจำนวน</label><input type="number" id="gdN" min="1" max="${g.n}" value="${g.n}" style="width:80px">` : ""}`}
+      <button class="btn danger" type="button" id="gdDel">${where === "eq" ? "ลบของที่สวม" : "ลบออกจากกระเป๋า"}</button>
+      <button class="btn" value="close" style="margin-left:auto">ปิด</button></div>
+  </form>`;
+  const post = async (body) => { const r = await run(() => api("POST", "/api/admin/char/" + charId, { name: c.name, ...body })); if (r) { dlg.close(); openAccount(curUid); } };
+  const save = $("gdSave");
+  if (save) save.onclick = () => {
+    const r = $("gdR").value, up = $("gdUp").value;
+    post({ action: "editGear", where, idx: Number(key), slot: key, r: Number(r) === (g.r || 0) ? "" : Number(r), up: Number(up), reroll: $("gdReroll").checked });
+  };
+  $("gdDel").onclick = () => {
+    if (!confirm(`ลบ ${gName(g)} ของ ${c.name}?`)) return;
+    if (where === "eq") post({ action: "removeEquip", slot: key });
+    else post({ action: "removeItem", idx: Number(key), n: $("gdN") ? Number($("gdN").value) : 1 });
+  };
+  dlg.showModal();
+}
+
+// ---------- ข้อมูลเกม (อ่านอย่างเดียว) ----------
+let GD = null;
+const TYPE_TH = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง" };
+async function loadGameData() {
+  if (!GD) { try { GD = await api("GET", "/api/admin/gamedata"); } catch (e) { return toast(e.message, true); } }
+  const pct = (x) => (x * 100).toFixed(x < 0.01 ? 1 : 0) + "%";
+  const totalW = GD.rarity.reduce((t, r) => t + r.weight, 0);
+  const bonus = (b) => Object.entries(b || {}).map(([k, v]) => `${STAT_TH[k] || k} +${v}`).join(", ");
+  const dropFrom = {};
+  for (const [mk, list] of Object.entries(GD.drops)) for (const [id, ch] of list) (dropFrom[id] = dropFrom[id] || []).push(`${GD.monsters[mk].name} ${pct(ch)}`);
+  const itemRows = (type) => Object.entries(GD.items).filter(([, it]) => it.type === type).map(([id, it]) => `<tr>
+      <td><img src="/assets/icons/${id}.png" alt="" width="22" height="22" style="image-rendering:pixelated;vertical-align:middle"> ${esc(it.name)}</td>
+      <td>${type === "equip" ? esc(SLOT_TH[it.slot] || (it.slot === "acc" ? "เครื่องประดับ" : it.slot)) : esc(it.desc || "")}</td>
+      <td class="num">${it.lv || "-"}</td><td>${esc(bonus(it.bonus) || (it.heal ? [it.heal.hp && `ฟื้น HP ${it.heal.hp}`, it.heal.sp && `ฟื้น SP ${it.heal.sp}`].filter(Boolean).join(", ") : ""))}</td>
+      <td>${it.refine10 ? esc(bonus(it.refine10)) : "-"}</td>
+      <td class="num">${it.price ? fmt(it.price) : "-"}${GD.shop.includes(id) ? "" : (it.price ? " <span class='muted'>(ไม่ขาย)</span>" : "")}</td>
+      <td class="num">${fmt(it.sellPrice)}</td><td class="muted">${esc((dropFrom[id] || []).join(", ") || "-")}</td></tr>`).join("");
+  const head = `<thead><tr><th>ชื่อ</th><th>ช่อง/รายละเอียด</th><th class="num">Lv</th><th>ค่าพลัง</th><th>ตีบวก +10 ได้</th><th class="num">ราคาร้าน</th><th class="num">ขายได้</th><th>ดรอปจาก</th></tr></thead>`;
+  $("gdBody").innerHTML = `
+    <div class="card"><h2>ระดับความหายาก (อุปกรณ์ที่ดรอป)</h2><div class="tbl-wrap"><table>
+      <thead><tr><th>ระดับ</th><th class="num">โอกาส</th><th class="num">คูณค่าพลัง</th><th class="num">ค่าพิเศษ</th><th class="num">คูณราคาขาย</th></tr></thead>
+      <tbody>${GD.rarity.map((r) => `<tr><td style="color:${r.color}">${r.name}</td><td class="num">${pct(r.weight / totalW)}</td><td class="num">×${r.mult}</td><td class="num">${r.extras}</td><td class="num">×${r.sell}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card"><h2>ตีบวก</h2><p class="muted">ถึง +${GD.safeRefine} ไม่มีวันลดระดับ · ตั้งแต่ +${GD.safeRefine + 1} ล้มเหลวลด 1 ระดับ · ค่า gold ขึ้นกับเลเวลไอเทม</p><div class="tbl-wrap"><table>
+      <thead><tr><th>ตีไปที่</th><th class="num">สำเร็จ</th><th>วัตถุดิบ</th><th class="num">gold (ไอเทม Lv1)</th><th class="num">(Lv10)</th><th class="num">(Lv20)</th></tr></thead>
+      <tbody>${GD.refine.map((r) => `<tr><td>+${r.to}</td><td class="num">${pct(r.rate)}</td><td>${r.mats.map(([id, n]) => esc(GD.items[id].name) + " ×" + n).join(", ")}</td>
+        <td class="num">${fmt(r.goldLv1)}</td><td class="num">${fmt(r.goldLv10)}</td><td class="num">${fmt(r.goldLv20)}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card"><h2>อุปกรณ์</h2><div class="tbl-wrap"><table>${head}<tbody>${itemRows("equip")}</tbody></table></div></div>
+    <div class="card"><h2>ของใช้ · สัตว์เลี้ยง · ของดรอป</h2><div class="tbl-wrap"><table>${head}<tbody>${itemRows("use")}${itemRows("pet")}${itemRows("material")}</tbody></table></div></div>
+    <div class="card"><h2>มอนสเตอร์</h2><div class="tbl-wrap"><table>
+      <thead><tr><th>ชื่อ</th><th class="num">Lv</th><th class="num">HP</th><th class="num">ATK</th><th class="num">DEF</th><th class="num">EXP</th><th class="num">จำนวน</th><th>ดรอป</th></tr></thead>
+      <tbody>${Object.entries(GD.monsters).map(([k, m]) => `<tr><td>${esc(m.name)}${m.aggressive ? ' <span class="pill ban">ดุ</span>' : ""}</td><td class="num">${m.level}</td>
+        <td class="num">${fmt(m.maxHp)}</td><td class="num">${m.atk}</td><td class="num">${m.def}</td><td class="num">${m.exp}</td><td class="num">${m.count}</td>
+        <td class="muted">${(GD.drops[k] || []).map(([id, ch]) => esc(GD.items[id].name) + " " + pct(ch)).join(", ")}</td></tr>`).join("")}</tbody></table></div></div>
+    <p class="muted">แก้ตัวเลขเหล่านี้ได้ที่ไฟล์ server/items.js (ไอเทม/ดรอป/ตีบวก) และ server/data.js (มอนสเตอร์) แล้ว push ขึ้น GitHub</p>`;
 }
 
 // ---------- ประกาศ / บันทึก ----------
