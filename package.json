@@ -1,0 +1,24 @@
+{
+  "name": "project-novice",
+  "version": "1.0.0",
+  "description": "Browser MMORPG prototype - Phase 1",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@colyseus/schema": "^3.0.76",
+    "@colyseus/ws-transport": "^0.16.5",
+    "colyseus": "^0.16.5",
+    "colyseus.js": "^0.16.22",
+    "express": "^4.22.3",
+    "phaser": "^3.90.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
