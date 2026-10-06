@@ -1,0 +1,134 @@
+/* =============================================================
+   หน้าตา UI — กรอบสีกรมท่าขอบทองเหลือง
+   ============================================================= */
+:root {
+  --ink: #141a33;            /* พื้นกรอบ */
+  --ink-2: #1e2650;
+  --brass: #c9a45c;          /* ขอบทอง */
+  --brass-dim: #7d6a43;
+  --text: #ecebe4;
+  --muted: #a7abc4;
+  --hp: #e0464e;
+  --sp: #4a8fe0;
+  --exp: #f2c14e;
+  --name: #ffd36b;
+  font-size: 14px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d1124; color: var(--text);
+  font-family: "Mitr", "Noto Sans Thai", system-ui, sans-serif; overflow: hidden;
+  -webkit-font-smoothing: antialiased; }
+#game { position: fixed; inset: 0; }
+#game canvas { image-rendering: pixelated; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--name); outline-offset: 2px; }
+
+.frame {
+  background: linear-gradient(180deg, rgba(30, 38, 80, .93), rgba(20, 26, 51, .93));
+  border: 1px solid var(--brass-dim);
+  box-shadow: inset 0 0 0 1px rgba(201, 164, 92, .18), 0 6px 18px rgba(0, 0, 0, .45);
+  border-radius: 10px;
+}
+.btn-gold {
+  border: 1px solid #f1d38f; border-radius: 8px; cursor: pointer; font-weight: 500;
+  background: linear-gradient(180deg, #e9c779, #b48a3e); color: #2b1d05;
+  box-shadow: 0 2px 0 #6b5023;
+}
+.btn-gold:active { transform: translateY(1px); box-shadow: none; }
+.btn-gold:disabled { opacity: .5; cursor: wait; }
+
+/* ---------- หน้าเข้าเกม ---------- */
+#login { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 20%, rgba(73, 104, 64, .55), transparent 60%),
+              linear-gradient(#0d1124, #121a33); }
+.login-box { width: min(520px, 100%); padding: 26px 24px 20px; text-align: center; }
+.login-box h1 { margin: 0; font-weight: 500; font-size: 32px; color: var(--name); letter-spacing: .5px;
+  text-shadow: 0 2px 0 #5a4416; }
+.sub { margin: 4px 0 18px; color: var(--muted); }
+.looks { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
+.look { background: rgba(13, 17, 36, .7); border: 1px solid #2c3561; border-radius: 8px; padding: 6px 2px 6px;
+  cursor: pointer; display: grid; justify-items: center; gap: 2px; }
+.look canvas { width: 60px; height: 84px; image-rendering: pixelated; max-width: 100%; }
+.look span { font-size: 12px; color: var(--muted); }
+.look[aria-checked="true"] { border-color: var(--brass); background: rgba(201, 164, 92, .14); }
+.look[aria-checked="true"] span { color: var(--name); }
+.field { display: grid; gap: 6px; text-align: left; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.field input, #chatInput { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3561;
+  background: #0d1124; color: var(--text); font: inherit; font-size: 16px; }
+#playBtn { width: 100%; padding: 11px; font-size: 17px; }
+#loginErr { color: #ff9a9a; min-height: 20px; margin-top: 8px; font-size: 13px; }
+@media (max-width: 520px) { .looks { grid-template-columns: repeat(3, 1fr); } }
+
+/* ---------- HUD ---------- */
+#hud > * { position: fixed; z-index: 5; }
+#status { top: 10px; left: 10px; width: 260px; padding: 10px 12px 12px; }
+.who { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+#avatar { width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--brass-dim);
+  background: #0d1124; image-rendering: pixelated; }
+.name { color: var(--name); font-weight: 500; font-size: 17px; line-height: 1.2; }
+.job { color: var(--muted); font-size: 13px; }
+.lv { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+.lv b { color: var(--text); font-weight: 500; }
+.bar-row { display: grid; grid-template-columns: 32px 1fr 70px; align-items: center; gap: 6px;
+  font-size: 12.5px; margin-top: 5px; }
+.bar-row span { color: var(--muted); }
+.bar-row em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.bar { height: 10px; background: #0b0f20; border-radius: 6px; overflow: hidden; border: 1px solid #2a3157; }
+.bar i { display: block; height: 100%; width: 100%; border-radius: 6px; transition: width .25s; }
+.bar.hp i { background: linear-gradient(180deg, #ff7a7f, var(--hp)); }
+.bar.sp i { background: linear-gradient(180deg, #8cc0ff, var(--sp)); }
+.bar.exp i { background: var(--exp); }
+.bar-row.thin .bar { height: 6px; }
+
+#onlinePill { top: 10px; left: 282px; padding: 5px 10px; font-size: 12.5px; display: flex; gap: 6px;
+  align-items: center; border-radius: 999px; }
+#onlinePill .dot { width: 8px; height: 8px; border-radius: 50%; background: #5fd47a; box-shadow: 0 0 6px #5fd47a; }
+#onlinePill b { color: #8fe3a2; font-weight: 500; }
+
+#minimap { top: 10px; right: 10px; padding: 8px; width: 218px; }
+#miniCanvas { display: block; width: 200px; height: 150px; border-radius: 6px; cursor: crosshair;
+  image-rendering: pixelated; border: 1px solid #2a3157; }
+.mini-foot { display: flex; justify-content: space-between; margin: 6px 2px 4px; font-size: 13px; }
+#mapName { color: var(--name); }
+#pos { color: var(--muted); font-variant-numeric: tabular-nums; }
+.zoom { display: flex; align-items: center; gap: 6px; justify-content: flex-end; font-size: 12px; color: var(--muted); }
+.zoom button { width: 24px; height: 22px; border-radius: 6px; border: 1px solid #2c3561;
+  background: #0d1124; cursor: pointer; line-height: 1; }
+
+#chat { left: 10px; bottom: 10px; width: min(420px, calc(100vw - 20px)); padding: 6px; display: flex;
+  flex-direction: column; gap: 6px; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid #2a3157; }
+.tab { background: none; border: 0; padding: 4px 10px 5px; cursor: pointer; color: var(--muted);
+  border-bottom: 2px solid transparent; font-size: 13px; }
+.tab.active { color: var(--name); border-bottom-color: var(--brass); }
+#chatLog { height: 150px; overflow-y: auto; padding: 2px 6px; font-size: 13.5px; line-height: 1.55;
+  scrollbar-width: thin; scrollbar-color: var(--brass-dim) transparent; }
+#chatLog .sys { color: #9fd0ff; }
+#chatLog .sys::before { content: "[ระบบ] "; color: #7aa6d6; }
+#chatLog .cname { color: var(--name); }
+#chatForm { display: flex; gap: 6px; }
+#chatInput { font-size: 14px; padding: 8px 10px; }
+.send { padding: 0 14px; }
+
+#bars { left: 50%; bottom: 10px; transform: translateX(-50%); display: grid; gap: 6px; justify-items: center; }
+.slots { display: flex; gap: 4px; padding: 5px; }
+.slot { position: relative; width: 46px; height: 46px; border-radius: 7px; border: 1px solid #2c3561;
+  background: rgba(10, 13, 30, .75); }
+.slots.small .slot { width: 40px; height: 40px; }
+.slot small { position: absolute; top: 2px; left: 5px; font-size: 11px; color: var(--muted); }
+
+#help { left: 50%; transform: translateX(-50%); bottom: 0; font-size: 11.5px; color: rgba(236, 235, 228, .6);
+  padding: 2px 8px; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000; }
+#bars { bottom: 22px; }
+
+@media (max-width: 1100px) { #bars, #help, #onlinePill { display: none; } }
+@media (max-width: 640px) {
+  #status { width: 200px; padding: 8px; } .bar-row { grid-template-columns: 30px 1fr; } .bar-row em { display: none; }
+  #minimap { width: 136px; padding: 6px; } #miniCanvas { width: 122px; height: 92px; }
+  .zoom { display: none; } .mini-foot { font-size: 11px; }
+  #chatLog { height: 90px; }
+}
+
+/* กรองแชทตามแท็บ */
+#chatLog[data-tab="chat"] .line.system, #chatLog[data-tab="system"] .line.chat { display: none; }
+.credits { color: var(--muted); font-size: 12px; }

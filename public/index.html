@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>" />
+  <title>Project Novice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="game"></div>
+
+  <!-- ================= หน้าเข้าเกม ================= -->
+  <div id="login">
+    <div class="login-box frame">
+      <h1>Project Novice</h1>
+      <p class="sub">เลือกตัวละครแล้วออกเดินทาง</p>
+      <div id="lookPicker" class="looks" role="radiogroup" aria-label="เลือกตัวละคร"></div>
+      <label class="field">
+        <span>ชื่อตัวละคร</span>
+        <input id="nameInput" maxlength="14" placeholder="เช่น Sayan" autocomplete="off" />
+      </label>
+      <button id="playBtn" class="btn-gold">เข้าเกม</button>
+      <div id="loginErr" role="alert"></div>
+      <a class="credits" href="/credits" target="_blank" rel="noopener">เครดิตงานภาพ (LPC)</a>
+    </div>
+  </div>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" hidden>
+    <!-- สถานะตัวละคร -->
+    <section id="status" class="frame">
+      <div class="who">
+        <canvas id="avatar" width="48" height="48"></canvas>
+        <div>
+          <div id="stName" class="name">-</div>
+          <div id="stJob" class="job">-</div>
+        </div>
+      </div>
+      <div class="lv"><span>Base Lv. <b id="stBase">1</b></span><span>Job Lv. <b id="stJobLv">1</b></span></div>
+      <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
+      <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
+      <div class="bar-row thin"><span>Base</span><div class="bar exp"><i style="width:0%"></i></div><em>0.0%</em></div>
+      <div class="bar-row thin"><span>Job</span><div class="bar exp"><i style="width:0%"></i></div><em>0.0%</em></div>
+    </section>
+
+    <div id="onlinePill" class="frame"><i class="dot"></i><b id="online">0</b> คนออนไลน์</div>
+
+    <!-- มินิแมพ -->
+    <section id="minimap" class="frame">
+      <canvas id="miniCanvas" width="200" height="150" title="คลิกเพื่อเดินไปจุดนั้น"></canvas>
+      <div class="mini-foot">
+        <span id="mapName">-</span>
+        <span id="pos">-</span>
+      </div>
+      <div class="zoom">
+        <button id="zoomOut" aria-label="ซูมออก">−</button>
+        <span id="zoomTxt">150%</span>
+        <button id="zoomIn" aria-label="ซูมเข้า">+</button>
+      </div>
+    </section>
+
+    <!-- แชท -->
+    <section id="chat" class="frame">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="all">ทั้งหมด</button>
+        <button class="tab" data-tab="chat">แชท</button>
+        <button class="tab" data-tab="system">ระบบ</button>
+      </div>
+      <div id="chatLog" aria-live="polite"></div>
+      <form id="chatForm" autocomplete="off">
+        <input id="chatInput" maxlength="100" placeholder="กด Enter เพื่อพิมพ์…" />
+        <button class="btn-gold send" aria-label="ส่งข้อความ">ส่ง</button>
+      </form>
+    </section>
+
+    <!-- แถบไอเท็ม + สกิล -->
+    <section id="bars">
+      <div id="itemBar" class="frame slots small"></div>
+      <div id="skillBar" class="frame slots"></div>
+    </section>
+
+    <div id="help">คลิกพื้น = เดิน · WASD / ลูกศร = เดิน · Enter = แชท · คลิกมินิแมพ = เดินไปจุดนั้น</div>
+  </div>
+
+  <script src="/lib/phaser.min.js"></script>
+  <script src="/lib/colyseus.js"></script>
+  <script src="/game.js"></script>
+</body>
+</html>
