@@ -1,65 +1,89 @@
 // =============================================================
-//  ฝั่งผู้เล่น — Phaser 3 + Colyseus
-//  แผนที่ทำจาก tileset LPC, ตัวละคร LPC เดิน 4 ทิศ, HUD แบบเกม MMO
+//  ฝั่งผู้เล่น — Phaser 3 + Colyseus  (Phase 2: ต่อสู้ / มอนสเตอร์ / EXP / สกิล)
 // =============================================================
 const $ = (id) => document.getElementById(id);
 const SERVER_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
-const T = 32; // ขนาดช่องแผนที่ (px)
-
-const LOOKS = [
-  { id: "novice", label: "Novice" },
-  { id: "swordsman", label: "Swordsman" },
-  { id: "ranger", label: "Thief" },
-  { id: "mage", label: "Mage" },
-  { id: "acolyte", label: "Acolyte" },
-  { id: "archer", label: "Archer" },
-];
+const T = 32;
+const COLS = 9; // เฟรมต่อแถวในไฟล์ภาพตัวละคร
+// แถวในไฟล์ภาพ: เดิน 0–3, ฟัน 4–7, ล้ม 8, ร่ายเวท 9–12 (ทิศ ขึ้น/ซ้าย/ลง/ขวา)
 const DIR_ROW = { up: 0, left: 1, down: 2, right: 3 };
 const ZOOMS = [1, 1.25, 1.5, 2];
 
+const LOOK_OPTS = {
+  sex: [["m", "ชาย"], ["f", "หญิง"]],
+  skin: [["light", "#f4cfa8"], ["olive", "#d9a877"], ["bronze", "#b07a4f"], ["brown", "#7d4e33"]],
+  hair: {
+    m: [["plain", "เรียบ"], ["spiked", "ตั้งชี้"], ["messy1", "ยุ่ง"], ["parted", "แสก"]],
+    f: [["ponytail", "หางม้า"], ["long", "ยาว"], ["pixie", "สั้น"], ["bunches", "แกละ"]],
+  },
+  color: [["black", "#262626"], ["dark_brown", "#4a2f1f"], ["chestnut", "#8a4b25"], ["blonde", "#e7c76a"],
+    ["redhead", "#b53a22"], ["platinum", "#e9e6dc"]],
+};
+const MOB_KINDS = ["goblin", "wolf", "boar", "skeleton", "orc"];
+
 let room = null;
 let scene = null;
-let chosenLook = storeGet("pn_look") || "novice";
+let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
 
 // =============================================================
-//  หน้าเข้าเกม: เลือกตัวละคร
+//  หน้าสร้างตัวละคร
 // =============================================================
-const lookImgs = {};
-let pickerFrame = 0;
-function buildPicker() {
-  const wrap = $("lookPicker");
-  LOOKS.forEach((l) => {
+const saved = (storeGet("pn_look2") || "m|light|spiked|chestnut").split("|");
+const look = { sex: saved[0], skin: saved[1], hair: saved[2], color: saved[3] };
+let previewDir = 0, previewFrame = 0;
+const imgCache = {};
+const loadImg = (path) => {
+  if (!imgCache[path]) { const i = new Image(); i.src = `/assets/${path}.png`; i.onload = drawPreview; imgCache[path] = i; }
+  return imgCache[path];
+};
+const lookStr = () => [look.sex, look.skin, look.hair, look.color].join("|");
+const layersFor = (lk, job = "villager") => {
+  const [sex, skin, hair, color] = lk.split("|");
+  return [`look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, `look/hair_${hair}_${color}`];
+};
+
+function chipGroup(el, items, key, swatch) {
+  el.innerHTML = "";
+  el.setAttribute("role", "radiogroup");
+  items.forEach(([val, label]) => {
     const b = document.createElement("button");
-    b.className = "look";
     b.type = "button";
+    b.className = swatch ? "chip swatch" : "chip";
     b.setAttribute("role", "radio");
-    b.setAttribute("aria-checked", String(l.id === chosenLook));
-    b.innerHTML = `<canvas width="40" height="56"></canvas><span>${l.label}</span>`;
+    b.setAttribute("aria-checked", String(look[key] === val));
+    if (swatch) { b.style.background = label; b.setAttribute("aria-label", val); } else b.textContent = label;
     b.onclick = () => {
-      chosenLook = l.id;
-      wrap.querySelectorAll(".look").forEach((x) => x.setAttribute("aria-checked", "false"));
-      b.setAttribute("aria-checked", "true");
+      look[key] = val;
+      if (key === "sex") { look.hair = LOOK_OPTS.hair[val][0][0]; buildCreator(); return; }
+      el.querySelectorAll("button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+      drawPreview();
     };
-    wrap.appendChild(b);
-    const img = new Image();
-    img.src = `/assets/char_${l.id}.png`;
-    img.onload = () => drawPicker();
-    lookImgs[l.id] = { img, canvas: b.querySelector("canvas") };
+    el.appendChild(b);
   });
-  setInterval(() => { pickerFrame = (pickerFrame + 1) % 8; drawPicker(); }, 110);
 }
-function drawPicker() {
-  for (const id in lookImgs) {
-    const { img, canvas } = lookImgs[id];
-    if (!img.complete) continue;
-    const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, 40, 56);
-    const col = id === chosenLook ? 1 + pickerFrame : 0; // ตัวที่เลือกจะเดินอยู่กับที่
-    ctx.drawImage(img, col * 64 + 12, 2 * 64 + 8, 40, 56, 0, 0, 40, 56); // ครอปเฉพาะตัว
+function buildCreator() {
+  if (!LOOK_OPTS.hair[look.sex].some(([v]) => v === look.hair)) look.hair = LOOK_OPTS.hair[look.sex][0][0];
+  chipGroup($("optSex"), LOOK_OPTS.sex, "sex");
+  chipGroup($("optSkin"), LOOK_OPTS.skin, "skin", true);
+  chipGroup($("optHair"), LOOK_OPTS.hair[look.sex], "hair");
+  chipGroup($("optColor"), LOOK_OPTS.color, "color", true);
+  drawPreview();
+}
+function drawPreview() {
+  const cv = $("previewCanvas");
+  if (!cv) return;
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 64, 64);
+  const row = [2, 1, 0, 3][previewDir]; // ลง ซ้าย ขึ้น ขวา
+  for (const l of layersFor(lookStr())) {
+    const img = loadImg(l);
+    if (img.complete && img.naturalWidth) ctx.drawImage(img, (1 + previewFrame) * 64, row * 64, 64, 64, 0, 0, 64, 64);
   }
 }
-buildPicker();
+buildCreator();
+const previewTimer = setInterval(() => { previewFrame = (previewFrame + 1) % 8; drawPreview(); }, 110);
+$("turnBtn").onclick = () => { previewDir = (previewDir + 1) % 4; drawPreview(); };
 
 $("nameInput").value = storeGet("pn_name") || "";
 $("nameInput").addEventListener("keydown", (e) => e.key === "Enter" && join());
@@ -72,23 +96,24 @@ async function join() {
   $("loginErr").textContent = "";
   try {
     const client = new Colyseus.Client(SERVER_URL);
-    room = await client.joinOrCreate("world", { name, look: chosenLook });
+    room = await client.joinOrCreate("world", { name, look: lookStr() });
     storeSet("pn_name", name);
-    storeSet("pn_look", chosenLook);
+    storeSet("pn_look2", lookStr());
     room.onMessage("system", (text) => addChat("system", esc(text)));
     room.onMessage("chat", ({ id, name, text }) => {
       addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
       const v = scene && scene.views.get(id);
       if (v) scene.showBubble(v, text);
     });
+    room.onMessage("toast", toast);
     room.onLeave(() => addChat("system", "หลุดการเชื่อมต่อ — รีเฟรชหน้าเพื่อเข้าใหม่"));
+    clearInterval(previewTimer);
     $("login").remove();
     $("hud").hidden = false;
-    buildSlots();
     startGame();
   } catch (err) {
     console.error(err);
-    $("loginErr").textContent = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองกดเข้าเกมอีกครั้ง";
+    $("loginErr").textContent = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (ถ้าเพิ่งเปิดเว็บ รอประมาณ 1 นาทีแล้วกดใหม่)";
     $("playBtn").disabled = false;
   }
 }
@@ -102,69 +127,92 @@ class WorldScene extends Phaser.Scene {
   preload() {
     this.load.image("terrain", "/assets/terrain.png");
     this.load.atlas("obj", "/assets/objects.png", "/assets/objects.json");
-    LOOKS.forEach((l) =>
-      this.load.spritesheet("char_" + l.id, `/assets/char_${l.id}.png`, { frameWidth: 64, frameHeight: 64 })
-    );
+    const paths = new Set();
+    for (const [sex] of LOOK_OPTS.sex) {
+      for (const [skin] of LOOK_OPTS.skin) paths.add(`look/base_${sex}_${skin}`);
+      paths.add(`look/outfit_villager_${sex}`);
+      for (const [h] of LOOK_OPTS.hair[sex]) for (const [c] of LOOK_OPTS.color) paths.add(`look/hair_${h}_${c}`);
+    }
+    paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
+    MOB_KINDS.forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
   }
 
   create() {
     scene = this;
-    this.views = new Map();
+    this.views = new Map();      // id -> ตัวละคร/มอนสเตอร์บนจอ
     this.trees = [];
     this.lastDir = { dx: 0, dy: 0 };
+    this.myTarget = null;
+    this.cdEnd = {};
     this.zoomIdx = window.innerWidth >= 1000 ? 2 : 1;
-    this.cameras.main.setZoom(ZOOMS[this.zoomIdx]).setBackgroundColor("#22401f");
-    this.cameras.main.setRoundPixels(true);
+    const cam = this.cameras.main;
+    cam.setZoom(ZOOMS[this.zoomIdx]).setBackgroundColor("#22401f").setRoundPixels(true);
     $("zoomTxt").textContent = ZOOMS[this.zoomIdx] * 100 + "%";
 
-    // แอนิเมชันเดิน 4 ทิศ ของทุกชุด
-    LOOKS.forEach(({ id }) => {
-      for (const dir in DIR_ROW) {
-        const r = DIR_ROW[dir] * 9;
-        this.anims.create({
-          key: `walk_${id}_${dir}`,
-          frames: this.anims.generateFrameNumbers("char_" + id, { start: r + 1, end: r + 8 }),
-          frameRate: 12, repeat: -1,
-        });
-      }
-    });
+    MOB_KINDS.forEach((k) => this.buildSheet("mob_" + k, ["mobsrc_" + k]));
+    this.targetRing = this.add.ellipse(0, 0, 34, 14).setStrokeStyle(2, 0xff5a5a, 0.9).setDepth(-9000).setVisible(false);
 
-    room.onMessage("map", (map) => this.buildMap(map));
+    room.onMessage("map", (data) => { gameData = data; this.buildMap(data); buildSkillBar(); });
     room.send("getMap");
 
     const $s = Colyseus.getStateCallbacks(room);
-    $s(room.state).players.onAdd((player, id) => {
-      const view = this.createPlayerView(player, id);
-      this.views.set(id, view);
-      $s(player).onChange(() => {
-        view.tx = player.x; view.ty = player.y;
-        view.moving = player.moving; view.dir = player.dir;
-        if (id === room.sessionId) updateStatus(player);
-      });
+    $s(room.state).players.onAdd((p, id) => {
+      const v = this.createView(p, id, false);
+      $s(p).onChange(() => this.syncView(v, p));
       if (id === room.sessionId) {
-        this.cameras.main.startFollow(view.root, true, 0.15, 0.15);
-        updateStatus(player);
-        drawAvatar(this, player.look);
+        this.cameras.main.startFollow(v.root, true, 0.15, 0.15);
+        drawAvatar(v.key);
+        updateStatus(p);
       }
       this.updateOnline();
     });
-    $s(room.state).players.onRemove((_p, id) => {
-      const v = this.views.get(id);
-      if (v) v.root.destroy();
-      this.views.delete(id);
-      this.updateOnline();
+    $s(room.state).players.onRemove((_p, id) => this.removeView(id));
+    $s(room.state).monsters.onAdd((m, id) => {
+      const v = this.createView(m, id, true);
+      $s(m).onChange(() => this.syncView(v, m));
     });
+    $s(room.state).monsters.onRemove((_m, id) => this.removeView(id));
 
-    this.input.on("pointerdown", (p) => {
+    // ---------- เหตุการณ์ต่อสู้ ----------
+    room.onMessage("atk", ({ id, dir }) => this.playOnce(id, "slash", dir, 380));
+    room.onMessage("skillfx", ({ id, dir }) => this.playOnce(id, "slash", dir, 620, 1));
+    room.onMessage("cast", ({ id }) => {
+      const v = this.views.get(id);
+      if (!v) return;
+      this.playOnce(id, "cast", v.dir, 520);
+      this.sparkle(v.root.x, v.root.y - 20, 0x7dffa8);
+    });
+    room.onMessage("hit", (h) => this.onHit(h));
+    room.onMessage("heal", ({ id, amount }) => {
+      const v = this.views.get(id);
+      if (v) this.floatText(v.root.x, v.root.y - 72, "+" + amount, "#7dff9a", 15);
+    });
+    room.onMessage("exp", (n) => {
+      const v = this.views.get(room.sessionId);
+      if (v) this.floatText(v.root.x, v.root.y - 88, `+${n} EXP`, "#c9a6ff", 12, 1100);
+    });
+    room.onMessage("lvup", ({ id }) => this.levelUpFx(id));
+    room.onMessage("cd", ({ skill, until }) => { this.cdEnd[skill] = performance.now() + until; });
+
+    // ---------- คลิก ----------
+    this.input.on("pointerdown", (p, over) => {
       if (document.activeElement === $("chatInput")) $("chatInput").blur();
+      const hit = over.find((o) => o.getData && o.getData("mobId"));
+      if (hit) {
+        this.myTarget = hit.getData("mobId");
+        room.send("attack", { id: this.myTarget });
+        return;
+      }
+      this.myTarget = null;
       room.send("moveTo", { x: p.worldX, y: p.worldY });
       this.clickMarker(p.worldX, p.worldY);
     });
     this.keys = this.input.keyboard.addKeys("W,A,S,D,UP,DOWN,LEFT,RIGHT", false);
-
     $("zoomIn").onclick = () => this.setZoomIdx(this.zoomIdx + 1);
     $("zoomOut").onclick = () => this.setZoomIdx(this.zoomIdx - 1);
     setupChat(this);
+    setupHotkeys();
+    this.time.addEvent({ delay: 100, loop: true, callback: renderCooldowns });
   }
 
   setZoomIdx(i) {
@@ -173,8 +221,26 @@ class WorldScene extends Phaser.Scene {
     $("zoomTxt").textContent = ZOOMS[this.zoomIdx] * 100 + "%";
   }
 
-  // ---------- สร้างแผนที่จาก tileset ----------
-  // ใช้เทคนิคแบ่งช่องเป็น 4 ส่วน (16px) เพื่อให้ขอบหญ้าโค้งต่อกันเนียน
+  // ---------- ประกอบภาพตัวละครจากหลายชั้น (ตัว + ชุด + ผม) ----------
+  buildSheet(key, layerKeys) {
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(key, 576, 832);
+    const ctx = tex.getContext();
+    for (const k of layerKeys) ctx.drawImage(this.textures.get(k).getSourceImage(), 0, 0);
+    for (let i = 0; i < COLS * 13; i++) tex.add(i, 0, (i % COLS) * 64, Math.floor(i / COLS) * 64, 64, 64);
+    tex.refresh();
+    const seq = (row, from, to) => { const f = []; for (let c = from; c <= to; c++) f.push({ key, frame: row * COLS + c }); return f; };
+    for (const dir in DIR_ROW) {
+      const d = DIR_ROW[dir];
+      this.anims.create({ key: `${key}:walk:${dir}`, frames: seq(d, 1, 8), frameRate: 12, repeat: -1 });
+      this.anims.create({ key: `${key}:slash:${dir}`, frames: seq(4 + d, 0, 5), frameRate: 16 });
+      this.anims.create({ key: `${key}:cast:${dir}`, frames: seq(9 + d, 0, 6), frameRate: 14 });
+    }
+    this.anims.create({ key: `${key}:die`, frames: seq(8, 0, 5), frameRate: 10 });
+    return key;
+  }
+
+  // ---------- แผนที่ ----------
   buildMap(map) {
     this.map = map;
     const { width: W, height: H, ground, objects } = map;
@@ -186,7 +252,7 @@ class WorldScene extends Phaser.Scene {
       return n;
     };
     const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : ground[y * W + x]);
-    const grassy = (x, y) => at(x, y) !== 1; // น้ำนับเป็นหญ้า เพราะบ่อมีตลิ่งหญ้าในตัว
+    const grassy = (x, y) => at(x, y) !== 1;
     const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
     const GRASS = [[3, 2], [4, 2], [5, 2], [3, 1], [4, 1], [5, 1], [1, 1]];
     const DIRT = [[3, 3], [4, 3], [5, 3], [3, 4], [4, 4], [5, 4]];
@@ -220,7 +286,6 @@ class WorldScene extends Phaser.Scene {
         }
       }
     }
-    // ของชิ้นเล็กแปะลงพื้นเลย (ดอกไม้)
     const flat = /^(wf|flower)/;
     for (const o of objects) {
       if (!flat.test(o.k)) continue;
@@ -229,7 +294,6 @@ class WorldScene extends Phaser.Scene {
     }
     rt.endDraw();
 
-    // ของที่มีความสูง → เป็น sprite เรียงความลึกตามแกน Y
     for (const o of objects) {
       if (flat.test(o.k)) continue;
       const img = this.add.image(o.x, o.y, "obj", o.k).setOrigin(0.5, 1).setDepth(o.y);
@@ -238,38 +302,133 @@ class WorldScene extends Phaser.Scene {
         this.trees.push(img);
       }
     }
-
     this.cameras.main.setBounds(0, 0, W * T, H * T);
     $("mapName").textContent = map.name;
     buildMinimap(map);
   }
 
-  // ---------- ตัวละคร ----------
-  createPlayerView(player, id) {
+  // ---------- ตัวละคร / มอนสเตอร์ ----------
+  createView(e, id, isMob) {
     const isMe = id === room.sessionId;
-    const root = this.add.container(player.x, player.y);
+    const key = isMob ? "mob_" + e.kind : this.buildSheet(`pl_${e.job}_${e.look}`, layersFor(e.look, e.job));
+    const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
-    const sprite = this.add.sprite(0, 0, "char_" + player.look, DIR_ROW[player.dir] * 9).setOrigin(0.5, 0.97);
-    const label = this.add.text(0, -58, `${player.name}  Lv.${player.level}`, {
-      fontFamily: "Mitr, sans-serif", fontSize: "11px", color: isMe ? "#ffd36b" : "#ffffff",
+    const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
+    const label = this.add.text(0, -58, "", {
+      fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#ffffff",
       stroke: "#0d1124", strokeThickness: 3, resolution: 2,
     }).setOrigin(0.5, 1);
-    root.add([shadow, sprite, label]);
-    let bars = null;
-    if (isMe) { bars = this.add.graphics(); root.add(bars); }
-    const view = { root, sprite, label, bars, bubble: null, look: player.look,
-      tx: player.x, ty: player.y, dir: player.dir, moving: false, player };
-    this.drawBars(view);
-    return view;
+    const bars = this.add.graphics();
+    root.add([shadow, sprite, bars, label]);
+    if (isMob) {
+      sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
+      sprite.setData("mobId", id);
+      sprite.on("pointerover", () => { v.hover = true; });
+      sprite.on("pointerout", () => { v.hover = false; });
+    }
+    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e,
+      tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
+    this.views.set(id, v);
+    this.syncView(v, e);
+    return v;
   }
 
-  drawBars(view) {
-    if (!view.bars) return;
-    const p = view.player, g = view.bars, w = 30;
+  syncView(v, e) {
+    v.tx = e.x; v.ty = e.y; v.moving = e.moving; v.dir = e.dir || v.dir;
+    if (v.dead !== e.dead) {
+      v.dead = e.dead;
+      if (!v.dead) { v.deadShown = false; v.root.setAlpha(1); if (v.isMob) v.sprite.setInteractive(); }
+      else {
+        if (v.isMob) { v.sprite.disableInteractive(); if (this.myTarget === v.id) this.myTarget = null; }
+        if (v.isMe) $("deathMsg").hidden = false;
+      }
+      if (v.isMe && !v.dead) $("deathMsg").hidden = true;
+    }
+    const lv = e.level;
+    if (v.isMob) {
+      const me = room.state.players.get(room.sessionId);
+      const diff = me ? lv - me.level : 0;
+      v.label.setColor(diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ffffff");
+      v.label.setText(`${e.name}  Lv.${lv}`);
+    } else {
+      v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
+      v.label.setText(`${e.name}  Lv.${lv}`);
+      if (v.isMe) updateStatus(e);
+    }
+    this.drawBars(v);
+  }
+
+  drawBars(v) {
+    const e = v.e, g = v.bars, w = 30;
     g.clear();
+    if (v.dead) return;
+    if (v.isMob) {
+      if (e.hp >= e.maxHp && this.myTarget !== v.id) return;
+      g.fillStyle(0x0d1124, 0.9).fillRect(-w / 2 - 1, 3, w + 2, 5);
+      g.fillStyle(0xe0464e).fillRect(-w / 2, 4, (w * e.hp) / e.maxHp, 3);
+      return;
+    }
+    if (!v.isMe) return;
     g.fillStyle(0x0d1124, 0.9).fillRect(-w / 2 - 1, 3, w + 2, 8);
-    g.fillStyle(0x5fd47a).fillRect(-w / 2, 4, (w * p.hp) / p.maxHp, 3);
-    g.fillStyle(0x4a8fe0).fillRect(-w / 2, 8, (w * p.sp) / p.maxSp, 2);
+    g.fillStyle(0x5fd47a).fillRect(-w / 2, 4, (w * e.hp) / e.maxHp, 3);
+    g.fillStyle(0x4a8fe0).fillRect(-w / 2, 8, (w * e.sp) / e.maxSp, 2);
+  }
+
+  removeView(id) {
+    const v = this.views.get(id);
+    if (v) v.root.destroy();
+    this.views.delete(id);
+    this.updateOnline();
+  }
+
+  playOnce(id, kind, dir, ms, repeat = 0) {
+    const v = this.views.get(id);
+    if (!v || v.dead) return;
+    v.dir = dir || v.dir;
+    v.busyUntil = this.time.now + ms;
+    v.sprite.play({ key: `${v.key}:${kind}:${v.dir}`, repeat });
+  }
+
+  // ---------- เอฟเฟกต์ ----------
+  onHit({ tgt, src, dmg, crit, miss }) {
+    const v = this.views.get(tgt);
+    if (!v) return;
+    const mine = src === room.sessionId, onMe = tgt === room.sessionId;
+    if (!mine && !onMe && !v.isMob) return;
+    const x = v.root.x + Phaser.Math.Between(-10, 10), y = v.root.y - 72;
+    if (miss) { this.floatText(x, y, "MISS", "#c7cbe0", 12); return; }
+    const color = onMe ? "#ff5a5a" : crit ? "#ffb03a" : mine ? "#ffffff" : "#c7cbe0";
+    this.floatText(x, y, crit ? dmg + "!" : String(dmg), color, crit ? 20 : mine || onMe ? 16 : 12);
+    if (!v.dead) {
+      v.sprite.setTintFill(0xffffff);
+      this.time.delayedCall(70, () => v.sprite.clearTint());
+    }
+  }
+
+  floatText(x, y, text, color, size, dur = 800) {
+    const t = this.add.text(x, y, text, {
+      fontFamily: "Mitr, sans-serif", fontSize: size + "px", fontStyle: "bold", color,
+      stroke: "#0d1124", strokeThickness: 4, resolution: 2,
+    }).setOrigin(0.5).setDepth(1e6);
+    this.tweens.add({ targets: t, y: y - 34, alpha: { from: 1, to: 0 }, duration: dur, ease: "Cubic.easeOut",
+      onComplete: () => t.destroy() });
+  }
+
+  sparkle(x, y, color) {
+    for (let i = 0; i < 10; i++) {
+      const s = this.add.circle(x + Phaser.Math.Between(-14, 14), y + Phaser.Math.Between(-10, 18), 2, color).setDepth(1e6);
+      this.tweens.add({ targets: s, y: s.y - Phaser.Math.Between(18, 34), alpha: 0, duration: 700, delay: i * 30,
+        onComplete: () => s.destroy() });
+    }
+  }
+
+  levelUpFx(id) {
+    const v = this.views.get(id);
+    if (!v) return;
+    const ring = this.add.ellipse(v.root.x, v.root.y - 2, 20, 8).setStrokeStyle(3, 0xffd36b).setDepth(-8000);
+    this.tweens.add({ targets: ring, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 900, onComplete: () => ring.destroy() });
+    this.sparkle(v.root.x, v.root.y - 24, 0xffd36b);
+    this.floatText(v.root.x, v.root.y - 100, "LEVEL UP!", "#ffd36b", 18, 1600);
   }
 
   showBubble(view, text) {
@@ -288,21 +447,32 @@ class WorldScene extends Phaser.Scene {
     this.tweens.add({ targets: m, scale: 0.2, alpha: 0, duration: 500, onComplete: () => m.destroy() });
   }
 
-  updateOnline() { $("online").textContent = this.views.size; }
+  updateOnline() { $("online").textContent = room.state.players.size; }
 
   // ---------- ทุกเฟรม ----------
-  update(_t, dt) {
+  update(time, dt) {
     const k = Math.min(1, (dt / 1000) * 14);
     this.views.forEach((v) => {
       const r = v.root;
       if (Math.abs(v.tx - r.x) > 200 || Math.abs(v.ty - r.y) > 200) { r.x = v.tx; r.y = v.ty; }
       else { r.x += (v.tx - r.x) * k; r.y += (v.ty - r.y) * k; }
-      r.setDepth(r.y);
-      if (v.moving) v.sprite.play(`walk_${v.look}_${v.dir}`, true);
-      else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * 9); }
+      r.setDepth(v.dead ? r.y - 40 : r.y);
+      // ชื่อมอนแสดงเฉพาะตอนชี้เมาส์ / เป็นเป้าหมาย / โดนตี (จอจะได้ไม่รก)
+      if (v.isMob) v.label.setVisible(!v.dead && (v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
+      if (v.dead) {
+        if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
+        return;
+      }
+      if (time < v.busyUntil) return;
+      if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);
+      else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
     });
 
-    // ต้นไม้ที่บังตัวเราจะจางลง
+    // วงแดงใต้เป้าหมาย
+    const tv = this.myTarget && this.views.get(this.myTarget);
+    this.targetRing.setVisible(!!tv);
+    if (tv) this.targetRing.setPosition(tv.root.x, tv.root.y - 1);
+
     const me = this.views.get(room.sessionId);
     if (me) {
       const mx = me.root.x, my = me.root.y;
@@ -319,6 +489,7 @@ class WorldScene extends Phaser.Scene {
       const dy = (K.S.isDown || K.DOWN.isDown ? 1 : 0) - (K.W.isDown || K.UP.isDown ? 1 : 0);
       if (dx !== this.lastDir.dx || dy !== this.lastDir.dy) {
         this.lastDir = { dx, dy };
+        if (dx || dy) this.myTarget = null;
         room.send("dir", { dx, dy });
       }
     }
@@ -341,28 +512,80 @@ function startGame() {
 // =============================================================
 function updateStatus(p) {
   $("stName").textContent = p.name;
-  $("stJob").textContent = p.job;
-  $("stBase").textContent = p.level;
-  $("stJobLv").textContent = p.jobLevel;
+  $("stJob").textContent = p.jobName;
+  $("stLv").textContent = p.level;
   $("hpFill").style.width = (100 * p.hp) / p.maxHp + "%";
   $("spFill").style.width = (100 * p.sp) / p.maxSp + "%";
   $("hpTxt").textContent = `${p.hp}/${p.maxHp}`;
   $("spTxt").textContent = `${p.sp}/${p.maxSp}`;
-  const v = scene && scene.views.get(room.sessionId);
-  if (v) { v.label.setText(`${p.name}  Lv.${p.level}`); scene.drawBars(v); }
+  const pct = p.expNext ? (100 * p.exp) / p.expNext : 100;
+  $("expFill").style.width = pct + "%";
+  $("expTxt").textContent = pct.toFixed(1) + "%";
 }
 
-function drawAvatar(sc, look) {
-  const src = sc.textures.get("char_" + look).getSourceImage();
+function drawAvatar(key) {
+  const src = scene.textures.get(key).getSourceImage();
   const ctx = $("avatar").getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, 16, 2 * 64 + 6, 32, 32, 0, 0, 48, 48); // ครอปเฉพาะหัว (หันหน้าลง)
+  ctx.clearRect(0, 0, 48, 48);
+  ctx.drawImage(src, 16, 2 * 64 + 6, 32, 32, 0, 0, 48, 48);
 }
 
-function buildSlots() {
-  const items = $("itemBar"), skills = $("skillBar");
+// ---------- แถบสกิล ----------
+function mySkills() {
+  const me = room.state.players.get(room.sessionId);
+  return (gameData && me && gameData.jobSkills[me.job]) || [];
+}
+function buildSkillBar() {
+  const bar = $("skillBar"), items = $("itemBar");
+  bar.innerHTML = ""; items.innerHTML = "";
+  const list = mySkills();
+  for (let i = 0; i < 9; i++) {
+    const key = list[i];
+    const s = key && gameData.skills[key];
+    const el = document.createElement(s ? "button" : "div");
+    el.className = s ? "slot skill" : "slot";
+    el.dataset.skill = key || "";
+    el.innerHTML = `<small>${i + 1}</small>` + (s ? `<b>${s.name}</b><em class="cost">${s.sp}</em>` : "");
+    if (s) { el.title = `${s.name} — ${s.desc} (SP ${s.sp})`; el.onclick = () => castSkill(key, el); }
+    bar.appendChild(el);
+  }
   for (let i = 0; i < 8; i++) items.insertAdjacentHTML("beforeend", `<div class="slot"></div>`);
-  for (let i = 1; i <= 9; i++) skills.insertAdjacentHTML("beforeend", `<div class="slot"><small>${i}</small></div>`);
+}
+function castSkill(key, el) {
+  if (!key) return;
+  room.send("skill", { skill: key, target: scene.myTarget });
+  if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+}
+function setupHotkeys() {
+  window.addEventListener("keydown", (e) => {
+    if (document.activeElement === $("chatInput")) return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= 9) {
+      const key = mySkills()[n - 1];
+      castSkill(key, document.querySelectorAll("#skillBar .slot")[n - 1]);
+    }
+  });
+}
+function renderCooldowns() {
+  const t = performance.now();
+  document.querySelectorAll("#skillBar .slot.skill").forEach((el) => {
+    const left = (scene.cdEnd[el.dataset.skill] || 0) - t;
+    let cd = el.querySelector(".cd");
+    if (left > 0) {
+      if (!cd) { cd = document.createElement("span"); cd.className = "cd"; el.appendChild(cd); }
+      cd.textContent = Math.ceil(left / 1000);
+    } else if (cd) cd.remove();
+  });
+}
+
+let toastTimer = null;
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1400);
 }
 
 // ---------- มินิแมพ ----------
@@ -385,9 +608,11 @@ function buildMinimap(map) {
   }
   cv.onclick = (e) => {
     const r = cv.getBoundingClientRect();
-    const wx = ((e.clientX - r.left) / r.width) * map.width * T;
-    const wy = ((e.clientY - r.top) / r.height) * map.height * T;
-    room.send("moveTo", { x: wx, y: wy });
+    scene.myTarget = null;
+    room.send("moveTo", {
+      x: ((e.clientX - r.left) / r.width) * map.width * T,
+      y: ((e.clientY - r.top) / r.height) * map.height * T,
+    });
   };
   setInterval(drawMinimap, 150);
 }
@@ -400,11 +625,11 @@ function drawMinimap() {
   ctx.strokeStyle = "rgba(255,255,255,.75)";
   ctx.lineWidth = 1;
   ctx.strokeRect(cam.x * sx + 0.5, cam.y * sy + 0.5, cam.width * sx, cam.height * sy);
-  scene.views.forEach((v, id) => {
-    const me = id === room.sessionId;
-    ctx.fillStyle = me ? "#ffd36b" : "#ffffff";
+  scene.views.forEach((v) => {
+    if (v.dead) return;
+    ctx.fillStyle = v.isMe ? "#ffd36b" : v.isMob ? "#ff5a5a" : "#ffffff";
     ctx.beginPath();
-    ctx.arc(v.root.x * sx, v.root.y * sy, me ? 3 : 2.2, 0, Math.PI * 2);
+    ctx.arc(v.root.x * sx, v.root.y * sy, v.isMe ? 3 : v.isMob ? 1.4 : 2.2, 0, Math.PI * 2);
     ctx.fill();
   });
 }

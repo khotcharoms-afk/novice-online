@@ -12,12 +12,23 @@
 <body>
   <div id="game"></div>
 
-  <!-- ================= หน้าเข้าเกม ================= -->
+  <!-- ================= หน้าเข้าเกม: สร้างตัวละคร ================= -->
   <div id="login">
     <div class="login-box frame">
       <h1>Project Novice</h1>
-      <p class="sub">เลือกตัวละครแล้วออกเดินทาง</p>
-      <div id="lookPicker" class="looks" role="radiogroup" aria-label="เลือกตัวละคร"></div>
+      <p class="sub">ทุกคนเริ่มต้นเป็นชาวบ้าน — เลือกหน้าตาของคุณ</p>
+      <div class="creator">
+        <div class="preview">
+          <canvas id="previewCanvas" width="64" height="64"></canvas>
+          <button id="turnBtn" type="button" class="turn" aria-label="หมุนตัวละคร">หมุนตัว ↻</button>
+        </div>
+        <div class="opts">
+          <div class="opt"><span>เพศ</span><div id="optSex" class="chips"></div></div>
+          <div class="opt"><span>สีผิว</span><div id="optSkin" class="chips"></div></div>
+          <div class="opt"><span>ทรงผม</span><div id="optHair" class="chips"></div></div>
+          <div class="opt"><span>สีผม</span><div id="optColor" class="chips"></div></div>
+        </div>
+      </div>
       <label class="field">
         <span>ชื่อตัวละคร</span>
         <input id="nameInput" maxlength="14" placeholder="เช่น Sayan" autocomplete="off" />
@@ -30,25 +41,21 @@
 
   <!-- ================= HUD ================= -->
   <div id="hud" hidden>
-    <!-- สถานะตัวละคร -->
     <section id="status" class="frame">
       <div class="who">
         <canvas id="avatar" width="48" height="48"></canvas>
         <div>
           <div id="stName" class="name">-</div>
-          <div id="stJob" class="job">-</div>
+          <div class="job"><span id="stJob">-</span> · Lv. <b id="stLv">1</b></div>
         </div>
       </div>
-      <div class="lv"><span>Base Lv. <b id="stBase">1</b></span><span>Job Lv. <b id="stJobLv">1</b></span></div>
       <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
       <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
-      <div class="bar-row thin"><span>Base</span><div class="bar exp"><i style="width:0%"></i></div><em>0.0%</em></div>
-      <div class="bar-row thin"><span>Job</span><div class="bar exp"><i style="width:0%"></i></div><em>0.0%</em></div>
+      <div class="bar-row"><span>EXP</span><div class="bar exp"><i id="expFill"></i></div><em id="expTxt">0.0%</em></div>
     </section>
 
     <div id="onlinePill" class="frame"><i class="dot"></i><b id="online">0</b> คนออนไลน์</div>
 
-    <!-- มินิแมพ -->
     <section id="minimap" class="frame">
       <canvas id="miniCanvas" width="200" height="150" title="คลิกเพื่อเดินไปจุดนั้น"></canvas>
       <div class="mini-foot">
@@ -62,7 +69,6 @@
       </div>
     </section>
 
-    <!-- แชท -->
     <section id="chat" class="frame">
       <div class="tabs" role="tablist">
         <button class="tab active" data-tab="all">ทั้งหมด</button>
@@ -76,13 +82,14 @@
       </form>
     </section>
 
-    <!-- แถบไอเท็ม + สกิล -->
     <section id="bars">
-      <div id="itemBar" class="frame slots small"></div>
+      <div id="itemBar" class="frame slots small" title="ช่องไอเท็ม (มาใน Phase ถัดไป)"></div>
       <div id="skillBar" class="frame slots"></div>
     </section>
 
-    <div id="help">คลิกพื้น = เดิน · WASD / ลูกศร = เดิน · Enter = แชท · คลิกมินิแมพ = เดินไปจุดนั้น</div>
+    <div id="toast" role="status"></div>
+    <div id="deathMsg" hidden>คุณถูกล้ม — กำลังฟื้นที่ลานกลางเมือง…</div>
+    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Enter = แชท</div>
   </div>
 
   <script src="/lib/phaser.min.js"></script>

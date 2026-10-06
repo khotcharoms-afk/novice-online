@@ -45,19 +45,11 @@ button { font: inherit; color: inherit; }
 .login-box h1 { margin: 0; font-weight: 500; font-size: 32px; color: var(--name); letter-spacing: .5px;
   text-shadow: 0 2px 0 #5a4416; }
 .sub { margin: 4px 0 18px; color: var(--muted); }
-.looks { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
-.look { background: rgba(13, 17, 36, .7); border: 1px solid #2c3561; border-radius: 8px; padding: 6px 2px 6px;
-  cursor: pointer; display: grid; justify-items: center; gap: 2px; }
-.look canvas { width: 60px; height: 84px; image-rendering: pixelated; max-width: 100%; }
-.look span { font-size: 12px; color: var(--muted); }
-.look[aria-checked="true"] { border-color: var(--brass); background: rgba(201, 164, 92, .14); }
-.look[aria-checked="true"] span { color: var(--name); }
 .field { display: grid; gap: 6px; text-align: left; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
 .field input, #chatInput { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3561;
   background: #0d1124; color: var(--text); font: inherit; font-size: 16px; }
 #playBtn { width: 100%; padding: 11px; font-size: 17px; }
 #loginErr { color: #ff9a9a; min-height: 20px; margin-top: 8px; font-size: 13px; }
-@media (max-width: 520px) { .looks { grid-template-columns: repeat(3, 1fr); } }
 
 /* ---------- HUD ---------- */
 #hud > * { position: fixed; z-index: 5; }
@@ -67,8 +59,6 @@ button { font: inherit; color: inherit; }
   background: #0d1124; image-rendering: pixelated; }
 .name { color: var(--name); font-weight: 500; font-size: 17px; line-height: 1.2; }
 .job { color: var(--muted); font-size: 13px; }
-.lv { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
-.lv b { color: var(--text); font-weight: 500; }
 .bar-row { display: grid; grid-template-columns: 32px 1fr 70px; align-items: center; gap: 6px;
   font-size: 12.5px; margin-top: 5px; }
 .bar-row span { color: var(--muted); }
@@ -77,8 +67,7 @@ button { font: inherit; color: inherit; }
 .bar i { display: block; height: 100%; width: 100%; border-radius: 6px; transition: width .25s; }
 .bar.hp i { background: linear-gradient(180deg, #ff7a7f, var(--hp)); }
 .bar.sp i { background: linear-gradient(180deg, #8cc0ff, var(--sp)); }
-.bar.exp i { background: var(--exp); }
-.bar-row.thin .bar { height: 6px; }
+.bar.exp i { background: linear-gradient(180deg, #ffe08a, var(--exp)); }
 
 #onlinePill { top: 10px; left: 282px; padding: 5px 10px; font-size: 12.5px; display: flex; gap: 6px;
   align-items: center; border-radius: 999px; }
@@ -121,8 +110,13 @@ button { font: inherit; color: inherit; }
   padding: 2px 8px; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000; }
 #bars { bottom: 22px; }
 
-@media (max-width: 1100px) { #bars, #help, #onlinePill { display: none; } }
+@media (max-width: 1100px) {
+  #help, #onlinePill, #itemBar { display: none; }
+  #bars { left: auto; right: 10px; transform: none; bottom: auto; top: 252px; }
+  #skillBar { flex-direction: column; }
+}
 @media (max-width: 640px) {
+  #bars { top: 130px; }
   #status { width: 200px; padding: 8px; } .bar-row { grid-template-columns: 30px 1fr; } .bar-row em { display: none; }
   #minimap { width: 136px; padding: 6px; } #miniCanvas { width: 122px; height: 92px; }
   .zoom { display: none; } .mini-foot { font-size: 11px; }
@@ -132,3 +126,41 @@ button { font: inherit; color: inherit; }
 /* กรองแชทตามแท็บ */
 #chatLog[data-tab="chat"] .line.system, #chatLog[data-tab="system"] .line.chat { display: none; }
 .credits { color: var(--muted); font-size: 12px; }
+
+/* ---------- สร้างตัวละคร ---------- */
+.creator { display: grid; grid-template-columns: 150px 1fr; gap: 16px; text-align: left; margin-bottom: 14px; }
+.preview { display: grid; justify-items: center; align-content: start; gap: 8px; padding: 10px 0;
+  background: radial-gradient(circle at 50% 60%, rgba(95, 154, 63, .35), transparent 70%); border-radius: 10px;
+  border: 1px solid #2c3561; }
+#previewCanvas { width: 128px; height: 128px; image-rendering: pixelated; }
+.turn { background: none; border: 1px solid #2c3561; border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  color: var(--muted); font-size: 12px; }
+.opts { display: grid; gap: 10px; align-content: start; }
+.opt > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid #2c3561; background: rgba(13, 17, 36, .7); border-radius: 7px; padding: 4px 10px;
+  cursor: pointer; font-size: 13px; color: var(--text); }
+.chip[aria-checked="true"] { border-color: var(--brass); background: rgba(201, 164, 92, .18); color: var(--name); }
+.swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid #2c3561; }
+.swatch[aria-checked="true"] { border-color: var(--name); box-shadow: 0 0 0 2px rgba(255, 211, 107, .3); }
+@media (max-width: 520px) { .creator { grid-template-columns: 1fr; } }
+
+/* ---------- ช่องสกิล ---------- */
+.slot.skill, #skillBar .slot { width: 60px; }
+.slot.skill { cursor: pointer; display: grid; place-items: center; text-align: center; overflow: hidden;
+  background: linear-gradient(180deg, #2a3466, #171d3d); border-color: var(--brass-dim); }
+.slot.skill b { font-weight: 500; font-size: 10.5px; line-height: 1.15; padding: 10px 2px 0; color: var(--text); }
+.slot.skill .cost { position: absolute; right: 3px; bottom: 1px; font-size: 10px; color: #8cc0ff; font-style: normal; }
+.slot .cd { position: absolute; inset: 0; background: rgba(5, 8, 20, .72); display: grid; place-items: center;
+  font-size: 14px; color: #fff; font-variant-numeric: tabular-nums; }
+.slot.skill:hover { border-color: var(--brass); }
+.slot.flash { animation: flash .35s; }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--name); } to { box-shadow: none; } }
+
+#toast { left: 50%; top: 22%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
+  background: rgba(13, 17, 36, .85); color: #ffd36b; font-size: 14px; opacity: 0; transition: opacity .2s;
+  pointer-events: none; }
+#toast.show { opacity: 1; }
+#deathMsg { left: 50%; top: 40%; transform: translateX(-50%); padding: 10px 18px; border-radius: 10px;
+  background: rgba(60, 10, 16, .85); border: 1px solid #a23a44; color: #ffd0d4; font-size: 16px; }
+@media (prefers-reduced-motion: reduce) { .slot.flash { animation: none; } }
