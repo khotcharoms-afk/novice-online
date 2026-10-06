@@ -17,7 +17,8 @@ const gearName = (g) => (g && g.up ? `+${g.up} ` : "") + (itemOf(g && g.id)?.nam
 // สีกรอบไอเทม: อุปกรณ์ = สีตามระดับ (ทุกระดับ) · ของที่มีกำหนดสี (หินตีบวก) = สีของมัน
 const frameOf = (s) => { if (!s) return null; const r = rarOf(s); if (r) return r.color; const it = itemOf(s.id); return (it && it.frame) || null; };
 const applyFrame = (el, s) => { const c = frameOf(s); el.classList.toggle("rr", !!c); el.style.setProperty("--rc", c || ""); };
-const nameHtml = (g) => { const r = rarOf(g); return `<span style="color:${r && g.r > 0 ? r.color : "inherit"}">${gearName(g)}</span>`; };
+// ชื่อไอเทมเป็นสีขาวเสมอ (ระดับดูจากสีกรอบแทน)
+const nameHtml = (g) => `<span class="iname">${gearName(g)}</span>`;
 const myPlayer = () => room && room.state.players.get(room.sessionId);
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
@@ -395,7 +396,7 @@ async function discardAt(idx) {
   const s = INV.inv[idx];
   if (!s) return;
   const r = rarOf(s);
-  const n = await askConfirm(`ทิ้ง <b${r ? ` style="color:${r.color}"` : ""}>${gearName(s)}</b>${r ? ` (ระดับ${r.name})` : ""}?<br><small>ของที่ทิ้งจะหายไปถาวร</small>`,
+  const n = await askConfirm(`ทิ้ง <b>${gearName(s)}</b>${r ? ` (ระดับ${r.name})` : ""}?<br><small>ของที่ทิ้งจะหายไปถาวร</small>`,
     { okText: "ทิ้ง", max: s.n, danger: true });
   if (n) room.send("discard", { idx, n });
 }

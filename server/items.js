@@ -51,9 +51,9 @@ const ITEMS = {
   pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
   pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
   // ---------- คริสตัลตีบวก (ใช้ที่ลุงเหล็กกล้า) · frame = สีกรอบในกระเป๋า ----------
-  stone_1: { name: "คริสตัลตีบวกขั้นต้น", type: "material", price: 30, frame: "#f0954a", desc: "ใช้ตีบวก +1 ถึง +4" },
+  stone_1: { name: "คริสตัลตีบวกขั้นต้น", type: "material", price: 30, frame: "#cfd3dd", desc: "ใช้ตีบวก +1 ถึง +4" },
   stone_2: { name: "คริสตัลตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
-  stone_3: { name: "คริสตัลตีบวกขั้นสูง", type: "material", sell: 200, frame: "#d08bff", desc: "ใช้ตีบวก +8 ถึง +10" },
+  stone_3: { name: "คริสตัลตีบวกขั้นสูง", type: "material", sell: 200, frame: "#c38bff", desc: "ใช้ตีบวก +8 ถึง +10" },
   // ---------- ของดรอป (ขายที่ร้าน) ----------
   goblin_ear: { name: "หูก็อบลิน", type: "material", sell: 4 },
   wolf_fang:  { name: "เขี้ยวหมาป่า", type: "material", sell: 10 },
