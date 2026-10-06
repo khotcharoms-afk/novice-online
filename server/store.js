@@ -39,7 +39,23 @@ function rawServiceAccount() {
   const fs = require("fs");
   if (fs.existsSync(SECRET_FILE)) return { raw: fs.readFileSync(SECRET_FILE, "utf8"), from: "Secret File firebase-key.json" };
   if (process.env.FIREBASE_SERVICE_ACCOUNT) return { raw: process.env.FIREBASE_SERVICE_ACCOUNT, from: "env FIREBASE_SERVICE_ACCOUNT" };
+  // ตั้งชื่อค่าผิด → หาจากทุกค่าที่หน้าตาเหมือนไฟล์คีย์ Service Account
+  for (const [k, v] of Object.entries(process.env))
+    if (typeof v === "string" && v.includes("private_key") && v.includes("client_email")) return { raw: v, from: `env ${k}` };
   return null;
+}
+function readApiKey() {
+  let k = process.env.FIREBASE_API_KEY || "";
+  const m = k.match(/AIza[0-9A-Za-z_\-]{20,}/); // วางมาทั้งโค้ด/มีเครื่องหมายคำพูด → ดึงเฉพาะตัวคีย์
+  if (m) return m[0];
+  for (const v of Object.values(process.env)) { const mm = typeof v === "string" && v.match(/^\s*["']?(AIza[0-9A-Za-z_\-]{20,})/); if (mm) return mm[1]; }
+  return "";
+}
+// รายงานสถานะ (เฉพาะชื่อค่า ไม่มีเนื้อหาคีย์) — ใช้ตรวจการตั้งค่าจากหน้า /api/config
+function diag() {
+  const raw = rawServiceAccount();
+  return { keyFrom: raw ? raw.from : null, apiKey: !!readApiKey(),
+    firebaseEnvNames: Object.keys(process.env).filter((k) => /fire/i.test(k)) };
 }
 function readServiceAccount() {
   const { raw, from } = rawServiceAccount();
@@ -63,7 +79,7 @@ function firebaseStore() {
   const { getAuth } = require("firebase-admin/auth");
   const { getFirestore } = require("firebase-admin/firestore");
   const sa = readServiceAccount();
-  if (!process.env.FIREBASE_API_KEY) throw new Error("ยังไม่ได้ตั้ง FIREBASE_API_KEY ใน Render");
+  if (!readApiKey()) throw new Error("ไม่พบ FIREBASE_API_KEY (ต้องเป็นค่าที่ขึ้นต้นด้วย AIza)");
   projectId = sa.project_id;
   initializeApp({ credential: cert(sa) });
   const auth = getAuth(), db = getFirestore();
@@ -181,10 +197,10 @@ if (rawServiceAccount()) {
 }
 
 function webConfig() {
-  if (store.mode !== "firebase") return { mode: "dev", domain: LOGIN_DOMAIN, configError: !!configError };
+  if (store.mode !== "firebase") return { mode: "dev", domain: LOGIN_DOMAIN, configError: !!configError, diag: diag() };
   // ค่าที่หน้าเว็บต้องใช้ล็อกอิน — ใช้แค่ API key + ชื่อโปรเจกต์ (ไม่ใช่ความลับ)
   return { mode: "firebase", domain: LOGIN_DOMAIN, firebase: {
-    apiKey: process.env.FIREBASE_API_KEY, authDomain: `${projectId}.firebaseapp.com`, projectId } };
+    apiKey: readApiKey(), authDomain: `${projectId}.firebaseapp.com`, projectId } };
 }
 
 module.exports = { store, webConfig, StoreError, LOGIN_DOMAIN };
