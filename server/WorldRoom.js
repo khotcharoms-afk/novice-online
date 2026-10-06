@@ -169,6 +169,7 @@ class WorldRoom extends Room {
       client.send("toast", `ทิ้ง ${I.ITEMS[s.id].name} ×${n} แล้ว`);
       if (Bag.isGearId(s.id) && (s.r >= 2 || s.up > 0)) this.saveSoon(client.sessionId);
     }));
+    this.onMessage("sortBag", (client, m) => this.withBag(client, m || {}, (p, b) => Bag.sortBag(b)));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
     this.onMessage("pickup", (client, m) => {
       const r = this.alive(client);

@@ -133,6 +133,36 @@ function recallPet(b) {
   b.pet = null;
   return null;
 }
+// เรียงกระเป๋า: อุปกรณ์ (ตามช่อง → ระดับ → ตีบวก → เลเวล) · ของใช้ · สัตว์เลี้ยง · คริสตัล · วัตถุดิบ
+// รวมกองของชนิดเดียวกันที่แยกกันอยู่ให้เป็นกองเดียวด้วย
+const SORT_SLOT = ["weapon", "offhand", "head", "face", "armor", "gloves", "cape", "shoes", "acc"];
+const SORT_TYPE = { equip: 0, use: 1, pet: 2, material: 4 };
+function sortBag(b) {
+  const items = b.inv.filter(Boolean);
+  // รวมกอง
+  const merged = [], pile = new Map();
+  for (const s of items) {
+    if (isGearId(s.id) || maxStack(s.id) === 1) { merged.push({ ...s }); continue; }
+    pile.set(s.id, (pile.get(s.id) || 0) + s.n);
+  }
+  for (const [id, total] of pile) {
+    let left = total;
+    while (left > 0) { const k = Math.min(left, maxStack(id)); merged.push({ id, n: k }); left -= k; }
+  }
+  const key = (s) => {
+    const it = I.ITEMS[s.id];
+    const type = /^stone_/.test(s.id) ? 3 : SORT_TYPE[it.type] ?? 5;
+    const slot = it.type === "equip" ? SORT_SLOT.indexOf(it.slot) : 0;
+    return [type, slot, -(s.r || 0), -(s.up || 0), -(it.lv || 0), it.price || it.sell || 0, s.id, -s.n];
+  };
+  merged.sort((a, c) => {
+    const ka = key(a), kc = key(c);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kc[i]) return ka[i] < kc[i] ? -1 : 1;
+    return 0;
+  });
+  b.inv = new Array(b.inv.length).fill(null);
+  merged.slice(0, b.inv.length).forEach((s, i) => (b.inv[i] = s));
+}
 function moveSlot(b, from, to) {
   if (from === to || !b.inv[from] || to < 0 || to >= b.inv.length) return;
   const a = b.inv[from], c = b.inv[to];
@@ -145,5 +175,5 @@ function moveSlot(b, from, to) {
   b.inv[from] = c; b.inv[to] = a;
 }
 
-module.exports = { normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
+module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
   equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER };

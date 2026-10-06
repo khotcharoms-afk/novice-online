@@ -271,6 +271,7 @@ function renderItemBar() {
 function setupItemsUI() {
   $("invBtn").onclick = () => toggleInv();
   $("invClose").onclick = () => toggleInv(false);
+  $("invSort").onclick = () => { if (moveFrom !== null) finishMove(moveFrom); room.send("sortBag", {}); };
   setupShop();
   $("smithClose").onclick = closeSmith;
   $("apLoot").checked = autoCfg.loot !== false;

@@ -430,3 +430,5 @@ button { font: inherit; color: inherit; }
 }
 #itemCard h4, .iname { color: #ffffff; }
 .shop-row .nm b, .cart-row .nm { color: #ffffff; }
+.inv-tools { display: flex; align-items: center; gap: 6px; }
+#invSort { color: var(--text); font-size: 12px; padding: 2px 10px; border: 1px solid #3a4478; border-radius: 6px; }
