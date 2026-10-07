@@ -668,6 +668,7 @@ class WorldRoom extends Room {
       if (r.pending) { const sk = r.pending; r.pending = null; this.castSkill(id, p, r, sk, r.target); return; }
       if (t >= r.atkReady) {
         r.atkReady = t + Math.round(p.atkDelay * this.mods(r).aspd);
+        r.lastAct = t;
         const fx = p.wt && D.WEAPON_TYPES[p.wt].fx;
         this.broadcast("atk", { id, dir: p.dir, fx, tgt: r.target });
         if (fx) { // ยิงไกล: ดาเมจเข้าเมื่อกระสุนถึงเป้า
@@ -1235,6 +1236,7 @@ class WorldRoom extends Room {
     if (sk.target === "mob" && (!mob || mob.dead)) return;
     p.sp -= sk.sp;
     r.cds[key] = now() + sk.cooldown;
+    r.lastAct = now();
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("cd", { skill: key, until: sk.cooldown });
     if (mob) p.dir = dirOf(mob.x - p.x, mob.y - p.y);
@@ -1363,7 +1365,14 @@ class WorldRoom extends Room {
       const r = this.pr.get(id);
       if (!r || p.dead) return;
       if (t - r.lastHurt > 6000 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.03));
-      if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + Math.max(1, Math.round(p.maxSp * 0.03)));
+      // SP ฟื้นช้าลงตอนสู้: กำลังสู้ (โดนตีหรือตี/ใช้สกิลใน 6 วิ) 0.6%/วิ · พักอยู่ 1.5%/วิ (+INT เล็กน้อย)
+      if (p.sp < p.maxSp) {
+        const fighting = t - r.lastHurt < 6000 || t - (r.lastAct || 0) < 6000;
+        const rate = (fighting ? 0.006 : 0.015) + p.int * 0.00005;
+        r.spAcc = (r.spAcc || 0) + p.maxSp * rate;
+        const add = Math.floor(r.spAcc);
+        if (add > 0) { r.spAcc -= add; p.sp = Math.min(p.maxSp, p.sp + add); }
+      }
     });
   }
 
