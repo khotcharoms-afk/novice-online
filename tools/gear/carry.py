@@ -42,6 +42,33 @@ def weapon_src(iid, front, back):
     arr = np.array(best[1]); arr[arr[..., 3] < 200] = 0
     im = Image.fromarray(arr); return im.crop(im.getbbox())
 
+def add_grip(src, ang, L, gc=None):
+    """เติมด้ามจับ + ปุ่มท้ายต่อจากกระบัง (ภาพถือดาบเดิมไม่มีด้าม เพราะมือบังไว้)"""
+    pad = 12
+    big = Image.new("RGBA", (src.width + pad * 2, src.height + pad * 2)); big.alpha_composite(src, (pad, pad))
+    arr = np.array(big); m = arr[..., 3] >= 200
+    ys, xs = np.nonzero(m)
+    d = np.array([math.cos(math.radians(ang)), math.sin(math.radians(ang))])   # ชี้จากปลายแคบ → ปลายกว้าง (กระบัง)
+    proj = np.stack([xs, ys], 1) @ d
+    tip_i = proj.argmax()
+    # จุดกระบังด้านนอกสุด: เฉลี่ยพิกเซลที่อยู่ปลายสุดฝั่งกว้าง
+    sel = proj > proj.max() - 1.5
+    gx, gy = xs[sel].mean(), ys[sel].mean()
+    nrm = np.array([-d[1], d[0]])
+    grip, gripd = (92, 58, 38), (58, 36, 24)
+    pom = tuple(int(gc[i:i + 2], 16) for i in (1, 3, 5)) if gc else (210, 175, 80)
+    for k in range(1, 8):                     # ด้ามยาว 7 px กว้าง 2 px ลายพัน
+        for w, col in ((-0.5, grip if k % 2 else gripd), (0.5, gripd)):
+            x, y = gx + d[0] * k + nrm[0] * w, gy + d[1] * k + nrm[1] * w
+            xi, yi = int(round(x)), int(round(y))
+            if 0 <= yi < arr.shape[0] and 0 <= xi < arr.shape[1]: arr[yi, xi] = list(col) + [255]
+    for w in (-1, 0, 1):                      # ปุ่มท้าย
+        for k in (8, 9):
+            x, y = gx + d[0] * k + nrm[0] * w * 0.8, gy + d[1] * k + nrm[1] * w * 0.8
+            xi, yi = int(round(x)), int(round(y))
+            if 0 <= yi < arr.shape[0] and 0 <= xi < arr.shape[1]: arr[yi, xi] = list(pom) + [255]
+    out = Image.fromarray(arr); return out.crop(out.getbbox())
+
 def render(src, ang, tilt):
     """หมุนครั้งเดียว: ปลายกว้าง (ด้าม/หัวง้าว) ชี้ขึ้น แล้วเอียง tilt องศา (บวก = ปลายบนเอนไปขวา)"""
     # ต้องการให้แกน (แคบ→กว้าง) ชี้ขึ้น = -90° แล้วเอียง tilt → มุมเป้าหมาย = -90 + tilt
@@ -62,6 +89,10 @@ def carry(iid):
     src = weapon_src(iid, front, back)
     ang, L = axis_info(src)
     if L > 46: src = src.resize((max(1, round(src.width * 46 / L)), max(1, round(src.height * 46 / L))), Image.NEAREST); ang, L = axis_info(src)
+    if ITEMS[iid].get("base", iid) == "greatsword" or iid == "greatsword":   # ดาบ (ไม่ใช่ง้าว) → เติมด้ามจับ
+        src = add_grip(src, ang, L, ITEMS[iid].get("glowColor"))
+        prev = ang; ang, L = axis_info(src)
+        if math.cos(math.radians(ang - prev)) < 0: ang += 180   # คงทิศเดิม: ด้าม/กระบังชี้ขึ้น
     diag_dn, diag_mir = render(src, ang, 38), render(src, ang, -38)
     steep, steep_mir = render(src, ang, 22), render(src, ang, -22)
     gc = ITEMS[iid].get("glowColor")
