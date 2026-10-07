@@ -397,6 +397,7 @@ function setupItemsUI() {
   $("apPctTxt").textContent = autoCfg.potionPct + "%";
   $("apPct").oninput = (e) => { $("apPctTxt").textContent = e.target.value + "%"; };
   $("apPct").onchange = (e) => { autoCfg.potionPct = Number(e.target.value); sendAutoCfg(); };
+
   window.addEventListener("keydown", (e) => {
     if (isTyping() || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -533,3 +534,31 @@ function finishMove(to) {
 
 // ปิดเมนูคลิกขวาของเบราว์เซอร์ในเกม (ยกเว้นช่องพิมพ์ข้อความ)
 document.addEventListener("contextmenu", (e) => { if (!e.target.closest("input, textarea")) e.preventDefault(); });
+
+// ---------- ตั้งค่า AUTO: ยาที่ใช้ + สกิลที่ใช้ (สร้างใหม่ทุกครั้งที่เปิดหน้าต่าง AUTO) ----------
+function buildAutoExtras() {
+  if (!gameData || !$("apHpPot")) return;
+  // ชนิดยาที่ AUTO ใช้ (แสดงเฉพาะยาที่มี + จำนวนในกระเป๋า)
+  const potOpts = (field, cur) => {
+    const ids = Object.entries(gameData.items).filter(([, it]) => it.type === "use" && it.heal && it.heal[field]).sort((a, b) => a[1].heal[field] - b[1].heal[field]).map(([id]) => id);
+    return `<option value="auto">อัตโนมัติ (ขวดที่พอดีกับที่ขาด)</option>` + ids.map((id) => { const n = (INV.inv || []).reduce((t, s) => t + (s && s.id === id ? s.n : 0), 0);
+      return `<option value="${id}" ${cur === id ? "selected" : ""}>${itemOf(id).name} (+${itemOf(id).heal[field]}) · มี ${n}</option>`; }).join("");
+  };
+  $("apHpPot").innerHTML = potOpts("hp", autoCfg.hpPot || "auto"); $("apHpPot").value = autoCfg.hpPot || "auto";
+  $("apSpPot").innerHTML = potOpts("sp", autoCfg.spPot || "auto"); $("apSpPot").value = autoCfg.spPot || "auto";
+  $("apHpPot").onchange = (e) => { autoCfg.hpPot = e.target.value; sendAutoCfg(); };
+  $("apSpPot").onchange = (e) => { autoCfg.spPot = e.target.value; sendAutoCfg(); };
+  $("apSp").checked = !!autoCfg.spOn;
+  $("apSpPct").value = autoCfg.spPct || 30; $("apSpTxt").textContent = (autoCfg.spPct || 30) + "%"; $("apSpPct").disabled = !autoCfg.spOn;
+  $("apSp").onchange = (e) => { autoCfg.spOn = e.target.checked; $("apSpPct").disabled = !e.target.checked; sendAutoCfg(); };
+  $("apSpPct").oninput = (e) => { $("apSpTxt").textContent = e.target.value + "%"; };
+  $("apSpPct").onchange = (e) => { autoCfg.spPct = Number(e.target.value); sendAutoCfg(); };
+  // สกิลที่ AUTO ใช้ (เฉพาะสกิลที่เรียนแล้วและกดใช้ได้)
+  const learned = mySkills().filter((k) => gameData.skills[k] && !gameData.skills[k].passive);
+  autoCfg.skillOff = autoCfg.skillOff || [];
+  $("apSkills").innerHTML = learned.length ? learned.map((k) => `<label><input type="checkbox" data-k="${k}" ${autoCfg.skillOff.includes(k) ? "" : "checked"}> <img src="/assets/icons/${gameData.skills[k].icon}.png" alt=""> ${gameData.skills[k].name}</label>`).join("")
+    : `<p class="ap-note">ยังไม่มีสกิลที่เรียนแล้ว</p>`;
+  $("apSkills").querySelectorAll("input").forEach((c) => (c.onchange = () => {
+    const k = c.dataset.k; autoCfg.skillOff = c.checked ? autoCfg.skillOff.filter((x) => x !== k) : [...new Set([...autoCfg.skillOff, k])]; sendAutoCfg();
+  }));
+}

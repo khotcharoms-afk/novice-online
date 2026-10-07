@@ -252,7 +252,13 @@
         </div>
         <label><input type="checkbox" id="apPotion" checked> กินยาแดงเมื่อ HP ต่ำกว่า <b id="apPctTxt">35%</b></label>
         <input type="range" id="apPct" min="10" max="90" step="5" value="35" aria-label="เปอร์เซ็นต์ HP ที่จะกินยา">
-        <p class="ap-note">AUTO กินยาได้ทุก 10 วินาที (กดเองไม่ติดคูลดาวน์นี้)</p>
+        <label class="ap-pot">ยาแดงที่ใช้ <select id="apHpPot"></select></label>
+        <label><input type="checkbox" id="apSp"> กินยาฟ้าเมื่อ SP ต่ำกว่า <b id="apSpTxt">30%</b></label>
+        <input type="range" id="apSpPct" min="10" max="90" step="5" value="30" aria-label="เปอร์เซ็นต์ SP ที่จะกินยา">
+        <label class="ap-pot">ยาฟ้าที่ใช้ <select id="apSpPot"></select></label>
+        <h4 class="ap-h">สกิลที่ AUTO ใช้</h4>
+        <div id="apSkills" class="ap-skills"></div>
+        <p class="ap-note">เอาเครื่องหมายออก = AUTO ไม่ใช้สกิลนั้น (ยังกดใช้เองได้)</p>
       </div>
     </section>
     <div id="toast" role="status"></div>

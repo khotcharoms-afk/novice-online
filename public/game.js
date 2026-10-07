@@ -1727,6 +1727,7 @@ function toggleAutoPanel(force) {
   if (open) buildAutoPanel();
 }
 function buildAutoPanel() {
+  if (typeof buildAutoExtras === "function") buildAutoExtras();
   const rad = $("apRadius");
   rad.innerHTML = "";
   RADII.forEach(([r, label]) => {

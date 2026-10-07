@@ -33,7 +33,7 @@ const CRYSTAL_SAFE = 160;            // เขตปลอดภัยรอบ�
 const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
 const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
 const AUTO_POTION_PCT = 35;    // ค่าเริ่มต้น: กินยาเมื่อ HP ต่ำกว่า 35%
-const AUTO_POTION_CD = 10000;  // AUTO กินยาได้ทุก 10 วินาที
+const AUTO_POTION_CD = 1200;   // AUTO กินยาได้ทุก 1.2 วินาที
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
 class Player extends Schema {}
@@ -395,8 +395,13 @@ class WorldRoom extends Room {
       const pct = Math.round(Number(c.potionPct) / 5) * 5;
       const pk = c.pick && typeof c.pick === "object" ? c.pick : {};
       const pick = { equip: Number.isInteger(pk.equip) && pk.equip >= -1 && pk.equip <= 4 ? pk.equip : 0, use: pk.use !== false, stone: pk.stone !== false, mat: pk.mat !== false };
+      const isPot = (id, f) => id === "auto" || (I.ITEMS[id] && I.ITEMS[id].type === "use" && I.ITEMS[id].heal && I.ITEMS[id].heal[f]);
+      const spPct = Math.round(Number(c.spPct) / 5) * 5;
       r.autoCfg = { radius, kinds, pick, loot: c.loot !== false, potion: c.potion !== false,
-        potionPct: pct >= 10 && pct <= 90 ? pct : AUTO_POTION_PCT };
+        potionPct: pct >= 10 && pct <= 90 ? pct : AUTO_POTION_PCT,
+        hpPot: isPot(String(c.hpPot || "auto"), "hp") ? String(c.hpPot || "auto") : "auto",   // ยาแดงที่จะใช้ ("auto" = เลือกขวดที่พอดีให้)
+        spOn: !!c.spOn, spPot: isPot(String(c.spPot || "auto"), "sp") ? String(c.spPot || "auto") : "auto", spPct: spPct >= 10 && spPct <= 90 ? spPct : 30,
+        skillOff: Array.isArray(c.skillOff) ? c.skillOff.filter((k) => D.SKILLS[k]).slice(0, 30) : [] }; // สกิลที่ไม่ให้ AUTO ใช้
       p.autoR = radius;
     });
     this.onMessage("attack", (client, m) => {
@@ -2077,7 +2082,8 @@ class WorldRoom extends Room {
 
   autoThink(pid, p, r) {
     const t = now();
-    const skills = (D.JOB_SKILLS[p.job] || []).filter((k) => (p.skills || {})[k] > 0);
+    const off = r.autoCfg.skillOff || [];
+    const skills = (D.JOB_SKILLS[p.job] || []).filter((k) => (p.skills || {})[k] > 0 && !off.includes(k));
     const healKey = [...skills].reverse().find((k) => D.SKILLS[k].auto === "heal");
     const healSk = healKey && D.skillAt(healKey, p.skills[healKey]);
     const reserve = healSk ? healSk.sp : 0;
@@ -2086,16 +2092,20 @@ class WorldRoom extends Room {
       return this.castSkill(pid, p, r, healKey, null);
     // AUTO กินยาเมื่อ HP ต่ำกว่า % ที่ตั้งไว้ · คูลดาวน์ 10 วินาที (เฉพาะ AUTO กดให้)
     const potPct = (r.autoCfg.potionPct || AUTO_POTION_PCT) / 100;
-    if (p.hp < p.maxHp * potPct && r.autoCfg.potion !== false && t >= r.useReady && t >= (r.autoPotionReady || 0)) {
-      const miss = p.maxHp - p.hp;
-      // ยาที่ฟื้นได้ใกล้กับเลือดที่หายไปที่สุดก่อน (ไม่เปลืองยาขวดใหญ่) แล้วค่อยขวดอื่น
-      const pots = ["potion_s", "potion_m", "potion_l", "potion_xl"].map((id) => [id, I.ITEMS[id].heal.hp]);
+    // เลือกยา: ระบุชนิดไว้ = ใช้ชนิดนั้นก่อน (หมดแล้วค่อยใช้ชนิดอื่น) · auto = ขวดที่ฟื้นได้ใกล้กับที่หายไปที่สุด (ไม่เปลืองขวดใหญ่)
+    const drink = (field, miss, prefer) => {
+      const pots = [...new Set(p.bag.inv.filter((s) => s && I.ITEMS[s.id].type === "use" && I.ITEMS[s.id].heal && I.ITEMS[s.id].heal[field]).map((s) => s.id))]
+        .map((id) => [id, I.ITEMS[id].heal[field]]);
+      if (!pots.length) return false;
       const fit = pots.filter(([, h]) => h <= miss * 1.2).sort((a, b) => b[1] - a[1]);
-      const order = [...fit, ...pots.filter((x) => !fit.includes(x)).sort((a, b) => a[1] - b[1])].map(([id]) => id);
-      for (const id of order) {
-        const idx = Bag.indexOf(p.bag, id);
-        if (idx >= 0) { this.useItem(pid, p, p.bag, idx); this.sendInv(pid); r.autoPotionReady = t + AUTO_POTION_CD; break; }
-      }
+      let order = [...fit, ...pots.filter((x) => !fit.includes(x)).sort((a, b) => a[1] - b[1])].map(([id]) => id);
+      if (prefer !== "auto" && order.includes(prefer)) order = [prefer, ...order.filter((x) => x !== prefer)];
+      this.useItem(pid, p, p.bag, Bag.indexOf(p.bag, order[0])); this.sendInv(pid); r.autoPotionReady = t + AUTO_POTION_CD;
+      return true;
+    };
+    if (t >= r.useReady && t >= (r.autoPotionReady || 0)) {
+      if (p.hp < p.maxHp * potPct && r.autoCfg.potion !== false) drink("hp", p.maxHp - p.hp, r.autoCfg.hpPot || "auto");
+      else if (r.autoCfg.spOn && p.sp < p.maxSp * (r.autoCfg.spPct || 30) / 100) drink("sp", p.maxSp - p.sp, r.autoCfg.spPot || "auto");
     }
     // เก็บของที่ดรอปใกล้ ๆ ก่อนหามอนตัวต่อไป
     let underAttack = false;
