@@ -554,11 +554,9 @@ function buildAutoExtras() {
   $("apSpPct").oninput = (e) => { $("apSpTxt").textContent = e.target.value + "%"; };
   $("apSpPct").onchange = (e) => { autoCfg.spPct = Number(e.target.value); sendAutoCfg(); };
   // สกิลที่ AUTO ใช้ (เฉพาะสกิลที่เรียนแล้วและกดใช้ได้)
-  const learned = mySkills().filter((k) => gameData.skills[k] && !gameData.skills[k].passive);
-  autoCfg.skillOff = autoCfg.skillOff || [];
-  $("apSkills").innerHTML = learned.length ? learned.map((k) => `<label><input type="checkbox" data-k="${k}" ${autoCfg.skillOff.includes(k) ? "" : "checked"}> <img src="/assets/icons/${gameData.skills[k].icon}.png" alt=""> ${gameData.skills[k].name}</label>`).join("")
-    : `<p class="ap-note">ยังไม่มีสกิลที่เรียนแล้ว</p>`;
-  $("apSkills").querySelectorAll("input").forEach((c) => (c.onchange = () => {
-    const k = c.dataset.k; autoCfg.skillOff = c.checked ? autoCfg.skillOff.filter((x) => x !== k) : [...new Set([...autoCfg.skillOff, k])]; sendAutoCfg();
-  }));
+  // สกิลที่ AUTO ใช้ = สกิลที่อยู่ในแถบสกิล 1–9 (จัดได้ที่หน้าต่างสกิล K)
+  const onBar = skBar().filter(Boolean);
+  $("apSkills").innerHTML = (onBar.length ? onBar.map((k) => `<span class="ap-sk"><img src="/assets/icons/${gameData.skills[k].icon}.png" alt=""> ${gameData.skills[k].name}</span>`).join("") : `<span class="ap-note">ไม่มีสกิลในแถบ — AUTO จะตีธรรมดาอย่างเดียว</span>`) +
+    `<p class="ap-note">AUTO ใช้เฉพาะสกิลที่อยู่ในแถบสกิล 1–9 · ลากสกิลจากหน้าต่างสกิล (K) มาวาง · ลากออกนอกแถบหรือคลิกขวาเพื่อเอาออก</p><button type="button" class="btn-ghost" id="apSkOpen">จัดแถบสกิล (K)</button>`;
+  $("apSkOpen").onclick = () => toggleSkills(true);
 }

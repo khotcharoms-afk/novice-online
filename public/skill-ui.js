@@ -7,8 +7,21 @@ const skLv = (k) => (mySkillData.skills || {})[k] || 0;
 const ROMAN = ["I", "II", "III", "IV", "V"];
 const skIcon = (s, cls = "sk-ic") => `<span class="${cls}" style="--sc:${s.color || "#445"}"><img src="/assets/icons/${s.icon}.png" alt=""></span>`;
 
+let skillsLoaded = false;
 function onSkills(d) {
+  const prev = mySkillData.skills || {}, had = skillsLoaded;
   mySkillData = d || { skills: {}, points: 0 };
+  skillsLoaded = true;
+  // เพิ่งเรียนสกิลใหม่ (ใช้งานได้) → ใส่ลงช่องว่างในแถบสกิลให้เลย
+  if (had && gameData && typeof skBar === "function" && myPlayer()) {
+    const b = skBar(); let ch = false;
+    for (const [k, L] of Object.entries(mySkillData.skills || {})) {
+      const s = gameData.skills[k];
+      if (s && !s.passive && L > 0 && !(prev[k] > 0) && !b.includes(k)) { const at = b.indexOf(null); if (at >= 0) { b[at] = k; ch = true; } }
+    }
+    if (ch) storeSet(skBarKey(), JSON.stringify(b));
+  }
+  if (gameData && typeof room !== "undefined" && room && myPlayer()) sendAutoCfg(); // ให้ AUTO รู้สกิลในแถบล่าสุด
   renderSkills();
   if (gameData) buildSkillBar();
   const b = $("skillBadge");
@@ -18,6 +31,7 @@ function toggleSkills(force) {
   const p = $("skillPanel");
   const show = force ?? p.hidden;
   p.hidden = !show;
+  document.body.classList.toggle("sk-edit", show); // เปิดหน้าต่างสกิล → โชว์ช่องว่างในแถบให้ลากมาวาง
   if (show) {
     const me = myPlayer();
     skillTab = me && me.job !== "villager" ? me.job : "villager";
@@ -54,6 +68,13 @@ function renderSkills() {
   $("skBody").querySelectorAll(".sk-cell").forEach((c) => {
     const show = () => skillInfo(c.dataset.k);
     c.onclick = show; c.onfocus = show; c.onpointerenter = show;
+    const s = S[c.dataset.k];
+    if (!s.passive && skLv(c.dataset.k) > 0) { // ลากไปวางในแถบสกิลได้
+      c.draggable = true;
+      c.addEventListener("dragstart", (e) => { dragData = { from: "skill", key: c.dataset.k }; e.dataTransfer.setData("text/plain", c.dataset.k); });
+      c.addEventListener("dragend", () => (dragData = null));
+    }
+    if (typeof skBar === "function" && skBar().includes(c.dataset.k)) c.classList.add("on-bar");
   });
   skillInfo(panel._sel && rows.flat().includes(panel._sel) ? panel._sel : rows[0] && rows[0][0]);
 }
@@ -67,10 +88,14 @@ function skillInfo(k) {
   const next = L < s.max ? `<div class="sk-next"><b>Lv.${L + 1}</b> ${s.descs[L]}${s.sps.length ? ` · SP ${s.sps[L]}` : ""}</div>` : `<div class="sk-next max">เลเวลสูงสุดแล้ว</div>`;
   const req = s.req ? `<div class="${skLv(s.req[0]) >= s.req[1] ? "ok" : "bad"}">ต้องมี ${gameData.skills[s.req[0]].name} Lv.${s.req[1]}</div>` : "";
   const kind = s.passive ? "สกิลติดตัว (ทำงานเองตลอด)" : `${s.target === "self" ? "ใช้กับตัวเอง" : s.target === "ally" ? "ฮีลเพื่อน/ตัวเอง" : "ใช้กับมอน"} · คูลดาวน์ ${s.cooldown / 1000} วิ`;
-  box.innerHTML = `<div class="sk-head">${skIcon(s, "sk-ic big")}<div><h4>${s.name}</h4><small>${kind}</small></div></div>${req}${cur}${next}`;
+  const onBar = typeof skBar === "function" && skBar().includes(k);
+  const barBtn = !s.passive && L > 0 ? `<button type="button" class="${onBar ? "btn-ghost" : "btn-gold"} sk-bar-btn" id="skBarBtn">${onBar ? "➖ เอาออกจากแถบสกิล" : "➕ ใส่แถบสกิล"}</button><small class="sk-bar-hint">${onBar ? "อยู่ในแถบ = AUTO ใช้สกิลนี้" : "ไม่อยู่ในแถบ = AUTO ไม่ใช้"} · ลากสกิลไปวางที่แถบ 1–9 ได้</small>` : "";
+  box.innerHTML = `<div class="sk-head">${skIcon(s, "sk-ic big")}<div><h4>${s.name}</h4><small>${kind}</small></div></div>${req}${cur}${next}${barBtn}`;
+  if ($("skBarBtn")) $("skBarBtn").onclick = () => { if (onBar) skBarRemove(k); else skBarPut(k); $("skillPanel")._sel = k; };
 }
 (() => {
   $("skillBtn").onclick = () => toggleSkills();
   $("skClose").onclick = () => toggleSkills(false);
+  setInterval(() => { const p = $("skillPanel"); if (p) document.body.classList.toggle("sk-edit", !p.hidden); }, 400);
   window.addEventListener("keydown", (e) => { if (!isTyping() && (e.key === "k" || e.key === "K")) toggleSkills(); });
 })();

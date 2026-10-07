@@ -607,7 +607,7 @@ html, body { overscroll-behavior: none; }
 #game, #game canvas { touch-action: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
 /* ---------- หน้าต่างสกิล ---------- */
-#skillPanel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(720px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#skillPanel { left: 50%; top: max(10px, calc(50% - 240px)); transform: translateX(-50%); /* ยึดขอบบน: เนื้อหาเปลี่ยนสูงแล้วช่องสกิลไม่ขยับ (ลากได้) */ width: min(720px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
 #skillPanel.dragged { transform: none; }
 .sk-pts { font-size: 12.5px; color: var(--muted); font-weight: 400; margin-left: 8px; } .sk-pts b { color: var(--name); font-size: 15px; }
 .sk-tabs { display: flex; gap: 6px; margin: 4px 0 8px; align-items: center; flex-wrap: wrap; }
@@ -800,3 +800,19 @@ html, body { overscroll-behavior: none; }
 .job-skills .job-skic { display: inline-block; vertical-align: middle; margin-right: 4px; }
 .job-skills .job-skic .sk-ic { width: 22px; height: 22px; }
 .job-skills .job-skic .sk-ic img { width: 18px; height: 18px; }
+
+/* แถบสกิลจัดเอง */
+#skillBar .slot.over { outline: 2px dashed #ffd36a; outline-offset: -2px; background: #ffd36a22; }
+#skillBar .slot.dragging { opacity: .4; }
+.sk-cell.on-bar::after { content: "▣"; position: absolute; top: 2px; right: 4px; font-size: 10px; color: #7dff9a; }
+.sk-cell { position: relative; }
+.sk-cell[draggable="true"] { cursor: grab; }
+.sk-bar-btn { margin-top: 8px; width: 100%; }
+.sk-bar-hint { display: block; margin-top: 4px; color: #b8b0a0; font-size: 11px; }
+.ap-sk { display: inline-flex; align-items: center; gap: 4px; margin: 2px 6px 2px 0; font-size: 12px; }
+.ap-sk img { width: 18px; height: 18px; image-rendering: pixelated; }
+body.sk-edit #skillBar .slot:not(.skill) { display: flex !important; border-style: dashed; opacity: .75; }
+body.sk-edit #skillBar .slot.over { opacity: 1; }
+.ap-skills .ap-note, .ap-skills #apSkOpen { grid-column: 1 / -1; }
+.ap-skills #apSkOpen { padding: 6px; }
+@media (max-width: 1100px) { body.sk-edit #skillBar .slot:not(.skill) { height: 30px; } }

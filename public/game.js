@@ -1631,11 +1631,40 @@ function mySkills() {
   const all = (gameData && me && gameData.jobSkills[me.job]) || [];
   return all.filter((k) => typeof skLv !== "function" || skLv(k) > 0);
 }
+// ---------- แถบสกิล 1–9: ผู้เล่นจัดเอง (ลากจากหน้าต่างสกิล K มาวาง · ลากออก/คลิกขวาเพื่อเอาออก) ----------
+// สกิลที่อยู่ในแถบ = สกิลที่ AUTO ใช้ · จำแยกตามตัวละคร
+const SKBAR_N = 9;
+const skBarKey = () => "pn_skbar_" + (myPlayer()?.name || "");
+const activeSkills = () => mySkills().filter((k) => gameData.skills[k] && !gameData.skills[k].passive);
+function skBar() {
+  const ok = new Set(activeSkills());
+  let raw = null;
+  try { raw = JSON.parse(storeGet(skBarKey()) || "null"); } catch {}
+  if (!Array.isArray(raw)) raw = activeSkills().slice(0, SKBAR_N); // ยังไม่เคยจัด → เรียงตามเดิม
+  const out = [];
+  for (let i = 0; i < SKBAR_N; i++) out.push(raw[i] && ok.has(raw[i]) ? raw[i] : null);
+  return out;
+}
+function setSkBar(b) {
+  storeSet(skBarKey(), JSON.stringify(b.slice(0, SKBAR_N)));
+  buildSkillBar();
+  if (room) sendAutoCfg();
+  if (typeof renderSkills === "function") renderSkills();
+}
+// ใส่สกิลลงช่อง at (ไม่ระบุ = ช่องว่างแรก) · อยู่ในแถบแล้วจะย้าย/สลับ
+function skBarPut(key, at) {
+  const b = skBar(), from = b.indexOf(key);
+  if (at === undefined || at === null) { if (from >= 0) return; at = b.indexOf(null); if (at < 0) return toast("แถบสกิลเต็มแล้ว — ลากสกิลที่ไม่ใช้ออกก่อน"); }
+  if (from >= 0) b[from] = b[at]; // สลับกับของเดิมในช่องนั้น
+  b[at] = key;
+  setSkBar(b);
+}
+function skBarRemove(key) { setSkBar(skBar().map((k) => (k === key ? null : k))); }
 function buildSkillBar() {
   const bar = $("skillBar");
   bar.innerHTML = "";
-  const list = mySkills();
-  for (let i = 0; i < 9; i++) {
+  const list = skBar();
+  for (let i = 0; i < SKBAR_N; i++) {
     const key = list[i];
     const s = key && gameData.skills[key];
     const el = document.createElement(s ? "button" : "div");
@@ -1643,7 +1672,24 @@ function buildSkillBar() {
     el.dataset.skill = key || "";
     const L = s ? skLv(key) : 0, sp = s ? s.sps[Math.max(0, L - 1)] || s.sp : 0;
     el.innerHTML = `<small>${i + 1}</small>` + (s ? `<img class="sb-ic" src="/assets/icons/${s.icon}.png" alt="" style="--sc:${s.color}"><b>${s.name}</b><em class="cost">${sp}</em>` : "");
-    if (s) { el.title = `${s.name} Lv.${L} — ${s.descs[L - 1]} (SP ${sp})`; el.onclick = () => castSkill(key, el); }
+    if (s) {
+      el.title = `${s.name} Lv.${L} — ${s.descs[L - 1]} (SP ${sp})\nลากออกนอกแถบ หรือคลิกขวา = เอาออก`;
+      el.onclick = () => castSkill(key, el);
+      el.oncontextmenu = (e) => { e.preventDefault(); skBarRemove(key); };
+      el.draggable = true;
+      let dropped = false;
+      el.addEventListener("dragstart", (e) => { dragData = { from: "sbar", key, i }; dropped = false; e.dataTransfer.setData("text/plain", key); el.classList.add("dragging"); });
+      el.addEventListener("dragend", (e) => { el.classList.remove("dragging"); const d = dragData; dragData = null; if (!dropped && d && !bar.contains(document.elementFromPoint(e.clientX, e.clientY))) skBarRemove(key); });
+      el._markDropped = () => (dropped = true);
+    } else el.title = "ช่องว่าง — ลากสกิลจากหน้าต่างสกิล (K) มาวาง";
+    el.addEventListener("dragover", (e) => { if (dragData && (dragData.from === "skill" || dragData.from === "sbar")) { e.preventDefault(); el.classList.add("over"); } });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); el.classList.remove("over");
+      const d = dragData; if (!d || (d.from !== "skill" && d.from !== "sbar")) return;
+      if (d.from === "sbar") { const src = bar.children[d.i]; if (src && src._markDropped) src._markDropped(); }
+      skBarPut(d.key, i);
+    });
     bar.appendChild(el);
   }
   const auto = document.createElement("button");
@@ -1687,7 +1733,7 @@ function setupHotkeys() {
     if (isTyping()) return;
     const n = Number(e.key);
     if (n >= 1 && n <= 9) {
-      const key = mySkills()[n - 1];
+      const key = skBar()[n - 1];
       castSkill(key, document.querySelectorAll("#skillBar .slot")[n - 1]);
     }
   });
@@ -1784,7 +1830,10 @@ const autoCfg = (() => {
   } catch { return def; }
 })();
 const autoKinds = () => autoCfg.byMap[room && room.mapId] || [];
-function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", { ...autoCfg, kinds: autoKinds() }); }
+function sendAutoCfg() {
+  // AUTO ใช้เฉพาะสกิลที่อยู่ในแถบสกิล
+  if (gameData && myPlayer()) { const on = new Set(skBar()); autoCfg.skillOff = activeSkills().filter((k) => !on.has(k)); }
+  storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", { ...autoCfg, kinds: autoKinds() }); }
 function toggleAutoPanel(force) {
   const p = $("autoPanel"), open = force ?? p.hidden;
   p.hidden = !open;
