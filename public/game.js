@@ -391,7 +391,7 @@ class WorldScene extends Phaser.Scene {
       this.load.spritesheet("atkb_" + id, `/assets/equip/${id}_atkb.png`, { frameWidth: f, frameHeight: f });
     }
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
-    (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
+    (MANIFEST.pets || []).forEach((k) => { const [fw, fh] = (MANIFEST.petFrame || {})[k] || [32, 32]; this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: fw, frameHeight: fh }); });
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
@@ -1240,11 +1240,15 @@ class WorldScene extends Phaser.Scene {
       let x = pv.sh.x, y = pv.sh.y;
       if (Math.abs(pv.tx - x) > 300 || Math.abs(pv.ty - y) > 300) { x = pv.tx; y = pv.ty; }
       else { x += (pv.tx - x) * k; y += (pv.ty - y) * k; }
-      const bob = Math.sin((time + pv.seed) / 220) * 3;
-      pv.sh.setPosition(x, y).setDepth(y - 1);
-      pv.sp.setPosition(x, y - 14 + bob).setDepth(y + 2);
-      const flap = Math.floor((time + pv.seed) / (pv.moving ? 90 : 200)) % 2;
-      pv.sp.setFrame((ROW[pv.dir] ?? 0) * 2 + flap);
+      const big = pv.sp.texture.frameTotal > 9; // ภาพแบบมีท่ายืน (แถว 4–7) เช่นลูกมังกร: หยุดนาน ๆ แล้วลงมายืนที่พื้น
+      if (pv.moving || pv.lastMove === undefined) pv.lastMove = time;
+      const idle = big && time - pv.lastMove > 450;
+      pv.lift = (pv.lift ?? 14) + ((idle ? 1 : 14) - (pv.lift ?? 14)) * 0.15;
+      const bob = idle ? 0 : Math.sin((time + pv.seed) / 220) * 3;
+      pv.sh.setPosition(x, y).setDepth(y - 1).setScale(big ? 1.6 : 1, big ? 1.4 : 1);
+      pv.sp.setPosition(x, y - pv.lift + bob).setDepth(y + 2);
+      const flap = Math.floor((time + pv.seed) / (pv.moving ? (big ? 160 : 90) : big ? 420 : 200)) % 2;
+      pv.sp.setFrame(((ROW[pv.dir] ?? 0) + (idle ? 4 : 0)) * 2 + flap);
     });
   }
   // ภูติ: ลอยขึ้นลง · ออร่าสีตามระดับ (ม่วง/ทอง = ใหญ่และเรืองแรงขึ้น)

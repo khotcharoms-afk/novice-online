@@ -170,6 +170,7 @@ const ITEMS = {
   pet_sparrow:  { name: "นกกระจอกน้อย", type: "pet", lv: 1, price: 300, pet: { range: 160, speed: 210 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 5 ช่อง" },
   pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
   pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
+  pet_dragon:   { name: "ลูกมังกรน้ำเงิน", type: "pet", lv: 20, price: 20000, pet: { range: 480, speed: 340 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 15 ช่อง บินเร็วที่สุด · ยืนนิ่งเมื่อเจ้าของหยุด" },
   // ---------- คริสตัลตีบวก (ใช้ที่ดัวร์กัน) · frame = สีกรอบในกระเป๋า ----------
   stone_1: { name: "คริสตัลตีบวกขั้นต้น", type: "material", price: 30, frame: "#cfd3dd", desc: "ใช้ตีบวก +1 ถึง +4" },
   stone_2: { name: "คริสตัลตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
@@ -294,7 +295,7 @@ const SHOPS = {
     "ranger_cap", "ranger_vest", "ranger_gloves", "ranger_boots", "mage_hat", "mage_robe", "mage_gloves", "mage_shoes",
     "priest_hood", "priest_robe", "priest_gloves", "priest_shoes"] },
   merchant: { name: "ทอบบี้", title: "ร้านของจิปาถะ", items: ["ring_copper", "earring_copper", "earring_pearl", "eyepatch", "mask_ninja", "monocle_gold", "ring_silver", "earring_jade", "amulet_sage",
-    "ring_ruby", "ring_sapphire", "necklace_hawk", "amulet_guard", "pendant_holy", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"] },
+    "ring_ruby", "ring_sapphire", "necklace_hawk", "amulet_guard", "pendant_holy", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird", "pet_dragon"] },
 };
 // รายการของทุกร้านรวมกัน (ใช้ตรวจของที่ขายในร้าน / ราคาของ)
 const SHOP = [...new Set(Object.values(SHOPS).flatMap((x) => x.items))];
