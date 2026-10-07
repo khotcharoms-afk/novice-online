@@ -182,7 +182,7 @@ function renderPaperDoll() {
     c.type = "button";
     c.className = "eq-slot spirit-slot" + (s ? " filled" : "");
     if (s) applyFrame(c, s);
-    c.innerHTML = s ? `<img src="${ICON(s.id)}" alt=""><span>${nameHtml(s)} <small>Lv.${s.lv}</small></span>` : `<span>ภูติ</span>`;
+    c.innerHTML = s ? `<img src="${ICON(s.id)}" alt=""><span>${nameHtml(s)} <small>Lv.${s.lv}${s.si && s.si.capped ? " ⚠" : ""}</small></span>` : `<span>ภูติ</span>`;
     c.title = s ? "ภูติกำลังช่วยต่อสู้" : "รับภูติได้จากเควสของลูน่า (ผู้ผนึกภูติ) ในเมือง";
     c.onclick = (e) => { if (s) openCard(s, { where: "spirit" }, e); };
     c.ondblclick = () => s && room.send("spiritOff");
@@ -295,15 +295,15 @@ function openCard(g, ctx, ev) {
 // การ์ดภูติ: เลเวล + แถบ EXP + สกิล (ค่าจริงตามระดับสี/เลเวล)
 function spiritCardHtml(g, it) {
   const si = g.si, k = it.spirit.skill, max = gameData.spiritMaxLv || 50;
-  const pct = si.need ? Math.floor((g.ex * 100) / si.need) : 100;
+  const capped = si.capped, pct = capped ? 100 : si.need ? Math.floor((g.ex * 100) / si.need) : 100;
   const role = it.spirit.role === "heal" ? "สายรักษา" : "สายโจมตี";
   const eff = [];
   if (si.dmg) eff.push(`ดาเมจ ${si.dmg}% ของพลังโจมตีเรา${k.chain ? ` · กระโดดได้ ${k.chain} ตัว` : ""}${k.slow ? ` · ทำให้ช้า ${k.slow / 1000} วิ` : ""}${si.drain ? ` · ดูดเป็น HP ${si.drain}%` : ""}`);
   if (si.heal) eff.push(`ฟื้น HP ${si.heal}%${si.sp ? ` + SP ${si.sp}%` : ""} เมื่อ HP${k.spPct ? " หรือ SP" : ""} ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
-  return `<div class="spirit-box"><div class="meta">${role} · Lv.${g.lv}/${max}</div>
-    <div class="sp-exp"><i style="width:${pct}%"></i><b>${si.need ? `EXP ${g.ex.toLocaleString()}/${si.need.toLocaleString()}` : "เลเวลสูงสุด"}</b></div>
-    <div class="sp-skill"><b>${k.name}</b> <small>ทุก ${k.every / 1000} วิ</small><br>${eff.join("<br>")}</div>
-    <div class="meta">พลังภูติ ${si.power}% (ระดับสี × เลเวล) · ภูติได้ EXP 25% ของที่คุณได้ · เลเวลไม่เกินเลเวลคุณ</div></div>`;
+  return `<div class="spirit-box"><div class="meta">${role} · <b class="sp-stage">${si.stage}</b> · Lv.${g.lv}/${si.cap}</div>
+    <div class="sp-exp"><i style="width:${pct}%"></i><b>${capped ? "เลเวลเต็มเพดาน — ไปข้ามขีดจำกัดที่ลูน่า" : si.need ? `EXP ${g.ex.toLocaleString()}/${si.need.toLocaleString()}` : "เลเวลสูงสุด"}</b></div>
+    <div class="sp-skill"><b>${k.name}</b> <small>ทุก ${(si.cd / 1000).toFixed(1)} วิ</small><br>${eff.join("<br>")}</div>
+    <div class="meta">พลังภูติ ${si.power}% (ระดับสี × เลเวล × ร่าง) · ภูติได้ EXP 25% ของที่คุณได้ · เลเวลไม่เกินเลเวลคุณ · ทุก 10 เลเวลต้องข้ามขีดจำกัด (สูงสุด Lv.${max})</div></div>`;
 }
 function hideCard() { const c = $("itemCard"); if (c) c.hidden = true; cardCtx = null; }
 document.addEventListener("pointerdown", (e) => {

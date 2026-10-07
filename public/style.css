@@ -706,3 +706,9 @@ html, body { overscroll-behavior: none; }
 #spiritTrack { position: fixed; left: 10px; top: 270px; z-index: 6; padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
 #spiritTrack .ok { color: #7dff9a; }
 @media (max-width: 640px) { .sp-tabs { grid-template-columns: repeat(3, 1fr); } #spiritTrack { zoom: .85; top: 230px; } #spiritPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }
+.sp-stage { color: #ffd36b; font-weight: 500; }
+.sp-brk { margin-top: 8px; }
+.sp-brk .row span img { width: 20px; height: 20px; vertical-align: middle; margin-right: 2px; }
+.sp-brk .row .ok { color: #7dff9a; } .sp-up .muted { color: var(--muted); } .sp-hr { border: 0; border-top: 1px dashed #2c3561; margin: 8px 0; }
+#spiritTrack .spq + .spq { margin-top: 5px; padding-top: 5px; border-top: 1px solid #2c3561; }
+#spiritTrack { max-height: 40vh; overflow-y: auto; }

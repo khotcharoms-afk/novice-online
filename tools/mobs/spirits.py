@@ -174,13 +174,75 @@ def shadow(f):
 
 DRAW = {"sp_ember": ember, "sp_spring": spring, "sp_frost": frost, "sp_thunder": thunder, "sp_lumi": lumi, "sp_shadow": shadow}
 
+COLOR = {"sp_ember": (255, 140, 60), "sp_spring": (90, 200, 255), "sp_frost": (170, 230, 255), "sp_thunder": (255, 225, 80), "sp_lumi": (255, 240, 170), "sp_shadow": (180, 110, 255)}
+F = 40  # ขนาดเฟรมพร้อมของตกแต่งตามร่าง
+
+def wings(a, f, col, big):
+    """ปีกขนนกสองข้างด้านหลังตัว (กระพือตามเฟรม) · big = ปีกใหญ่ของร่างสมบูรณ์"""
+    flap = [0, 1, 2, 1][f]
+    span = 18 if big else 14
+    for sd in (-1, 1):
+        for dx in range(6, span + 1):
+            t = (dx - 6) / (span - 6)
+            top = 21 - flap - t * (9 if big else 6)
+            bot = 29 - t * 4 - (1.5 if dx % 3 == 0 else 0)
+            for y in range(int(top), int(bot) + 1):
+                x = 20 + sd * dx
+                k = 0.25 + 0.6 * (1 - (y - top) / max(1, bot - top))
+                c = tuple(int(min(255, cc * (0.55 + k * 0.6) + 60 * k)) for cc in col)
+                if 0 <= x < F and 0 <= y < F: a[y, x] = list(c) + [255]
+
+def outline(a, col=(24, 18, 36)):
+    m = a[..., 3] > 0
+    p = np.pad(m, 1); ring = (p[2:, 1:-1] | p[:-2, 1:-1] | p[1:-1, 2:] | p[1:-1, :-2]) & ~m
+    a[ring] = list(col) + [255]
+
+def staged(fn, k, st, f):
+    """ร่างตามขั้น: 0 แรกเกิด · 1 + อัญมณีหน้าผาก · 2 + ปีกเล็ก · 3 + มงกุฎ/รัศมีลอย · 4 + ปีกใหญ่ + วงเวทใต้ตัว"""
+    col = COLOR[k]
+    a = np.zeros((F, F, 4), np.uint8)
+    if st >= 4:  # วงเวทใต้ตัว
+        for t in np.linspace(0, 2 * math.pi, 90):
+            x, y = 20 + math.cos(t) * 13, 36 + math.sin(t) * 3
+            a[int(round(y)), int(round(x))] = list(col) + [200]
+    if st >= 2:
+        w = np.zeros_like(a); wings(w, f, col, st >= 4); outline(w); m = w[..., 3] > 0; a[m] = w[m]
+    body = np.array(fn(f))
+    sub = a[6:6 + N, 4:4 + N]; m = body[..., 3] > 0
+    sub[m] = body[m]
+    if st >= 1:  # อัญมณีหน้าผาก (เพชรสีธาตุ ขอบเข้ม)
+        dark = tuple(int(cc * 0.45) for cc in col)
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if abs(dx) + abs(dy) == 2: a[19 + dy, 20 + dx] = list(dark) + [255]
+                elif abs(dx) + abs(dy) < 2: a[19 + dy, 20 + dx] = list(col) + [255]
+        a[18, 20] = [255, 255, 255, 255]
+    if st >= 3:  # มงกุฎทองลอยเหนือหัว
+        ys = np.where((a[..., 3] > 0).any(1))[0]; top = max(3, ys.min() - 1)
+        G = [(150, 100, 20), (240, 190, 60), (255, 240, 150)]
+        cy = top - 1
+        for x in range(15, 26): a[cy, x] = list(G[1]) + [255]; a[cy + 1, x] = list(G[0]) + [255]
+        for x in (15, 18, 20, 22, 25):
+            h = 3 if x == 20 else 2
+            for y in range(cy - h, cy): a[y, x] = list(G[2 if y == cy - h else 1]) + [255]
+        a[cy, 20] = list(col) + [255]
+        cr = np.zeros_like(a); cr[cy - 4:cy + 2] = a[cy - 4:cy + 2]
+    if st >= 4:  # ประกายรอบตัว
+        for i in range(4):
+            ang = f * 0.6 + i * math.pi / 2
+            x, y = int(round(20 + math.cos(ang) * 16)), int(round(22 + math.sin(ang) * 9))
+            if 0 <= x < F and 0 <= y < F: a[y, x] = [255, 255, 255, 255]
+    return Image.fromarray(a)
+
 if __name__ == "__main__":
     os.makedirs(f"{A}/spirits", exist_ok=True)
-    prev = Image.new("RGBA", (4 * 36, len(DRAW) * 36), (34, 38, 60, 255))
+    prev = Image.new("RGBA", (5 * 44, len(DRAW) * 44), (34, 38, 60, 255))
     for j, (k, fn) in enumerate(DRAW.items()):
-        sheet = Image.new("RGBA", (N * 4, N))
-        for f in range(4):
-            fr = fn(f); sheet.alpha_composite(fr, (f * N, 0)); prev.alpha_composite(fr, (f * 36 + 2, j * 36 + 2))
+        sheet = Image.new("RGBA", (F * 4, F * 5))   # แถว = ร่าง 0–4 · คอลัมน์ = เฟรม 0–3
+        for st in range(5):
+            for f in range(4):
+                fr = staged(fn, k, st, f); sheet.alpha_composite(fr, (f * F, st * F))
+                if f == 0: prev.alpha_composite(fr, (st * 44 + 2, j * 44 + 2))
         sheet.save(f"{A}/spirits/{k}.png")
         fn(0).save(f"{A}/icons/{k}.png")
-    if len(sys.argv) > 1: prev.resize((prev.width * 5, prev.height * 5), Image.NEAREST).save(sys.argv[1])
+    if len(sys.argv) > 1: prev.resize((prev.width * 4, prev.height * 4), Image.NEAREST).save(sys.argv[1])

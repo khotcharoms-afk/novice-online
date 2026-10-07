@@ -58,7 +58,7 @@ class Pet extends Schema {}
 defineTypes(Pet, { kind: "string", x: "number", y: "number", dir: "string", moving: "boolean" });
 // ภูติ (key = sessionId ของเจ้าของ) · r = ระดับสี · lv = เลเวลภูติ
 class Spirit extends Schema {}
-defineTypes(Spirit, { kind: "string", x: "number", y: "number", r: "uint8", lv: "uint8" });
+defineTypes(Spirit, { kind: "string", x: "number", y: "number", r: "uint8", lv: "uint8", st: "uint8" }); // st = ร่าง (0–4)
 class WorldState extends Schema {
   constructor() { super(); this.players = new MapSchema(); this.monsters = new MapSchema(); this.drops = new MapSchema(); this.pets = new MapSchema(); this.spirits = new MapSchema(); }
 }
@@ -186,7 +186,7 @@ class WorldRoom extends Room {
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
-        spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
+        spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritStages: SP.STAGE_NAME, spiritBreak: SP.BREAK, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
         mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
         portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })),
@@ -247,6 +247,7 @@ class WorldRoom extends Room {
     this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
     this.onMessage("spiritQuest", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritQuest(client, p, b, m || {})));
     this.onMessage("spiritUp", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritUp(client, p, b, m || {})));
+    this.onMessage("spiritBreak", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritBreak(client, p, b)));
     this.onMessage("pickup", (client, m) => {
       const r = this.alive(client);
       if (!r || !m || !this.state.drops.get(String(m.id))) return;
@@ -680,6 +681,7 @@ class WorldRoom extends Room {
     if (sp.kind !== s.id) sp.kind = s.id;
     if (sp.r !== s.r) sp.r = s.r;
     if (sp.lv !== s.lv) sp.lv = s.lv;
+    if (sp.st !== (s.st | 0)) sp.st = s.st | 0;
   }
   updateSpirit(sp, pid, dt, t) {
     const p = this.state.players.get(pid), r = this.pr.get(pid), s = p && p.bag && p.bag.spirit;
@@ -697,7 +699,7 @@ class WorldRoom extends Room {
       const hpLow = p.hp < (p.maxHp * k.below) / 100, spLow = k.spPct && p.sp < (p.maxSp * k.below) / 100;
       const hurt = hpLow || spLow || (k.cleanse && r.poison);
       if (!hurt) return;
-      r.spReady = t + k.every;
+      r.spReady = t + SP.cooldown(s);
       const amt = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * k.healPct * P) / 100));
       if (amt > 0) { p.hp += amt; this.broadcast("heal", { id: pid, amount: amt }); }
       if (k.spPct) {
@@ -720,7 +722,7 @@ class WorldRoom extends Room {
       });
     }
     if (!tgt) return;
-    r.spReady = t + k.every;
+    r.spReady = t + SP.cooldown(s);
     const tgts = [tgt];
     if (k.chain) {
       const m0 = this.state.monsters.get(tgt);
@@ -747,7 +749,7 @@ class WorldRoom extends Room {
     if (!s || s.lv >= SP.SPIRIT_MAX_LV) return;
     s.ex += Math.max(1, Math.round(amount * SP.EXP_SHARE));
     let up = false;
-    while (s.lv < SP.SPIRIT_MAX_LV && s.lv < p.level && s.ex >= SP.expNeed(s.lv)) { s.ex -= SP.expNeed(s.lv); s.lv++; up = true; }
+    while (s.lv < SP.capOf(s.st) && s.lv < p.level && s.ex >= SP.expNeed(s.lv)) { s.ex -= SP.expNeed(s.lv); s.lv++; up = true; }
     if (s.lv >= SP.SPIRIT_MAX_LV) s.ex = 0;
     else s.ex = Math.min(s.ex, SP.expNeed(s.lv) - 1);
     if (up) {
@@ -762,20 +764,21 @@ class WorldRoom extends Room {
   spiritQuest(client, p, b, m) {
     if (!this.nearNpc(p, "spiritkeeper")) return "เดินเข้าใกล้ลูน่า (ผู้ผนึกภูติ) ก่อน";
     const act = String(m.act || "");
-    if (act === "cancel") { b.spq = null; return; }
     const id = String(m.id || ""), Q = SP.SPIRIT_QUESTS[id], S = SP.SPIRITS[id];
     if (!Q) return;
+    b.spq = b.spq || {};
+    if (act === "cancel") { delete b.spq[id]; return; }
     const owned = (b.spirit && b.spirit.id === id) || b.inv.some((x) => x && x.id === id);
     if (act === "start") {
-      if (b.spq) return "รับเควสภูติได้ทีละ 1 เควส — ส่งหรือยกเลิกอันเดิมก่อน";
       if (p.level < S.lv) return `ต้องเลเวล ${S.lv} ขึ้นไป`;
       if (owned) return "คุณมีภูติตัวนี้อยู่แล้ว";
-      b.spq = { id, kills: 0 };
+      if (id in b.spq) return "รับเควสนี้อยู่แล้ว";
+      b.spq[id] = 0;
       client.send("toast", `รับเควส ${S.name} แล้ว`);
       return;
     }
-    if (act !== "finish" || !b.spq || b.spq.id !== id) return;
-    if (b.spq.kills < Q.kill[1]) return `ยังปราบ${D.MONSTERS[Q.kill[0]].name}ไม่ครบ (${b.spq.kills}/${Q.kill[1]})`;
+    if (act !== "finish" || !(id in b.spq)) return;
+    if (b.spq[id] < Q.kill[1]) return `ยังปราบ${D.MONSTERS[Q.kill[0]].name}ไม่ครบ (${b.spq[id]}/${Q.kill[1]})`;
     if (Bag.countOf(b, Q.item[0]) < Q.item[1]) return `${I.ITEMS[Q.item[0]].name} ยังไม่ครบ (${Bag.countOf(b, Q.item[0])}/${Q.item[1]})`;
     if (!b.inv.some((x) => !x)) return "กระเป๋าเต็ม — เว้นที่ว่างไว้รับภูติก่อน";
     let need = Q.item[1];
@@ -783,11 +786,33 @@ class WorldRoom extends Room {
       const x = b.inv[i];
       if (x && x.id === Q.item[0]) { const k = Math.min(need, x.n); Bag.removeAt(b, i, k); need -= k; }
     }
-    b.spq = null;
-    const spirit = { id, r: SP.QUEST_RARITY, lv: 1, ex: 0 };
+    delete b.spq[id];
+    const spirit = { id, r: SP.QUEST_RARITY, lv: 1, st: 0, ex: 0 };
     if (!b.spirit) b.spirit = SP.norm(spirit); else Bag.addItem(b, id, 1, spirit);
     client.send("spiritGot", { id });
     rooms.forEach((rm) => rm.broadcast("system", `✨ ${p.name} ได้รับ${S.name}!`));
+    this.saveSoon(client.sessionId);
+  }
+  // ข้ามขีดจำกัด: ภูติที่เรียกอยู่เลเวลเต็มเพดานแล้ว → ใช้ของ + gold → พัฒนาร่างใหม่ (เพดานเลเวล +10)
+  spiritBreak(client, p, b) {
+    if (!this.nearNpc(p, "spiritkeeper")) return "เดินเข้าใกล้ลูน่า (ผู้ผนึกภูติ) ก่อน";
+    const s = b.spirit;
+    if (!s) return "เรียกภูติออกมาก่อน (ภูติที่จะพัฒนาต้องอยู่ในช่องภูติ)";
+    const Bk = SP.BREAK[s.st | 0];
+    if (!Bk) return "ภูติตัวนี้อยู่ในร่างสมบูรณ์แล้ว";
+    if (s.lv < SP.capOf(s.st)) return `ภูติต้องถึง Lv.${SP.capOf(s.st)} ก่อน (ตอนนี้ Lv.${s.lv})`;
+    for (const [id, n] of Bk.items) if (Bag.countOf(b, id) < n) return `${I.ITEMS[id].name} ไม่พอ (${Bag.countOf(b, id)}/${n})`;
+    if (b.gold < Bk.gold) return `gold ไม่พอ (ต้องใช้ ${Bk.gold.toLocaleString()})`;
+    for (const [id, n] of Bk.items) {
+      let need = n;
+      for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) { const x = b.inv[i]; if (x && x.id === id) { const k = Math.min(need, x.n); Bag.removeAt(b, i, k); need -= k; } }
+    }
+    b.gold -= Bk.gold;
+    s.st = (s.st | 0) + 1;
+    this.syncSpirit(client.sessionId);
+    client.send("spiritEvolved", { id: s.id, st: s.st, name: SP.STAGE_NAME[s.st] });
+    this.broadcast("spiritFx", { id: client.sessionId, kind: s.id, evolve: true });
+    rooms.forEach((rm) => rm.broadcast("system", `🌟 ${SP.SPIRITS[s.id].name} ของ ${p.name} พัฒนาเป็น${SP.STAGE_NAME[s.st]}!`));
     this.saveSoon(client.sessionId);
   }
   // อัประดับสีภูติที่เรียกอยู่ (ใช้ผลึกวิญญาณ + gold · สำเร็จแน่นอน)
@@ -1297,11 +1322,18 @@ class WorldRoom extends Room {
     });
     // เควสภูติ: นับตัวที่ฆ่า
     r.dmgBy.forEach((_d, pid) => {
-      const pp = this.state.players.get(pid), q = pp && pp.bag && pp.bag.spq, Q = q && SP.SPIRIT_QUESTS[q.id];
-      if (!Q || Q.kill[0] !== m.kind || q.kills >= Q.kill[1]) return;
-      q.kills++;
-      const cl = this.clients.find((c) => c.sessionId === pid);
-      if (cl) { cl.send("spq", q); cl.send("toast", `เควสภูติ: ${m.name} ${q.kills}/${Q.kill[1]}`); }
+      const pp = this.state.players.get(pid), q = pp && pp.bag && pp.bag.spq;
+      if (!q) return;
+      let changed = false;
+      for (const [sid, kills] of Object.entries(q)) {
+        const Q = SP.SPIRIT_QUESTS[sid];
+        if (!Q || Q.kill[0] !== m.kind || kills >= Q.kill[1]) continue;
+        q[sid] = kills + 1; changed = true;
+        const cl = this.clients.find((c) => c.sessionId === pid);
+        if (cl) cl.send("toast", `เควส${SP.SPIRITS[sid].name}: ${m.name} ${q[sid]}/${Q.kill[1]}`);
+      }
+      const cl = changed && this.clients.find((c) => c.sessionId === pid);
+      if (cl) cl.send("spq", q);
     });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
     const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1) * (r.rank === 2 ? 8 : r.rank === 1 ? 3 : 1);

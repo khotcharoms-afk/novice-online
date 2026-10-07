@@ -348,6 +348,7 @@ function bindRoom(room) {
     room.onMessage("spiritFx", (c) => scene && scene.spiritFx(c));
     room.onMessage("spq", (q) => { INV.spq = q; renderSpiritTrack(); renderSpirit(); });
     room.onMessage("spiritGot", ({ id }) => { const it = itemOf(id); toast(`✨ ได้รับ ${it ? it.name : id}! ภูติลอยตามคุณแล้ว (ถ้ามีภูติอยู่แล้ว ตัวใหม่จะอยู่ในกระเป๋า)`); });
+    room.onMessage("spiritEvolved", ({ id, name }) => { const it = itemOf(id); toast(`🌟 ${it ? it.name : id} พัฒนาเป็น${name}! เพดานเลเวลเพิ่มขึ้น และแรงขึ้น`); });
     room.onMessage("spiritUpOk", ({ id, r }) => { const it = itemOf(id), R = gameData.rarity[r]; toast(`✨ ${it ? it.name : id} อัปเป็นระดับ${R.name}แล้ว!`); });
     room.onMessage("bossSlam", (c) => scene && scene.bossSlam(c));
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
@@ -396,7 +397,7 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
     this.load.image("npcsrc_spiritkeeper", "/assets/npc_spiritkeeper.png");
-    (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
+    (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 40, frameHeight: 40 })); // แถว = ร่าง 0–4
     for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
   }
 
@@ -473,7 +474,7 @@ class WorldScene extends Phaser.Scene {
     // ภูติ
     this.spiritViews = new Map();
     $s(room.state).spirits.onAdd((sp, id) => {
-      const v = { tx: sp.x, ty: sp.y, kind: sp.kind, r: -1, seed: Math.random() * 1000 };
+      const v = { tx: sp.x, ty: sp.y, kind: sp.kind, r: -1, st: sp.st || 0, seed: Math.random() * 1000 };
       v.sh = this.add.ellipse(sp.x, sp.y, 12, 4, 0x000000, 0.22);
       v.aura = this.add.circle(sp.x, sp.y - 40, 12, 0xffffff, 0.18).setBlendMode(Phaser.BlendModes.ADD);
       v.sp = this.add.sprite(sp.x, sp.y - 40, "spirit/" + sp.kind, 0).setScale(0.8);
@@ -482,6 +483,7 @@ class WorldScene extends Phaser.Scene {
         v.tx = sp.x; v.ty = sp.y;
         if (sp.kind !== v.kind) { v.kind = sp.kind; v.sp.setTexture("spirit/" + sp.kind, 0); v.r = -1; }
         if (sp.r !== v.r) this.spiritLook(v, sp.r);
+        if ((sp.st || 0) !== v.st) v.st = sp.st || 0;
       };
       sync();
       $s(sp).onChange(sync);
@@ -1278,7 +1280,7 @@ class WorldScene extends Phaser.Scene {
       else { x += (v.tx - x) * 0.2; y += (v.ty - y) * 0.2; }
       const bob = Math.sin((time + v.seed) / 300) * 3.5;
       v.sh.setPosition(x, y).setDepth(y - 1);
-      v.sp.setPosition(x, y - 40 + bob).setDepth(y + 3).setFrame(Math.floor((time + v.seed) / 160) % 4);
+      v.sp.setPosition(x, y - 40 + bob).setDepth(y + 3).setFrame(v.st * 4 + (Math.floor((time + v.seed) / 160) % 4)).setScale(0.8 + v.st * 0.07);
       v.aura.setPosition(x, y - 40 + bob).setDepth(y + 2);
       v.sp.setFlipX(v.tx < x - 1 ? true : v.tx > x + 1 ? false : v.sp.flipX);
       if (v.r >= 3 && time >= (v.nextSpark || 0)) { // ม่วง/ทอง: ประกายลอย
@@ -1290,12 +1292,23 @@ class WorldScene extends Phaser.Scene {
     });
   }
   // ภูติใช้สกิล: ยิงจากตัวภูติ · ฮีล = วงแสงที่เจ้าของ · เลเวลอัป = ประกาย
-  spiritFx({ id, kind, fx, tgts, heal, lvup }) {
+  spiritFx({ id, kind, fx, tgts, heal, lvup, evolve }) {
     const v = this.spiritViews && this.spiritViews.get(id), owner = this.views.get(id);
     if (!v) return;
     const it = gameData && gameData.items[kind], col = Phaser.Display.Color.HexStringToColor((it && it.spirit && it.spirit.color) || "#ffffff").color;
     this.tweens.add({ targets: v.sp, scale: { from: 1.15, to: 0.85 }, duration: 220, ease: "Back.easeOut" });
     if (lvup) { this.sparkle(v.sp.x, v.sp.y, col); this.sparkle(v.sp.x, v.sp.y - 6, 0xffffff); return; }
+    if (evolve) { // พัฒนาร่าง: เสาแสง + วงคลื่น + ประกาย
+      const pil = this.add.rectangle(v.sp.x, v.sp.y - 30, 26, 110, col, 0.45).setDepth(1e6 - 3).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: pil, scaleX: 0.1, alpha: 0, duration: 900, onComplete: () => pil.destroy() });
+      for (let i = 0; i < 3; i++) {
+        const ring = this.add.circle(v.sp.x, v.sp.y, 10, col, 0).setStrokeStyle(3, col, 0.9).setDepth(1e6 - 2);
+        this.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 700, delay: i * 180, onComplete: () => ring.destroy() });
+      }
+      for (let i = 0; i < 3; i++) this.time.delayedCall(i * 150, () => this.sparkle(v.sp.x, v.sp.y - 10, i === 1 ? 0xffffff : col));
+      if (id === room.sessionId) this.cameras.main.flash(250, 255, 255, 255, false);
+      return;
+    }
     if (heal) {
       if (!owner) return;
       const ring = this.add.circle(owner.root.x, owner.root.y - 4, 18, col, 0.22).setStrokeStyle(2, col, 0.9).setDepth(owner.root.depth - 1);

@@ -42,7 +42,8 @@ const ACTIONS = {
       } else if (it.type === "spirit") { // ภูติ: เลือกระดับสี (r) + เลเวล (lv) ได้
         left = 0;
         const r = a.r === "rand" || a.r === undefined ? 1 : Number(a.r), lv = Math.floor(Number(a.lv) || 1);
-        for (let i = 0; i < n; i++) if (Bag.addItem(b, a.id, 1, { r, lv })) left++;
+        const st = a.st === undefined ? undefined : Number(a.st);
+        for (let i = 0; i < n; i++) if (Bag.addItem(b, a.id, 1, { r, lv, st })) left++;
         tag = ` [${I.RARITY[Math.max(0, Math.min(4, r | 0))].name} Lv.${lv}]`;
       } else left = Bag.addItem(b, a.id, n);
       if (left === n) fail("กระเป๋าเต็ม");

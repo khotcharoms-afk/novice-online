@@ -51,12 +51,15 @@ function loadBag(c) {
   bag.gold = Math.max(0, Math.floor(Number(c.gold) || 0));
   if (c.pet && I.ITEMS[c.pet] && I.ITEMS[c.pet].type === "pet") bag.pet = c.pet;
   bag.spirit = SP.norm(c.spirit);
-  bag.spq = c.spq && SP.SPIRIT_QUESTS[c.spq.id] ? { id: c.spq.id, kills: Math.max(0, c.spq.kills | 0) } : null; // เควสภูติที่รับอยู่
+  // เควสภูติที่รับอยู่ (ทำพร้อมกันได้หลายเควส): { sp_ember: จำนวนที่ปราบแล้ว, ... } · ข้อมูลเก่า {id, kills} แปลงให้
+  bag.spq = {};
+  if (c.spq && c.spq.id) { if (SP.SPIRIT_QUESTS[c.spq.id]) bag.spq[c.spq.id] = Math.max(0, c.spq.kills | 0); }
+  else if (c.spq && typeof c.spq === "object") for (const [k, v] of Object.entries(c.spq)) if (SP.SPIRIT_QUESTS[k]) bag.spq[k] = Math.max(0, v | 0);
   return bag;
 }
 const saveBag = (b) => ({
   inv: b.inv.map((s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: s.n })),
-  equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null, spirit: b.spirit ? SP.norm(b.spirit) : null, spq: b.spq || null });
+  equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null, spirit: b.spirit ? SP.norm(b.spirit) : null, spq: { ...(b.spq || {}) } });
 
 const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet" || I.ITEMS[id].type === "spirit") ? 1 : I.MAX_STACK);
 
