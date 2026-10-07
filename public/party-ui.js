@@ -46,11 +46,12 @@ function showPlayerMenu(sid, x, y) {
   const inParty = PARTY && PARTY.members.some((m) => m.sid === sid);
   el.innerHTML = `<b>${esc(v.e.name)} <small>Lv.${v.e.level}</small></b>` +
     (inParty ? `<button type="button" class="btn-ghost" disabled>อยู่ในปาร์ตี้เดียวกัน</button>` : `<button type="button" class="btn-gold" id="pmInvite">👥 ชวนเข้าปาร์ตี้</button>`) +
-    `<button type="button" class="btn-ghost" id="pmClose">ปิด</button>`;
+    `<button type="button" class="btn-ghost" id="pmTrade">🤝 แลกเปลี่ยน</button><button type="button" class="btn-ghost" id="pmClose">ปิด</button>`;
   el.hidden = false;
   el.style.left = Math.min(window.innerWidth - 170, x + 8) + "px";
   el.style.top = Math.min(window.innerHeight - 120, y + 8) + "px";
   if ($("pmInvite")) $("pmInvite").onclick = () => { room.send("partyInvite", { sid }); el.hidden = true; };
   $("pmClose").onclick = () => (el.hidden = true);
+  $("pmTrade").onclick = () => { room.send("tradeRequest", { sid }); el.hidden = true; };
 }
 document.addEventListener("pointerdown", (e) => { const el = $("playerMenu"); if (el && !el.hidden && !el.contains(e.target)) el.hidden = true; }, true);

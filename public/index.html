@@ -212,6 +212,19 @@
       <p class="ap-note">บอสเกิดเองตามเวลา · ประกาศเตือนก่อนเกิด 5 นาที · เกิดแล้วไม่มีใครปราบภายใน 60 นาทีจะหายไป · ปราบได้รับของดีและ MVP (ดาเมจสูงสุด) ได้ของระดับมหากาพย์ขึ้นไป</p>
       <div id="bossList" class="boss-list"></div>
     </section>
+    <section id="storagePanel" class="frame" hidden aria-label="คลังเก็บของ">
+      <div class="ap-head"><b>📦 คลังเก็บของ <span class="muted" id="stCount"></span></b><span><button id="stSort" type="button" class="btn-ghost sm">เรียง</button> <button id="stClose" type="button" aria-label="ปิด">✕</button></span></div>
+      <p class="ap-note">ใช้ร่วมกันทุกตัวละครในไอดีนี้ · ดับเบิลคลิกของในกระเป๋า = ฝาก · ดับเบิลคลิกของในคลัง = ถอน</p>
+      <div id="stGrid" class="inv-grid st-grid"></div>
+      <div class="st-gold"><img src="/assets/icons/gold.png" alt="" width="16" height="16"> ในคลัง <b id="stGold">0</b>
+        <input type="number" id="stAmt" min="1" placeholder="จำนวน"><button type="button" class="btn-ghost sm" id="stPut">ฝาก</button><button type="button" class="btn-ghost sm" id="stTake">ถอน</button></div>
+    </section>
+    <section id="tradePanel" class="frame" hidden aria-label="แลกเปลี่ยน">
+      <div class="ap-head"><b>🤝 แลกเปลี่ยน</b><button id="trClose" type="button" aria-label="ปิด">✕</button></div>
+      <div id="trBody" class="tr-body"></div>
+      <p id="trHint" class="ap-note"></p>
+      <div class="tr-acts"><button type="button" class="btn-ghost" id="trLock">🔒 ล็อก</button><button type="button" class="btn-gold" id="trOk" disabled>✅ ยืนยันแลก</button><button type="button" class="btn-ghost danger" id="trCancel">ยกเลิก</button></div>
+    </section>
     <div id="leftStack">
       <div id="partyBox" class="frame" hidden></div>
       <div id="questTrack" class="frame" hidden></div>
@@ -259,6 +272,7 @@
   <script src="/spirit-ui.js"></script>
   <script src="/boss-ui.js"></script>
   <script src="/party-ui.js"></script>
+  <script src="/exchange-ui.js"></script>
   <script src="/skill-ui.js"></script>
   <script src="/windows.js"></script>
 </body>

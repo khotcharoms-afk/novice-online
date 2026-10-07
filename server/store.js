@@ -188,12 +188,15 @@ function firebaseStore() {
     async save(charId, data) {
       await chars.doc(charId).update({ ...data, updatedAt: Date.now() });
     },
+    // คลังเก็บของของบัญชี (ใช้ร่วมทุกตัวละคร)
+    async loadStorage(uid) { const s = await db.collection("storage").doc(uid).get(); return s.exists ? s.data() : null; },
+    async saveStorage(uid, data) { await db.collection("storage").doc(uid).set({ ...data, updatedAt: Date.now() }); },
   };
 }
 
 // ---------------- โหมดทดสอบ (ไม่มี Firebase) ----------------
 function memoryStore() {
-  const accounts = new Map(), chars = new Map(), names = new Map();
+  const accounts = new Map(), chars = new Map(), names = new Map(), storages = new Map();
   let seq = 0;
   return {
     mode: "dev",
@@ -260,6 +263,8 @@ function memoryStore() {
       const c = chars.get(charId);
       if (c) Object.assign(c, data, { updatedAt: Date.now() });
     },
+    async loadStorage(uid) { return storages.get(uid) || null; },
+    async saveStorage(uid, data) { storages.set(uid, JSON.parse(JSON.stringify(data))); },
   };
 }
 

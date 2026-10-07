@@ -61,6 +61,33 @@ const saveBag = (b) => ({
   inv: b.inv.map((s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: s.n })),
   equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null, spirit: b.spirit ? SP.norm(b.spirit) : null, spq: { ...(b.spq || {}) } });
 
+// ช่องของ 1 ช่อง (ใช้กับคลัง/เทรด): ทำให้ถูกรูปแบบ / แปลงเป็นข้อมูลบันทึก
+function normSlot(s) {
+  if (!s || !I.ITEMS[s.id] || !Number.isInteger(s.n) || s.n <= 0) return null;
+  return isGearId(s.id) ? gearSlot(normGear(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
+}
+const plainSlot = (s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: s.n });
+// ---------- คลังเก็บของ (ใช้ร่วมกันทุกตัวละครในไอดีเดียวกัน) ----------
+const STORAGE_SIZE = 150;
+function loadStorage(raw) {
+  const st = { inv: new Array(STORAGE_SIZE).fill(null), gold: 0 };
+  if (raw && Array.isArray(raw.inv)) raw.inv.slice(0, STORAGE_SIZE).forEach((s, i) => (st.inv[i] = normSlot(s)));
+  st.gold = Math.max(0, Math.floor(Number(raw && raw.gold) || 0));
+  return st;
+}
+const saveStorage = (st) => ({ inv: st.inv.map(plainSlot), gold: st.gold });
+// ย้ายของจากช่อง idx ของ from → to (ทั้งคู่เป็น {inv:[]}) จำนวน n · คืนข้อความผิดพลาด หรือ null
+function moveBetween(from, idx, to, n) {
+  const s = from.inv[idx];
+  if (!s) return "ช่องนี้ว่าง";
+  n = Math.max(1, Math.min(s.n, Math.floor(n) || s.n));
+  const single = maxStack(s.id) === 1;
+  if (single ? !to.inv.some((x) => !x) : !canFit(to, s.id, n)) return "ที่ว่างไม่พอ";
+  if (single) { const free = to.inv.findIndex((x) => !x); to.inv[free] = normSlot({ ...s, n: 1 }); from.inv[idx] = null; return null; }
+  addItem(to, s.id, n);
+  removeAt(from, idx, n);
+  return null;
+}
 const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet" || I.ITEMS[id].type === "spirit") ? 1 : I.MAX_STACK);
 
 // ใส่ของเข้ากระเป๋า → คืนจำนวนที่ใส่ไม่ลง (กระเป๋าเต็ม)
@@ -287,5 +314,5 @@ function moveSlot(b, from, to) {
   b.inv[from] = c; b.inv[to] = a;
 }
 
-module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString, glowString,
+module.exports = { normSlot, plainSlot, STORAGE_SIZE, loadStorage, saveStorage, moveBetween, sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString, glowString,
   equipFrom, unequip, moveSlot, summonPet, recallPet, summonSpirit, recallSpirit, isSpiritId, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial, activeSets };

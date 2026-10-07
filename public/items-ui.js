@@ -66,6 +66,7 @@ function refreshCard() {
   if (ctx.where === "inv") cur = INV.inv[ctx.idx];
   else if (ctx.where === "eq") cur = INV.equip[ctx.slot];
   else if (ctx.where === "spirit") cur = INV.spirit;
+  else if (ctx.where === "storage") cur = STORE && STORE.inv[ctx.idx];
   else return; // ร้านค้า/สัตว์เลี้ยง: ข้อมูลไม่เปลี่ยน
   if (!cur || cur.id !== g.id || (cur.up || 0) !== (g.up || 0) || (cur.r || 0) !== (g.r || 0)) return hideCard();
   const left = c.style.left, top = c.style.top;
@@ -129,6 +130,8 @@ function quickUse(idx) {
   if (!s) return;
   const it = itemOf(s.id);
   if (moveFrom !== null) return;
+  if (typeof tradeOpen === "function" && tradeOpen()) return tradeAdd(idx);
+  if (typeof storageOpen === "function" && storageOpen()) return storagePut(idx);
   if (!$("shopPanel").hidden && shopTab === "sell") return addSell(idx, s.n);
   if (it && it.type === "equip") room.send("equip", { idx });
   else if (it && (it.type === "pet" || it.type === "spirit")) room.send("useItem", { idx });
@@ -249,6 +252,9 @@ function openCard(g, ctx, ev) {
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
   const sell = g.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
   const acts = [];
+  if (ctx.where === "inv" && typeof tradeOpen === "function" && tradeOpen()) acts.push(`<button class="btn-gold" data-a="tradeadd">🤝 ใส่ในการแลก</button>`);
+  if (ctx.where === "inv" && typeof storageOpen === "function" && storageOpen()) acts.push(`<button class="btn-gold" data-a="store">📦 ฝากเข้าคลัง</button>`);
+  if (ctx.where === "storage") acts.push(`<button class="btn-gold" data-a="take">ถอนเข้ากระเป๋า</button>`);
   if (ctx.where === "inv") {
     if (it.type === "equip") acts.push(`<button class="btn-gold" data-a="equip">สวม</button>`);
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
@@ -280,6 +286,9 @@ function openCard(g, ctx, ev) {
     if (a === "smith") { openSmith(); smithSel = ctx.where === "eq" ? { slot: ctx.slot } : { idx: ctx.idx }; renderSmith(); }
     if (a === "petOff") room.send("petOff");
     if (a === "spiritOff") room.send("spiritOff");
+    if (a === "store") storagePut(ctx.idx);
+    if (a === "take") storageTake(ctx.idx);
+    if (a === "tradeadd") tradeAdd(ctx.idx);
     hideCard();
   }));
   card.hidden = false;
@@ -394,7 +403,7 @@ function setupItemsUI() {
     if (k === "i") toggleInv();
     const bi = BAR_KEYS.indexOf(k);
     if (bi >= 0) useBar(bi);
-    if (k === "escape") { hideCard(); closeShop(); closeSmith(); toggleInv(false); if (typeof closeSpirit === "function") closeSpirit(); }
+    if (k === "escape") { hideCard(); closeShop(); closeSmith(); toggleInv(false); if (typeof closeSpirit === "function") closeSpirit(); if (typeof closeStorage === "function") closeStorage(); }
   });
   // เดินออกห่างร้าน → ปิดร้าน
   setInterval(() => {

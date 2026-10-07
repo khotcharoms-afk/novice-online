@@ -144,6 +144,21 @@ function mapCrystals(mapId) {
 // วาปด้วย "ตั๋ว" (ย้ายแผนที่โดยไม่ต้องรอบันทึก/โหลดจากฐานข้อมูล) · บันทึกของแต่ละตัวละครเรียงคิวกัน (ไม่ให้ข้อมูลเก่าเขียนทับใหม่)
 const warpTickets = new Map();   // ticket -> { uid, charId, user, char, until }
 const saveChain = new Map();     // charId -> Promise ของการบันทึกล่าสุด
+// คลังเก็บของ: โหลดครั้งเดียวต่อบัญชีแล้วเก็บในหน่วยความจำ (หลายตัวละครในบัญชีเดียวเห็นคลังเดียวกัน) · บันทึกหลังเปลี่ยน 2 วิ
+const storages = new Map();      // uid -> { st, timer }
+async function getStorage(uid) {
+  let e = storages.get(uid);
+  if (!e) { e = { p: store.loadStorage(uid).then((raw) => (e.st = Bag.loadStorage(raw))) }; storages.set(uid, e); }
+  if (!e.st) await e.p;
+  return e.st;
+}
+function storageDirty(uid) {
+  const e = storages.get(uid);
+  if (!e || e.timer) return;
+  e.timer = setTimeout(() => { e.timer = null; store.saveStorage(uid, Bag.saveStorage(e.st)).catch((err) => console.error("storage save", uid, err.message)); }, 2000);
+}
+const TRADE_RANGE = 320;         // ต้องยืนใกล้กันไม่เกิน 10 ช่อง
+const TRADE_SLOTS = 8;
 const pendingBoss = new Map(); // mapId -> bossKey (สั่งเรียกบอสตอนแผนที่ยังไม่มีคน → เกิดเมื่อมีคนเข้า)
 // ตารางเกิด World Boss อัตโนมัติ: key -> { next: เวลาเกิดครั้งถัดไป, alive, since, map, warned }
 const BOSS_LIFE_MS = 60 * 60000;   // เกิดแล้วไม่มีใครปราบภายใน 60 นาที → หายไป
@@ -226,6 +241,7 @@ class WorldRoom extends Room {
       { id: "smith", name: "ดัวร์กัน · ช่างตีบวก", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
       { id: "jobmaster", name: "อัลดริค · ครูฝึกอาชีพ", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
       { id: "spiritkeeper", name: "ลูน่า · ผู้ผนึกภูติ", sprite: "npc_spiritkeeper", x: cx + 128, y: cy + 150 },
+      { id: "storage", name: "แมกนัส · คลังเก็บของ", sprite: "npc_storage", x: cx - 128, y: cy + 150 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
@@ -345,6 +361,19 @@ class WorldRoom extends Room {
       const c = clientOf(m.cid); if (c) c.send("system", "คุณถูกเชิญออกจากปาร์ตี้");
       partyRemove(m.cid, "ถูกเชิญออกจากปาร์ตี้");
     });
+    // ---------- คลังเก็บของ ----------
+    this.onMessage("storageOpen", (client) => this.storageAct(client, "open", {}));
+    this.onMessage("storagePut", (client, m) => this.storageAct(client, "put", m || {}));
+    this.onMessage("storageTake", (client, m) => this.storageAct(client, "take", m || {}));
+    this.onMessage("storageGold", (client, m) => this.storageAct(client, "gold", m || {}));
+    this.onMessage("storageSort", (client) => this.storageAct(client, "sort", {}));
+    // ---------- เทรด ----------
+    this.onMessage("tradeRequest", (client, m) => this.tradeRequest(client, m || {}));
+    this.onMessage("tradeAnswer", (client, m) => this.tradeAnswer(client, m || {}));
+    this.onMessage("tradeOffer", (client, m) => this.tradeOffer(client, m || {}));
+    this.onMessage("tradeLock", (client) => this.tradeStep(client, "lock"));
+    this.onMessage("tradeConfirm", (client) => this.tradeStep(client, "confirm"));
+    this.onMessage("tradeCancel", (client) => this.tradeClose(client.sessionId, "ยกเลิกการแลกเปลี่ยน"));
     this.onMessage("teleport", (client, m) => this.teleport(client, String((m && m.map) || "")));
     this.onMessage("bossBoard", (client) => client.send("bossBoard", { at: Date.now(), list: WorldRoom.bossBoard() }));
     this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
@@ -655,6 +684,130 @@ class WorldRoom extends Room {
     for (const [k, s] of Object.entries(bossSched)) if (!s.alive) out.push({ name: D.WORLD_BOSSES[k].name, next: Math.max(0, s.next - Date.now()), map: s.map ? W.MAPS[s.map].name : null });
     return out;
   }
+  // ================= คลังเก็บของ (NPC แมกนัส ในเมือง) =================
+  async storageAct(client, act, m) {
+    const pid = client.sessionId, p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || !p.bag) return;
+    if (!this.nearNpc(p, "storage")) return client.send("toast", "เดินเข้าใกล้แมกนัส (คลังเก็บของ) ก่อน");
+    if (this.trades && this.trades.has(pid)) return client.send("toast", "กำลังแลกเปลี่ยนอยู่");
+    const st = await getStorage(r.uid);
+    const b = p.bag;
+    let err = null, changed = act !== "open";
+    if (act === "put") {
+      const s = b.inv[Number(m.idx)];
+      err = Bag.moveBetween(b, Number(m.idx), st, Number(m.n));
+    } else if (act === "take") err = Bag.moveBetween(st, Number(m.idx), b, Number(m.n));
+    else if (act === "gold") {
+      const n = Math.trunc(Number(m.n) || 0);
+      if (n > 0) { if (b.gold < n) err = "gold ไม่พอ"; else { b.gold -= n; st.gold += n; } }
+      else if (n < 0) { if (st.gold < -n) err = "gold ในคลังไม่พอ"; else { st.gold += n; b.gold -= n; } }
+    } else if (act === "sort") Bag.sortBag(st);
+    if (err) { client.send("toast", err); changed = false; }
+    if (changed) { storageDirty(r.uid); this.saveSoon(pid); this.sendInv(pid); }
+    const deco = (g) => (g && Bag.isGearId(g.id) ? { ...g, st: I.gearStats(g), sp: I.gearSpecial(g) } : g && Bag.isSpiritId(g.id) ? { ...g, si: SP.info(g) } : g);
+    client.send("storage", { inv: Bag.saveStorage(st).inv.map(deco), gold: st.gold, size: Bag.STORAGE_SIZE, open: act === "open" });
+  }
+
+  // ================= เทรด (แลกเปลี่ยนของกับผู้เล่นในแผนที่เดียวกัน) =================
+  // ขอแลก → อีกฝ่ายตอบรับ → ต่างคนใส่ของ/เงิน → ล็อกทั้งคู่ → ยืนยันทั้งคู่ → แลกพร้อมกัน (แก้ของ = ปลดล็อกทั้งคู่)
+  tradeRequest(client, m) {
+    const pid = client.sessionId, p = this.state.players.get(pid), t = this.state.players.get(String(m.sid));
+    this.trades = this.trades || new Map(); this.tradeReq = this.tradeReq || new Map();
+    if (!p || !t || p.dead || t.dead || String(m.sid) === pid) return;
+    if (this.trades.has(pid)) return client.send("toast", "คุณกำลังแลกเปลี่ยนอยู่");
+    if (this.trades.has(String(m.sid))) return client.send("toast", `${t.name} กำลังแลกเปลี่ยนกับคนอื่นอยู่`);
+    if (dist(p, t) > TRADE_RANGE) return client.send("toast", "ต้องยืนใกล้กันก่อน (ไม่เกิน 10 ช่อง)");
+    this.tradeReq.set(String(m.sid), { from: pid, until: now() + 30000 });
+    const tc = this.clients.find((c) => c.sessionId === String(m.sid));
+    if (tc) tc.send("tradeRequest", { from: pid, name: p.name, level: p.level });
+    client.send("toast", `ส่งคำขอแลกเปลี่ยนให้ ${t.name} แล้ว`);
+  }
+  tradeAnswer(client, m) {
+    const pid = client.sessionId; this.trades = this.trades || new Map(); this.tradeReq = this.tradeReq || new Map();
+    const req = this.tradeReq.get(pid); this.tradeReq.delete(pid);
+    const fc = req && this.clients.find((c) => c.sessionId === req.from);
+    const p = this.state.players.get(pid), f = req && this.state.players.get(req.from);
+    if (!req || req.from !== m.from || now() > req.until || !p || !f) return client.send("toast", "คำขอหมดอายุแล้ว");
+    if (!m.accept) { if (fc) fc.send("toast", `${p.name} ปฏิเสธการแลกเปลี่ยน`); return; }
+    if (this.trades.has(pid) || this.trades.has(req.from)) return client.send("toast", "อีกฝ่ายกำลังแลกเปลี่ยนอยู่");
+    if (dist(p, f) > TRADE_RANGE) return client.send("toast", "อยู่ไกลกันเกินไป");
+    const T = { a: req.from, b: pid, offer: { [req.from]: { items: [], gold: 0 }, [pid]: { items: [], gold: 0 } }, lock: {}, ok: {} };
+    this.trades.set(req.from, T); this.trades.set(pid, T);
+    this.tradeSend(T);
+  }
+  tradePartner(T, pid) { return T.a === pid ? T.b : T.a; }
+  tradeSend(T) {
+    const view = (sid) => { // ของที่เสนอ (พร้อมรายละเอียดให้อีกฝ่ายดู)
+      const p = this.state.players.get(sid), o = T.offer[sid];
+      return { name: p ? p.name : "?", gold: o.gold, lock: !!T.lock[sid], ok: !!T.ok[sid],
+        items: o.items.map(({ idx, n }) => { const s = p && p.bag.inv[idx]; if (!s) return null; const g = Bag.plainSlot(s);
+          return { idx, n, ...(Bag.isGearId(s.id) ? { ...g, st: I.gearStats(s), sp: I.gearSpecial(s) } : Bag.isSpiritId(s.id) ? { ...g, si: SP.info(s) } : { id: s.id }), n }; }).filter(Boolean) };
+    };
+    for (const sid of [T.a, T.b]) {
+      const cl = this.clients.find((c) => c.sessionId === sid);
+      if (cl) cl.send("trade", { me: view(sid), them: view(this.tradePartner(T, sid)) });
+    }
+  }
+  tradeOffer(client, m) {
+    const pid = client.sessionId, T = this.trades && this.trades.get(pid), p = this.state.players.get(pid);
+    if (!T || !p) return;
+    if (T.lock[pid]) return client.send("toast", "ปลดล็อกก่อนถึงจะแก้ของได้");
+    const seen = new Set(), items = [];
+    for (const x of Array.isArray(m.items) ? m.items.slice(0, TRADE_SLOTS) : []) {
+      const idx = Math.floor(Number(x && x.idx)), s = p.bag.inv[idx];
+      if (!s || seen.has(idx)) continue;
+      seen.add(idx); items.push({ idx, n: Math.max(1, Math.min(s.n, Math.floor(Number(x.n)) || s.n)), snap: JSON.stringify({ ...Bag.plainSlot(s), n: 0 }) });
+    }
+    T.offer[pid] = { items, gold: Math.max(0, Math.min(p.bag.gold, Math.floor(Number(m.gold) || 0))) };
+    T.lock = {}; T.ok = {}; // แก้ของ → ต้องล็อก/ยืนยันใหม่ทั้งคู่
+    this.tradeSend(T);
+  }
+  tradeStep(client, step) {
+    const pid = client.sessionId, T = this.trades && this.trades.get(pid);
+    if (!T) return;
+    const a = this.state.players.get(T.a), b = this.state.players.get(T.b);
+    if (!a || !b || a.dead || b.dead || dist(a, b) > TRADE_RANGE) return this.tradeClose(pid, "อยู่ไกลกันเกินไป — ยกเลิกการแลกเปลี่ยน");
+    if (step === "lock") { T.lock[pid] = !T.lock[pid]; if (!T.lock[pid]) T.ok = {}; return this.tradeSend(T); }
+    if (!T.lock[T.a] || !T.lock[T.b]) return client.send("toast", "ต้องล็อกทั้งสองฝ่ายก่อน");
+    T.ok[pid] = true;
+    if (!T.ok[T.a] || !T.ok[T.b]) return this.tradeSend(T);
+    // แลกจริง: ทดลองบนสำเนาก่อน (ของยังอยู่ครบ + กระเป๋ามีที่) แล้วค่อยใช้ผล
+    const sim = (p) => ({ inv: p.bag.inv.map((s) => (s ? { ...s } : null)), gold: p.bag.gold });
+    const A = sim(a), B = sim(b), err = (msg) => { T.lock = {}; T.ok = {}; this.tradeSend(T); [T.a, T.b].forEach((sid) => { const c = this.clients.find((x) => x.sessionId === sid); if (c) c.send("toast", msg); }); };
+    const take = (S, P, offer) => { // เอาของออกจากสำเนาของผู้ให้ → คืนรายการของที่ย้าย
+      const out = [];
+      for (const { idx, n, snap } of offer.items) {
+        const s = S.inv[idx]; if (!s || s.n < n || JSON.stringify({ ...Bag.plainSlot(P.bag.inv[idx]), n: 0 }) !== snap) return null; // ของในช่องถูกสลับ/เปลี่ยน
+        out.push(Bag.maxStack(s.id) === 1 ? { ...P.bag.inv[idx] } : { id: s.id, n });
+        if (Bag.maxStack(s.id) === 1) S.inv[idx] = null; else Bag.removeAt(S, idx, n);
+      }
+      if (S.gold < offer.gold) return null;
+      S.gold -= offer.gold;
+      return out;
+    };
+    const fromA = take(A, a, T.offer[T.a]), fromB = take(B, b, T.offer[T.b]);
+    if (!fromA || !fromB) return err("ของที่เสนอมีการเปลี่ยนแปลง — ตรวจสอบแล้วยืนยันใหม่");
+    const give = (S, list) => list.every((x) => Bag.maxStack(x.id) === 1 ? (() => { const f = S.inv.findIndex((y) => !y); if (f < 0) return false; S.inv[f] = Bag.normSlot({ ...x, n: 1 }); return true; })() : Bag.addItem(S, x.id, x.n) === 0);
+    if (!give(A, fromB)) return err(`กระเป๋าของ ${a.name} เต็ม`);
+    if (!give(B, fromA)) return err(`กระเป๋าของ ${b.name} เต็ม`);
+    A.gold += T.offer[T.b].gold; B.gold += T.offer[T.a].gold;
+    a.bag.inv = A.inv; a.bag.gold = A.gold; b.bag.inv = B.inv; b.bag.gold = B.gold;
+    const desc = (list, gold) => [...list.map((x) => `${I.ITEMS[x.id].name}${x.n > 1 ? " ×" + x.n : ""}`), gold ? `${gold.toLocaleString()} gold` : ""].filter(Boolean).join(", ") || "-";
+    console.log(`[trade] ${a.name} → ${b.name}: ${desc(fromA, T.offer[T.a].gold)} | ${b.name} → ${a.name}: ${desc(fromB, T.offer[T.b].gold)}`);
+    this.trades.delete(T.a); this.trades.delete(T.b);
+    for (const sid of [T.a, T.b]) {
+      const c = this.clients.find((x) => x.sessionId === sid);
+      if (c) { c.send("tradeClosed", { done: true }); c.send("toast", "✅ แลกเปลี่ยนสำเร็จ"); }
+      this.sendInv(sid); this.save(sid);
+    }
+  }
+  tradeClose(pid, reason) {
+    const T = this.trades && this.trades.get(pid);
+    if (!T) return;
+    this.trades.delete(T.a); this.trades.delete(T.b);
+    for (const sid of [T.a, T.b]) { const c = this.clients.find((x) => x.sessionId === sid); if (c) c.send("tradeClosed", { reason }); }
+  }
+
   // ================= วาปไปคริสตัล / กลับเมือง (จากหน้าแผนที่โลก) =================
   // ค่าวาป ≈ รายได้จากการฟาร์ม ~1 นาทีที่เลเวลของแผนที่นั้น (ดู tools/economy.js) · กลับเมืองฟรี
   static teleportCost(mapId) { const M = W.MAPS[mapId]; return !M || M.type === "town" ? 0 : Math.max(100, Math.round((Math.pow(M.lv ? M.lv[0] : 1, 1.55) * 22) / 50) * 50); }
@@ -750,6 +903,7 @@ class WorldRoom extends Room {
     this.state.players.delete(client.sessionId);
     this.state.pets.delete(client.sessionId);
     this.state.spirits.delete(client.sessionId);
+    this.tradeClose(client.sessionId, "อีกฝ่ายออกจากแผนที่");
     this.pr.delete(client.sessionId);
     this.mr.forEach((r) => { if (r.target === client.sessionId) r.target = null; r.dmgBy.delete(client.sessionId); });
   }
