@@ -94,6 +94,7 @@ const ACTIONS = {
     });
   },
   resetStats(c) { c.stats = D.baseStats(); return "รีเซ็ตสเตตัส (คืนแต้มทั้งหมด)"; },
+  resetSkills(c) { c.skills = D.innateSkills(); return "รีเซ็ตสกิล (คืนแต้มสกิลทั้งหมด)"; },
   job(c, a) {
     if (!D.JOBS[a.job]) fail("ไม่รู้จักอาชีพ");
     c.job = a.job; c.quest = null; c.stats = D.baseStats();
@@ -112,7 +113,7 @@ async function editChar(charId, action, args) {
   if (action === "heal") fail("ตัวละครออฟไลน์อยู่ (ฟื้นเลือดตอนเข้าเกมอยู่แล้ว)");
   const c = await store.loadAny(charId);
   msg = fn(c, args || {});
-  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map", "job", "quest"];
+  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map", "job", "quest", "skills"];
   await store.save(charId, Object.fromEntries(keep.filter((k) => k in c).map((k) => [k, c[k] === undefined ? null : c[k]])));
   return { msg, online: false };
 }

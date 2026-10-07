@@ -155,7 +155,7 @@ async function openAccount(uid) {
         <div class="row"><label>(อุปกรณ์)</label><select data-f="r"><option value="0">ระดับ: ธรรมดา</option>${RAR.slice(1).map((r, i) => `<option value="${i + 1}" style="color:${r.color}">ระดับ: ${r.name}</option>`).join("")}<option value="rand">ระดับ: สุ่มแบบดรอป</option></select>
           <label style="min-width:auto">ตีบวก +</label><input type="number" data-f="up" value="0" min="0" max="10" style="width:60px"></div>
         <div class="row"><label>เลเวล</label><input type="number" data-f="lv" value="${c.level}" min="1" max="99" style="width:80px">
-          <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button></div>
+          <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button><button class="btn" data-a="resetSkills">รีเซ็ตสกิล</button></div>
         <div class="row"><label>อาชีพ</label><select data-f="job">${Object.entries(JOBS_ADMIN).map(([k, n]) => `<option value="${k}" ${c.job === k ? "selected" : ""}>${n}</option>`).join("")}</select>
           <button class="btn" data-a="job">เปลี่ยนอาชีพ</button></div>
         <div class="row"><label>อื่น ๆ</label><button class="btn" data-a="town">ส่งกลับเมือง</button>
@@ -212,6 +212,7 @@ async function openAccount(uid) {
       if (a2 === "job") { if (!confirm(`เปลี่ยนอาชีพของ ${name}? (แต้มสเตตัสจะถูกคืนทั้งหมด)`)) return; body = { action: "job", name, job: f("job") }; }
       if (a2 === "petSet") body = { action: "pet", name, id: f("pet") };
       if (a2 === "petRemove") { if (!confirm(`ลบสัตว์เลี้ยงของ ${name}?`)) return; body = { action: "pet", name, id: null }; }
+      if (a2 === "resetSkills" && !confirm(`รีเซ็ตสกิลของ ${name}? (คืนแต้มสกิลทั้งหมด)`)) return;
       if (a2 === "resetStats" && !confirm(`รีเซ็ตสเตตัสของ ${name}? (คืนแต้มทั้งหมดให้ลงใหม่)`)) return;
       if (a2 === "kick" && !confirm(`เตะ ${name} ออกจากเกม?`)) return;
       await run(() => api("POST", "/api/admin/char/" + id, body));

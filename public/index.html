@@ -82,6 +82,7 @@
       <div class="status-actions">
         <button id="statBtn" class="stat-btn" type="button" title="ตัวละคร / สเตตัส / อุปกรณ์ (ปุ่ม C)">ตัวละคร <span id="statBadge" class="badge" hidden>0</span></button>
         <button id="invBtn" class="stat-btn" type="button" title="กระเป๋า (ปุ่ม I)">กระเป๋า</button>
+        <button id="skillBtn" class="stat-btn" type="button" title="สกิล (ปุ่ม K)">สกิล <span id="skillBadge" class="badge" hidden>0</span></button>
       </div>
       <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
       <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
@@ -184,6 +185,12 @@
         <div id="wmInfo" class="wm-info"></div>
       </div>
     </section>
+    <section id="skillPanel" class="frame" hidden aria-label="สกิล">
+      <div class="ap-head"><b>สกิล <span class="sk-pts">แต้มสกิล <b id="skPoints">0</b></span></b><button id="skClose" type="button" aria-label="ปิด">✕</button></div>
+      <div id="skTabs" class="sk-tabs"></div>
+      <div class="sk-wrap"><div id="skBody" class="sk-body"></div><div id="skInfo" class="sk-info"></div></div>
+      <p class="ap-note">ได้แต้มสกิล 1 แต้มทุกเลเวล · สกิลแถวล่างต้องอัปสกิลที่ต้องการก่อน (↳) · สกิลที่เรียนแล้วจะขึ้นในแถบสกิล</p>
+    </section>
     <section id="jobPanel" class="frame" hidden aria-label="เปลี่ยนอาชีพ">
       <div class="ap-head"><b>อัลดริค · ครูฝึกอาชีพ</b><button id="jobClose" type="button" aria-label="ปิด">✕</button></div>
       <p class="ap-note">ชาวบ้านที่ถึง Lv.20 เลือกอาชีพได้ 1 อาชีพ · ทำบททดสอบให้ผ่านแล้วกลับมาส่งที่นี่ · ของ Lv ต่ำกว่า 20 ทุกอาชีพใส่ได้ · อาวุธและชุด Lv20 ขึ้นไปล็อกตามอาชีพ</p>
@@ -220,6 +227,7 @@
   <script src="/shop-ui.js"></script>
   <script src="/worldmap-ui.js"></script>
   <script src="/job-ui.js"></script>
+  <script src="/skill-ui.js"></script>
   <script src="/windows.js"></script>
 </body>
 </html>

@@ -336,6 +336,7 @@ function bindRoom(room) {
     room.onMessage("quest", (q) => onQuest(q));
     room.onMessage("jobChanged", (d) => onJobChanged(d));
     room.onMessage("buff", (b) => onBuff(b));
+    room.onMessage("skills", (d) => onSkills(d));
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
@@ -1099,9 +1100,11 @@ function drawAvatar(key) {
 }
 
 // ---------- แถบสกิล ----------
+// สกิลที่กดใช้ได้ = สกิลของอาชีพที่เรียนแล้ว (เลเวล 1 ขึ้นไป)
 function mySkills() {
   const me = room.state.players.get(room.sessionId);
-  return (gameData && me && gameData.jobSkills[me.job]) || [];
+  const all = (gameData && me && gameData.jobSkills[me.job]) || [];
+  return all.filter((k) => typeof skLv !== "function" || skLv(k) > 0);
 }
 function buildSkillBar() {
   const bar = $("skillBar");
@@ -1113,8 +1116,9 @@ function buildSkillBar() {
     const el = document.createElement(s ? "button" : "div");
     el.className = s ? "slot skill" : "slot";
     el.dataset.skill = key || "";
-    el.innerHTML = `<small>${i + 1}</small>` + (s ? `<b>${s.name}</b><em class="cost">${s.sp}</em>` : "");
-    if (s) { el.title = `${s.name} — ${s.desc} (SP ${s.sp})`; el.onclick = () => castSkill(key, el); }
+    const L = s ? skLv(key) : 0, sp = s ? s.sps[Math.max(0, L - 1)] || s.sp : 0;
+    el.innerHTML = `<small>${i + 1}</small>` + (s ? `<img class="sb-ic" src="/assets/icons/${s.icon}.png" alt="" style="--sc:${s.color}"><b>${s.name}</b><em class="cost">${sp}</em>` : "");
+    if (s) { el.title = `${s.name} Lv.${L} — ${s.descs[L - 1]} (SP ${sp})`; el.onclick = () => castSkill(key, el); }
     bar.appendChild(el);
   }
   const auto = document.createElement("button");

@@ -38,6 +38,7 @@ defineTypes(Player, {
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
   str: "uint16", agi: "uint16", vit: "uint16", int: "uint16", dex: "uint16", statPoints: "uint16",
   gear: "string", // ของที่สวมแล้วเห็นบนตัว (คั่นด้วย ,)
+  skillPts: "uint16", // แต้มสกิลที่ยังไม่ได้ใช้
 });
 class Drop extends Schema {}
 defineTypes(Drop, { item: "string", n: "uint16", x: "number", y: "number", r: "uint8" }); // r = ระดับความหายาก (อุปกรณ์)
@@ -75,6 +76,7 @@ const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.login
 
 // ข้อมูลโลกสำหรับหน้าต่างแผนที่โลก: แต่ละแผนที่มีมอนอะไร ดรอปอะไร บริการอะไร
 let worldCache = null;
+const SKILLS_CLIENT = D.skillsForClient();
 // ใครใส่อะไรได้: WEAR[itemId][job] = ข้อความเหตุผลที่ใส่ไม่ได้ (null = ใส่ได้) — ส่งให้ client ใช้แสดงในการ์ดไอเทม
 const WEAR = Object.fromEntries(Object.entries(I.ITEMS).filter(([, it]) => it.type === "equip")
   .map(([id, it]) => [id, Object.fromEntries(Object.keys(D.JOBS).map((j) => [j, Bag.wearError(j, it)]))]));
@@ -166,7 +168,7 @@ class WorldRoom extends Room {
       sendMap(client);
     });
     const sendMap = (client) =>
-      client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
+      client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
@@ -254,6 +256,7 @@ class WorldRoom extends Room {
     this.onMessage("skill", (client, m) => this.useSkill(client, m));
     // ---------- เปลี่ยนอาชีพ ----------
     this.onMessage("jobQuest", (client, m) => this.jobQuest(client, m || {}));
+    this.onMessage("learnSkill", (client, m) => m && this.learnSkill(client, String(m.skill)));
     this.onMessage("chat", (client, text) => {
       const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
       if (!r || !p || typeof text !== "string") return;
@@ -277,7 +280,7 @@ class WorldRoom extends Room {
     const spot = p.warp || (deadOut ? getMap(W.START_MAP).spawn : dead ? this.townSpawn() : p);
     const map = p.warp ? p.warp.map : deadOut ? W.START_MAP : this.mapId;
     return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp, map,
-      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job, quest: p.quest || null,
+      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job, quest: p.quest || null, skills: { ...(p.skills || {}) },
       stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])), ...Bag.saveBag(p.bag) };
   }
   save(pid) {
@@ -329,6 +332,7 @@ class WorldRoom extends Room {
     this.syncPet(client.sessionId);
     this.sendInv(client.sessionId);
     client.send("quest", p.quest);
+    this.sendSkills(client.sessionId);
     if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
   }
 
@@ -348,7 +352,25 @@ class WorldRoom extends Room {
     p.statPoints = D.totalPoints(p.level) - D.spentPoints(st);
     p.bag = Bag.loadBag(c);
     p.gear = Bag.gearString(p.bag);
+    p.skills = D.sanitizeSkills(c.skills, p.job, p.level);
+    this.syncSkillPts(p);
     this.applyStats(p, true);
+  }
+  syncSkillPts(p) { p.skillPts = Math.max(0, D.skillPointsAt(p.level) - D.skillSpent(p.skills)); }
+  sendSkills(pid) {
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    if (p && cl) cl.send("skills", { skills: p.skills, points: p.skillPts });
+  }
+  learnSkill(client, key) {
+    const p = this.state.players.get(client.sessionId);
+    if (!p) return;
+    const err = D.learnError(p.job, p.skills, key, p.skillPts);
+    if (err) return client.send("toast", err);
+    p.skills[key] = (p.skills[key] || 0) + 1;
+    this.syncSkillPts(p);
+    this.applyStats(p, false);
+    this.sendSkills(client.sessionId);
+    this.saveSoon(client.sessionId);
   }
 
   // ================= แอดมิน =================
@@ -463,6 +485,11 @@ class WorldRoom extends Room {
     p.wt = wt && !Bag.wearError(p.job, I.ITEMS[bag.equip.weapon.id]) ? wt : null;
     const s = D.playerStats(p.level, eff, p.job, p.wt);
     s.atk += gb.atk; s.def += gb.def; s.maxHp += gb.maxHp; s.maxSp += gb.maxSp;
+    // สกิลติดตัว
+    const pb = D.passiveBonus(p.skills || {}, p.job, p.wt);
+    s.atk += pb.atk; s.def += pb.def; s.crit = Math.min(0.6, s.crit + pb.crit); s.hitBonus += pb.hit; s.range += pb.range;
+    s.maxHp = Math.round(s.maxHp * (1 + pb.hpPct / 100)); s.maxSp = Math.round(s.maxSp * (1 + pb.spPct / 100));
+    p.pb = pb;
     p.gearBonus = gb;
     const dHp = s.maxHp - (p.maxHp || 0), dSp = s.maxSp - (p.maxSp || 0);
     p.maxHp = s.maxHp; p.maxSp = s.maxSp;
@@ -811,20 +838,22 @@ class WorldRoom extends Room {
     const o = { atk: 1, def: 1, taken: 1, aspd: 1, speed: 1, flee: 0 };
     if (!r || !r.buffs) return o;
     const t = now();
-    for (const [k, until] of Object.entries(r.buffs)) {
-      if (until <= t) { delete r.buffs[k]; continue; }
-      const b = D.BUFFS[k];
+    for (const [k, bf] of Object.entries(r.buffs)) {
+      if (bf.until <= t) { delete r.buffs[k]; continue; }
+      const b = { ...D.BUFFS[k], ...(bf.v || {}) };
       for (const f of ["atk", "def", "taken", "aspd", "speed"]) if (b[f]) o[f] *= b[f];
       if (b.flee) o.flee += b.flee;
     }
     return o;
   }
-  addBuff(pid, key) {
+  // v = ค่าบัฟตามเลเวลสกิล (atk/def/taken/aspd/speed/flee/ms)
+  addBuff(pid, key, v) {
     const r = this.pr.get(pid), b = D.BUFFS[key];
     if (!r || !b) return;
-    r.buffs[key] = now() + b.ms;
+    const ms = (v && v.ms) || b.ms;
+    r.buffs[key] = { until: now() + ms, v: v || null };
     const client = this.clients.find((c) => c.sessionId === pid);
-    if (client) client.send("buff", { key, ms: b.ms });
+    if (client) client.send("buff", { key, ms });
   }
   // opts: undead = ตัวคูณเพิ่มกับอันเดด · stun/slow = มิลลิวินาที
   hitMob(pid, p, mid, mult, opts = {}) {
@@ -915,10 +944,12 @@ class WorldRoom extends Room {
       p.statPoints += D.pointsAtLevel(p.level);
       p.expNext = D.expToNext(p.level);
       leveled = true;
+      this.syncSkillPts(p);
     }
     if (p.level >= D.MAX_LEVEL) p.exp = 0;
     if (leveled) {
       this.applyStats(p, true);
+      this.sendSkills(pid);
       this.broadcast("lvup", { id: pid, level: p.level });
       this.save(pid);
       this.broadcast("system", `${p.name} เลเวลอัปเป็น Lv.${p.level}!`);
@@ -1126,9 +1157,9 @@ class WorldRoom extends Room {
 
   autoThink(pid, p, r) {
     const t = now();
-    const skills = D.JOB_SKILLS[p.job] || [];
-    const healKey = skills.find((k) => D.SKILLS[k].auto === "heal");
-    const healSk = healKey && D.SKILLS[healKey];
+    const skills = (D.JOB_SKILLS[p.job] || []).filter((k) => (p.skills || {})[k] > 0);
+    const healKey = [...skills].reverse().find((k) => D.SKILLS[k].auto === "heal");
+    const healSk = healKey && D.skillAt(healKey, p.skills[healKey]);
     const reserve = healSk ? healSk.sp : 0;
     // ฮีลตัวเองเมื่อเลือดต่ำ: สกิลก่อน ไม่พร้อม → กินยา
     if (healSk && p.hp < p.maxHp * 0.45 && p.sp >= healSk.sp && t >= (r.cds[healKey] || 0))
@@ -1201,7 +1232,7 @@ class WorldRoom extends Room {
     let mobsOnMe = 0;
     this.mr.forEach((mr, mid) => { const mm = this.state.monsters.get(mid); if (mr.target === pid && mm && !mm.dead) mobsOnMe++; });
     for (const k of [...skills].reverse()) {
-      const sk = D.SKILLS[k];
+      const sk = D.skillAt(k, p.skills[k]);
       if (t < (r.cds[k] || 0) || p.sp < sk.sp + (k === healKey ? 0 : reserve)) continue;
       if (sk.auto === "buff" || (sk.auto === "def" && p.hp < p.maxHp * 0.6) || (sk.auto === "pull" && mobsOnMe < 2 && this.mobsNear(p.x, p.y, sk.area).length >= 2)) {
         return this.castSkill(pid, p, r, k, null);
@@ -1215,8 +1246,10 @@ class WorldRoom extends Room {
     const pid = client.sessionId, r = this.alive(client), p = this.state.players.get(pid);
     if (!r || !m) return;
     const key = String(m.skill);
-    const sk = D.SKILLS[key];
-    if (!sk || !(D.JOB_SKILLS[p.job] || []).includes(key)) return;
+    const L = (p.skills || {})[key] || 0;
+    if (!D.SKILLS[key] || !(D.JOB_SKILLS[p.job] || []).includes(key)) return;
+    if (!L) return client.send("toast", `ยังไม่ได้เรียน ${D.SKILLS[key].name} (เปิดหน้าต่างสกิล ปุ่ม K)`);
+    const sk = D.skillAt(key, L);
     if (now() < (r.cds[key] || 0)) return client.send("toast", `${sk.name} ยังไม่พร้อม`);
     if (p.sp < sk.sp) return client.send("toast", "SP ไม่พอ");
     if (sk.target !== "mob") return this.castSkill(pid, p, r, key, null);
@@ -1230,7 +1263,9 @@ class WorldRoom extends Room {
   }
 
   castSkill(pid, p, r, key, tid) {
-    const sk = D.SKILLS[key];
+    const L = (p.skills || {})[key] || 0;
+    if (!L) return;
+    const sk = D.skillAt(key, L), bv = sk.bv ? sk.bv(L) : null;
     if (p.sp < sk.sp || now() < (r.cds[key] || 0)) return;
     const mob = tid && this.state.monsters.get(tid);
     if (sk.target === "mob" && (!mob || mob.dead)) return;
@@ -1251,20 +1286,20 @@ class WorldRoom extends Room {
     switch (key) {
       case "firstaid":
         this.broadcast("cast", fx);
-        heal(p, Math.max(20, Math.round(p.maxHp * 0.25) + (p.healBonus || 0)));
+        heal(p, Math.max(20, Math.round(p.maxHp * sk.heal) + (p.healBonus || 0)));
         break;
       case "heal": { // เพื่อน (หรือตัวเอง) ที่เลือดน้อยสุดในระยะ
         let best = p, bp = p.hp / p.maxHp;
         this.state.players.forEach((pp) => { if (!pp.dead && dist(pp, p) <= sk.range && pp.hp / pp.maxHp < bp) { best = pp; bp = pp.hp / pp.maxHp; } });
         this.state.players.forEach((pp, sid) => { if (pp === best) { fx.tgtPlayer = sid; fx.x = pp.x; fx.y = pp.y; } });
         this.broadcast("cast", fx);
-        heal(best, Math.round(best.maxHp * 0.25 + (p.healBonus || 0) + p.level * 2));
+        heal(best, Math.round((best.maxHp * sk.heal + (p.healBonus || 0) + p.level * 2) * (1 + ((p.pb && p.pb.healPct) || 0))));
         break;
       }
       case "doublehit":
         this.broadcast("skillfx", fx);
-        this.hitMob(pid, p, tid, 0.95);
-        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, 0.95); }, 180);
+        this.hitMob(pid, p, tid, sk.mult);
+        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, sk.mult); }, 180);
         break;
       case "doubleshot":
         this.broadcast("skillfx", fx);
@@ -1283,11 +1318,11 @@ class WorldRoom extends Room {
       case "provoke":
         this.broadcast("cast", fx);
         for (const mid of this.mobsNear(p.x, p.y, sk.area)) { const mr = this.mr.get(mid); mr.target = pid; mr.returning = false; }
-        this.addBuff(pid, sk.buff);
+        this.addBuff(pid, sk.buff, bv);
         break;
       case "bless":
         this.broadcast("cast", fx);
-        this.state.players.forEach((pp, sid) => { if (!pp.dead && dist(pp, p) <= sk.area) this.addBuff(sid, sk.buff); });
+        this.state.players.forEach((pp, sid) => { if (!pp.dead && dist(pp, p) <= sk.area) this.addBuff(sid, sk.buff, bv); });
         break;
       case "meteor": {
         this.broadcast("skillfx", fx);
@@ -1296,7 +1331,7 @@ class WorldRoom extends Room {
         break;
       }
       default:
-        if (sk.target === "self") { this.broadcast("cast", fx); if (sk.buff) this.addBuff(pid, sk.buff); break; }
+        if (sk.target === "self") { this.broadcast("cast", fx); if (sk.buff) this.addBuff(pid, sk.buff, bv); break; }
         this.broadcast("skillfx", fx);
         if (sk.area && !sk.splash) { // วงกว้างรอบเป้าหมาย
           const cx = mob.x, cy = mob.y;
@@ -1345,6 +1380,7 @@ class WorldRoom extends Room {
     const st = D.baseStats();
     for (const k of D.STAT_KEYS) p[k] = st[k];
     p.statPoints = D.totalPoints(p.level);
+    p.skills = D.sanitizeSkills(p.skills, job, p.level); this.syncSkillPts(p);
     const stripped = Bag.stripInvalid(b, job);
     Bag.addItem(b, Q.reward, 1, I.makeGear(Q.reward, 0));
     p.gear = Bag.gearString(b);
@@ -1354,6 +1390,7 @@ class WorldRoom extends Room {
     this.sendInv(pid);
     client.send("quest", null);
     client.send("jobChanged", { job, reward: Q.reward, stripped });
+    this.sendSkills(pid);
     this.broadcast("lvup", { id: pid, level: p.level, job: true });
     rooms.forEach((rm) => rm.broadcast("system", `🎉 ${p.name} เปลี่ยนอาชีพเป็น${p.jobName}แล้ว!`));
     this.save(pid);
@@ -1368,7 +1405,7 @@ class WorldRoom extends Room {
       // SP ฟื้นช้าลงตอนสู้: กำลังสู้ (โดนตีหรือตี/ใช้สกิลใน 6 วิ) 0.6%/วิ · พักอยู่ 1.5%/วิ (+INT เล็กน้อย)
       if (p.sp < p.maxSp) {
         const fighting = t - r.lastHurt < 6000 || t - (r.lastAct || 0) < 6000;
-        const rate = (fighting ? 0.006 : 0.015) + p.int * 0.00005;
+        const rate = ((fighting ? 0.006 : 0.015) + p.int * 0.00005) * (1 + ((p.pb && p.pb.spRegen) || 0));
         r.spAcc = (r.spAcc || 0) + p.maxSp * rate;
         const add = Math.floor(r.spAcc);
         if (add > 0) { r.spAcc -= add; p.sp = Math.min(p.maxSp, p.sp + add); }

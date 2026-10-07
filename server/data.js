@@ -165,33 +165,87 @@ const WEAPON_TYPES = {
 const UNDEAD = ["skeleton", "zombie", "vampire", "skelwarrior", "frostskel"];
 
 // ---------- สกิล ----------
+// ได้แต้มสกิล 1 แต้มทุกครั้งที่เลเวลอัป · กด + ในหน้าต่างสกิลเพื่ออัปทีละขั้น
+// max = เลเวลสูงสุดของสกิล · innate = เลเวลที่ได้ฟรีตั้งแต่เริ่ม · req = [สกิลที่ต้องมีก่อน, เลเวล]
+// passive = สกิลติดตัว (ไม่ต้องกดใช้) · ค่าที่เป็น [a, b] = a + b × เลเวลสกิล
 // target: "self" = ใช้กับตัวเอง, "mob" = ต้องมีเป้าหมายมอนสเตอร์, "ally" = ฮีลเพื่อน (เลือดน้อยสุดในระยะ รวมตัวเอง)
-// mult = ตัวคูณดาเมจ · area = รัศมีวงกว้าง · buff = บัฟที่ได้ (ดู BUFFS) · fx = ภาพเอฟเฟกต์ · auto = AUTO ใช้แบบไหน
+// mult = ตัวคูณดาเมจ · area = รัศมีวงกว้าง · buff = บัฟที่ได้ (ค่าใน bv) · fx = ภาพเอฟเฟกต์ · auto = AUTO ใช้แบบไหน
+// icon = ไอคอนไอเทมที่ใช้เป็นรูปสกิล · color = สีพื้นไอคอน
 const SKILLS = {
-  firstaid:   { name: "ปฐมพยาบาล", desc: "ฟื้น HP 25% (+INT×2)", sp: 8, cooldown: 12000, target: "self", auto: "heal", fx: { type: "heal", color: 0x7dffa8 } },
-  doublehit:  { name: "ฟันซ้ำ", desc: "ตี 2 ครั้งติด", sp: 5, cooldown: 5000, target: "mob", range: 60, auto: "dmg" },
-  // ผู้พิทักษ์
-  provoke:    { name: "ท้าทาย", desc: "ดึงมอนรอบตัว (5 ช่อง) มาตีเรา + DEF +30% 8 วิ", sp: 10, cooldown: 12000, target: "self", area: 160, buff: "provoke", auto: "pull", fx: { type: "ring", color: 0xff6b6b } },
-  shieldwall: { name: "กำแพงโล่", desc: "ลดดาเมจที่ได้รับ 50% นาน 8 วิ", sp: 15, cooldown: 25000, target: "self", buff: "shieldwall", auto: "def", fx: { type: "ring", color: 0x6fb6ff } },
-  shieldbash: { name: "กระแทกโล่", desc: "ดาเมจ 160% + มึนงง 2 วิ", sp: 8, cooldown: 6000, target: "mob", range: 56, mult: 1.6, stun: 2000, auto: "dmg", fx: { type: "hit", color: 0xffffff } },
-  // นักดาบใหญ่
-  cleave:     { name: "ฟันกวาด", desc: "ดาเมจ 130% ทุกตัวรอบเป้าหมาย (2.5 ช่อง)", sp: 10, cooldown: 6000, target: "mob", range: 60, mult: 1.3, area: 80, auto: "dmg", fx: { type: "aoe", color: 0xff9a5a } },
-  fury:       { name: "โทสะ", desc: "ATK +30% และตีเร็วขึ้น 20% นาน 10 วิ", sp: 15, cooldown: 30000, target: "self", buff: "fury", auto: "buff", fx: { type: "ring", color: 0xff4040 } },
-  execute:    { name: "ปลิดชีพ", desc: "ดาเมจ 220% · คอมโบสะสมจากการตีปกติ +15%/ขั้น (สูงสุด 5) · เป้าเลือดต่ำกว่า 30% แรงขึ้นอีก 50%", sp: 12, cooldown: 8000, target: "mob", range: 60, mult: 2.2, auto: "dmg", fx: { type: "hit", color: 0xff5050 } },
-  // นักล่า
-  doubleshot: { name: "ยิงสองดอก", desc: "ยิงธนู 2 ดอกติด ดอกละ 100%", sp: 6, cooldown: 4000, target: "mob", range: 200, mult: 1, auto: "dmg", fx: { type: "proj", proj: "arrow" } },
-  arrowrain:  { name: "ฝนธนู", desc: "ดาเมจ 120% ทุกตัวในวง 3 ช่องรอบเป้าหมาย", sp: 14, cooldown: 10000, target: "mob", range: 220, mult: 1.2, area: 96, auto: "dmg", fx: { type: "aoe", color: 0xc8f0a0 } },
-  swiftstep:  { name: "ฝีเท้าลม", desc: "เดินเร็วขึ้น 40% หลบ +15% นาน 10 วิ", sp: 10, cooldown: 25000, target: "self", buff: "swift", fx: { type: "ring", color: 0x7dff9a } },
-  // นักเวทย์
-  firebolt:   { name: "ลูกไฟ", desc: "เวท 190% ใส่เป้าหมาย + ไฟกระเด็นรอบ ๆ 50%", sp: 8, cooldown: 3000, target: "mob", range: 200, mult: 1.9, splash: 0.5, area: 48, auto: "dmg", fx: { type: "proj", proj: "fire" } },
-  frostnova:  { name: "วงน้ำแข็ง", desc: "เวท 130% ทุกตัวในวง 3.5 ช่อง + ช้าลงครึ่งหนึ่ง 3 วิ", sp: 16, cooldown: 10000, target: "mob", range: 200, mult: 1.3, area: 110, slow: 3000, auto: "dmg", fx: { type: "aoe", color: 0x9fe3ff } },
-  meteor:     { name: "อุกกาบาต", desc: "หลัง 0.8 วิ เวท 260% ทุกตัวในวง 4 ช่อง", sp: 30, cooldown: 20000, target: "mob", range: 220, mult: 2.6, area: 128, delay: 800, auto: "dmg", fx: { type: "meteor", color: 0xff7a30 } },
-  // หมอ
-  heal:       { name: "แสงรักษา", desc: "ฮีลตัวเองหรือเพื่อนที่เลือดน้อยสุดในระยะ 7 ช่อง: 25% ของ HP + INT×4", sp: 10, cooldown: 4000, target: "ally", range: 220, auto: "heal", fx: { type: "heal", color: 0xfff1a0 } },
-  bless:      { name: "พรแห่งแสง", desc: "ทุกคนรอบตัว (7 ช่อง) ATK/DEF +15% นาน 60 วิ", sp: 20, cooldown: 45000, target: "self", area: 220, buff: "bless", auto: "buff", fx: { type: "ring", color: 0xffe28a } },
-  holylight:  { name: "แสงพิพากษา", desc: "เวท 180% · อันเดด (โครงกระดูก ผีดิบ แวมไพร์) แรงขึ้น 60%", sp: 9, cooldown: 3500, target: "mob", range: 200, mult: 1.8, undead: 1.6, auto: "dmg", fx: { type: "proj", proj: "holy" } },
+  // ===== ชาวบ้าน =====
+  basic:      { name: "ทักษะพื้นฐาน", passive: true, max: 5, icon: "leather", color: "#8a6a3a",
+    desc: (L) => `ATK +${2 * L} · DEF +${L} · HP/SP สูงสุด +${L}%`, pas: (L) => ({ atk: 2 * L, def: L, hpPct: L, spPct: L }) },
+  firstaid:   { name: "ปฐมพยาบาล", max: 5, innate: 1, sp: [8, 0], cooldown: 12000, target: "self", auto: "heal", icon: "potion_m", color: "#2f8a4a",
+    heal: [0.15, 0.05], desc: (L) => `ฟื้น HP ${Math.round((0.15 + 0.05 * L) * 100)}% (+INT×2)`, fx: { type: "heal", color: 0x7dffa8 } },
+  doublehit:  { name: "ฟันซ้ำ", max: 5, innate: 1, sp: [5, 0], cooldown: 5000, target: "mob", range: 60, auto: "dmg", icon: "sword", color: "#7a4a2a",
+    mult: [0.8, 0.05], desc: (L) => `ตี 2 ครั้งติด ครั้งละ ${Math.round((0.8 + 0.05 * L) * 100)}%` },
+  // ===== ผู้พิทักษ์ =====
+  swordmastery: { name: "ชำนาญดาบ", passive: true, max: 10, icon: "saber", color: "#3a5a9a",
+    desc: (L) => `ATK +${3 * L} เมื่อถือดาบหรือกระบอง`, pas: (L, wt) => (wt === "sword" || wt === "mace" ? { atk: 3 * L } : {}) },
+  ironbody:   { name: "กายเหล็ก", passive: true, max: 10, icon: "plate", color: "#5a6a7a",
+    desc: (L) => `HP สูงสุด +${2 * L}% · DEF +${L}`, pas: (L) => ({ hpPct: 2 * L, def: L }) },
+  shieldbash: { name: "กระแทกโล่", max: 10, sp: [6, 0.5], cooldown: 6000, target: "mob", range: 56, auto: "dmg", icon: "shield_knight", color: "#4a6ab0",
+    mult: [1.2, 0.08], stun: [1000, 100], desc: (L) => `ดาเมจ ${Math.round((1.2 + 0.08 * L) * 100)}% + มึนงง ${(1 + 0.1 * L).toFixed(1)} วิ`, fx: { type: "hit", color: 0xffffff } },
+  provoke:    { name: "ท้าทาย", max: 5, req: ["shieldbash", 3], sp: [10, 0], cooldown: 12000, target: "self", area: [100, 20], buff: "provoke", auto: "pull", icon: "nasal", color: "#a04040",
+    bv: (L) => ({ def: 1.1 + 0.05 * L }), desc: (L) => `ดึงมอนรอบตัว ${Math.round((100 + 20 * L) / 32)} ช่อง มาตีเรา + DEF +${10 + 5 * L}% 8 วิ`, fx: { type: "ring", color: 0xff6b6b } },
+  shieldwall: { name: "กำแพงโล่", max: 5, req: ["ironbody", 5], sp: [15, 0], cooldown: 25000, target: "self", buff: "shieldwall", auto: "def", icon: "shield_spartan", color: "#2a5a9a",
+    bv: (L) => ({ taken: 0.8 - 0.07 * L, ms: 6000 + 1000 * L }), desc: (L) => `ลดดาเมจที่ได้รับ ${Math.round((0.2 + 0.07 * L) * 100)}% นาน ${6 + L} วิ`, fx: { type: "ring", color: 0x6fb6ff } },
+  // ===== นักดาบใหญ่ =====
+  gsmastery:  { name: "ชำนาญอาวุธสองมือ", passive: true, max: 10, icon: "greatsword", color: "#8a3a2a",
+    desc: (L) => `ATK +${3 * L} เมื่อถือดาบใหญ่หรือขวาน`, pas: (L, wt) => (wt === "greatsword" || wt === "axe" ? { atk: 3 * L } : {}) },
+  cleave:     { name: "ฟันกวาด", max: 10, sp: [8, 0.5], cooldown: 6000, target: "mob", range: 60, auto: "dmg", icon: "waraxe", color: "#b05a2a",
+    mult: [0.9, 0.06], area: [64, 4], desc: (L) => `ดาเมจ ${Math.round((0.9 + 0.06 * L) * 100)}% ทุกตัวรอบเป้าหมาย ${((64 + 4 * L) / 32).toFixed(1)} ช่อง`, fx: { type: "aoe", color: 0xff9a5a } },
+  fury:       { name: "โทสะ", max: 5, req: ["gsmastery", 5], sp: [15, 0], cooldown: 30000, target: "self", buff: "fury", auto: "buff", icon: "titanaxe", color: "#c02a2a",
+    bv: (L) => ({ atk: 1.1 + 0.05 * L, aspd: 0.95 - 0.04 * L }), desc: (L) => `ATK +${10 + 5 * L}% · ตีเร็วขึ้น ${5 + 4 * L}% นาน 10 วิ`, fx: { type: "ring", color: 0xff4040 } },
+  execute:    { name: "ปลิดชีพ", max: 10, req: ["cleave", 5], sp: [10, 0.5], cooldown: 8000, target: "mob", range: 60, auto: "dmg", icon: "goldgaunt", color: "#902020",
+    mult: [1.5, 0.1], desc: (L) => `ดาเมจ ${Math.round((1.5 + 0.1 * L) * 100)}% · คอมโบจากการตีปกติ +15%/ขั้น (สูงสุด 5) · เป้าเลือดต่ำกว่า 30% แรงขึ้น 50%`, fx: { type: "hit", color: 0xff5050 } },
+  bloodlust:  { name: "เลือดนักรบ", passive: true, max: 5, req: ["execute", 5], icon: "boar_charm", color: "#701818",
+    desc: (L) => `โอกาสคริติคอล +${3 * L}%`, pas: (L) => ({ crit: 0.03 * L }) },
+  // ===== นักล่า =====
+  bowmastery: { name: "ชำนาญธนู", passive: true, max: 10, icon: "bow_hunter", color: "#3a7a3a",
+    desc: (L) => `ATK +${3 * L} เมื่อถือธนู`, pas: (L, wt) => (wt === "bow" ? { atk: 3 * L } : {}) },
+  doubleshot: { name: "ยิงสองดอก", max: 10, sp: [5, 0.3], cooldown: 4000, target: "mob", range: 200, auto: "dmg", icon: "bow_shadow", color: "#4a8a3a",
+    mult: [0.7, 0.04], desc: (L) => `ยิง 2 ดอกติด ดอกละ ${Math.round((0.7 + 0.04 * L) * 100)}%`, fx: { type: "proj", proj: "arrow" } },
+  hawkeye:    { name: "สายตาเหยี่ยว", passive: true, max: 5, req: ["bowmastery", 3], icon: "glasses", color: "#5a7a2a",
+    desc: (L) => `ระยะยิง +${(L * 8 / 32).toFixed(2)} ช่อง · ตีโดนแม่นขึ้น ${L}%`, pas: (L, wt) => ({ hit: 0.01 * L, ...(wt === "bow" ? { range: 8 * L } : {}) }) },
+  arrowrain:  { name: "ฝนธนู", max: 10, req: ["doubleshot", 5], sp: [12, 0.5], cooldown: 10000, target: "mob", range: 220, auto: "dmg", icon: "ranger_cap", color: "#6a9a3a",
+    mult: [0.8, 0.06], area: [80, 4], desc: (L) => `ดาเมจ ${Math.round((0.8 + 0.06 * L) * 100)}% ทุกตัวในวง ${((80 + 4 * L) / 32).toFixed(1)} ช่องรอบเป้าหมาย`, fx: { type: "aoe", color: 0xc8f0a0 } },
+  swiftstep:  { name: "ฝีเท้าลม", max: 5, req: ["hawkeye", 3], sp: [10, 0], cooldown: 25000, target: "self", buff: "swift", icon: "ranger_boots", color: "#2a9a6a",
+    bv: (L) => ({ speed: 1.1 + 0.06 * L, flee: 0.03 * L }), desc: (L) => `เดินเร็วขึ้น ${10 + 6 * L}% · หลบ +${3 * L}% นาน 10 วิ`, fx: { type: "ring", color: 0x7dff9a } },
+  // ===== นักเวทย์ =====
+  staffmastery: { name: "ชำนาญคทา", passive: true, max: 10, icon: "staff_oak", color: "#5a3a8a",
+    desc: (L) => `พลังเวท +${3 * L} เมื่อถือคทา`, pas: (L, wt) => (wt === "staff" ? { atk: 3 * L } : {}) },
+  meditation: { name: "สมาธิ", passive: true, max: 10, icon: "potion_sp", color: "#3a4a9a",
+    desc: (L) => `SP สูงสุด +${3 * L}% · SP ฟื้นเร็วขึ้น ${5 * L}%`, pas: (L) => ({ spPct: 3 * L, spRegen: 0.05 * L }) },
+  firebolt:   { name: "ลูกไฟ", max: 10, sp: [6, 0.4], cooldown: 3000, target: "mob", range: 200, auto: "dmg", icon: "pumpkin", color: "#c0501a",
+    mult: [1.3, 0.08], splash: 0.5, area: [48, 0], desc: (L) => `เวท ${Math.round((1.3 + 0.08 * L) * 100)}% + ไฟกระเด็นรอบ ๆ 50%`, fx: { type: "proj", proj: "fire" } },
+  frostnova:  { name: "วงน้ำแข็ง", max: 10, req: ["firebolt", 3], sp: [14, 0.5], cooldown: 10000, target: "mob", range: 200, auto: "dmg", icon: "frost_hide", color: "#2a7ab0",
+    mult: [0.9, 0.06], area: [90, 4], slow: [2000, 200], desc: (L) => `เวท ${Math.round((0.9 + 0.06 * L) * 100)}% ทุกตัวในวง ${((90 + 4 * L) / 32).toFixed(1)} ช่อง + ช้าลง ${(2 + 0.2 * L).toFixed(1)} วิ`, fx: { type: "aoe", color: 0x9fe3ff } },
+  meteor:     { name: "อุกกาบาต", max: 10, req: ["frostnova", 5], sp: [26, 1], cooldown: 20000, target: "mob", range: 220, auto: "dmg", icon: "stone_3", color: "#b03a1a",
+    mult: [1.8, 0.12], area: [110, 4], delay: 800, desc: (L) => `หลัง 0.8 วิ เวท ${Math.round((1.8 + 0.12 * L) * 100)}% ทุกตัวในวง ${((110 + 4 * L) / 32).toFixed(1)} ช่อง`, fx: { type: "meteor", color: 0xff7a30 } },
+  // ===== หมอ =====
+  faith:      { name: "ศรัทธา", passive: true, max: 10, icon: "book_light", color: "#a08a3a",
+    desc: (L) => `ฮีลแรงขึ้น ${4 * L}% · SP สูงสุด +${2 * L}%`, pas: (L) => ({ healPct: 0.04 * L, spPct: 2 * L }) },
+  heal:       { name: "แสงรักษา", max: 10, sp: [8, 0.4], cooldown: 4000, target: "ally", range: 220, auto: "heal", icon: "potion_s", color: "#c0a030",
+    heal: [0.12, 0.02], desc: (L) => `ฮีลตัวเองหรือเพื่อนที่เลือดน้อยสุดในระยะ 7 ช่อง: ${Math.round((0.12 + 0.02 * L) * 100)}% ของ HP + INT×4`, fx: { type: "heal", color: 0xfff1a0 } },
+  holylight:  { name: "แสงพิพากษา", max: 10, sp: [7, 0.3], cooldown: 3500, target: "mob", range: 200, auto: "dmg", icon: "book_holy", color: "#d0b040",
+    mult: [1.2, 0.08], undead: 1.6, desc: (L) => `เวท ${Math.round((1.2 + 0.08 * L) * 100)}% · อันเดดแรงขึ้น 60%`, fx: { type: "proj", proj: "holy" } },
+  bless:      { name: "พรแห่งแสง", max: 5, req: ["heal", 5], sp: [20, 0], cooldown: 45000, target: "self", area: [220, 0], buff: "bless", auto: "buff", icon: "saint_crown", color: "#e0c050",
+    bv: (L) => ({ atk: 1.05 + 0.03 * L, def: 1.05 + 0.03 * L, ms: 30000 + 10000 * L }), desc: (L) => `ทุกคนรอบตัว 7 ช่อง ATK/DEF +${5 + 3 * L}% นาน ${30 + 10 * L} วิ`, fx: { type: "ring", color: 0xffe28a } },
 };
+// ค่าของสกิลที่เลเวล L (แปลง [a, b] → ตัวเลข)
+const lvVal = (v, L) => (Array.isArray(v) ? v[0] + v[1] * L : v);
+function skillAt(key, L) {
+  const sk = SKILLS[key];
+  if (!sk) return null;
+  L = Math.max(1, Math.min(sk.max, L || 1));
+  const o = { ...sk, lv: L };
+  for (const f of ["sp", "mult", "area", "stun", "slow", "heal"]) if (sk[f] !== undefined) o[f] = lvVal(sk[f], L);
+  if (o.sp !== undefined) o.sp = Math.round(o.sp);
+  return o;
+}
 // บัฟ: atk/def = ตัวคูณ · taken = ตัวคูณดาเมจที่ได้รับ · aspd = ตัวคูณเวลาต่อการตี · speed = ความเร็วเดิน · flee = หลบเพิ่ม
+// (ค่าจริงขึ้นกับเลเวลสกิล ดู bv ของสกิล — ค่าในนี้ใช้เมื่อไม่มีเลเวล)
 const BUFFS = {
   provoke: { name: "ท้าทาย", ms: 8000, def: 1.3 },
   shieldwall: { name: "กำแพงโล่", ms: 8000, taken: 0.5 },
@@ -199,15 +253,58 @@ const BUFFS = {
   swift: { name: "ฝีเท้าลม", ms: 10000, speed: 1.4, flee: 0.15 },
   bless: { name: "พรแห่งแสง", ms: 60000, atk: 1.15, def: 1.15 },
 };
-// สกิลของแต่ละอาชีพ (ตามลำดับช่อง 1–9)
-const JOB_SKILLS = {
-  villager: ["firstaid", "doublehit"],
-  guardian: ["firstaid", "shieldbash", "provoke", "shieldwall"],
-  slayer: ["firstaid", "execute", "cleave", "fury"],
-  hunter: ["firstaid", "doubleshot", "arrowrain", "swiftstep"],
-  mage: ["firstaid", "firebolt", "frostnova", "meteor"],
-  healer: ["heal", "holylight", "bless"],
+// ต้นไม้สกิล: แต่ละแท็บ = รายการแถว (I, II, III) ของสกิล
+const SKILL_TREE = {
+  villager: [["basic", "firstaid", "doublehit"]],
+  guardian: [["swordmastery", "ironbody", "shieldbash"], ["provoke", "shieldwall"]],
+  slayer: [["gsmastery", "cleave"], ["fury", "execute"], ["bloodlust"]],
+  hunter: [["bowmastery", "doubleshot"], ["hawkeye", "arrowrain"], ["swiftstep"]],
+  mage: [["staffmastery", "meditation", "firebolt"], ["frostnova"], ["meteor"]],
+  healer: [["faith", "heal", "holylight"], ["bless"]],
 };
+const treeKeys = (job) => [...SKILL_TREE.villager.flat(), ...(job !== "villager" && SKILL_TREE[job] ? SKILL_TREE[job].flat() : [])];
+// สกิลที่กดใช้ได้ (ตามลำดับช่องในแถบสกิล) — เฉพาะที่เรียนแล้ว
+const JOB_SKILLS = Object.fromEntries(Object.keys(SKILL_TREE).map((j) => [j, treeKeys(j).filter((k) => !SKILLS[k].passive)]));
+const skillPointsAt = (lv) => Math.max(0, lv - 1); // ได้ 1 แต้มต่อเลเวล
+const innateSkills = () => Object.fromEntries(Object.entries(SKILLS).filter(([, s]) => s.innate).map(([k, s]) => [k, s.innate]));
+const skillSpent = (sk) => Object.entries(sk || {}).reduce((t, [k, L]) => t + Math.max(0, L - ((SKILLS[k] && SKILLS[k].innate) || 0)), 0);
+// เรียนสกิลนี้ขั้นถัดไปได้ไหม → คืนข้อความเหตุผล (null = ได้)
+function learnError(job, sk, key, points) {
+  const S = SKILLS[key];
+  if (!S || !treeKeys(job).includes(key)) return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
+  const L = sk[key] || 0;
+  if (L >= S.max) return "สกิลนี้เลเวลสูงสุดแล้ว";
+  if (S.req && (sk[S.req[0]] || 0) < S.req[1]) return `ต้องมี ${SKILLS[S.req[0]].name} Lv.${S.req[1]} ก่อน`;
+  if (points < 1) return "แต้มสกิลไม่พอ";
+  return null;
+}
+// โหลดสกิลที่บันทึกไว้ (ตัดสกิลที่อาชีพนี้ไม่มี · ข้อมูลผิดปกติ = คืนแต้มทั้งหมด)
+function sanitizeSkills(raw, job, lv) {
+  const out = innateSkills();
+  for (const k of treeKeys(job)) {
+    const v = Math.floor(Number(raw && raw[k]) || 0);
+    if (v > 0) out[k] = Math.max(out[k] || 0, Math.min(SKILLS[k].max, v));
+  }
+  return skillSpent(out) > skillPointsAt(lv) ? innateSkills() : out;
+}
+// ข้อมูลสกิลสำหรับ client (ฟังก์ชันส่งผ่านเครือข่ายไม่ได้ → คำนวณคำอธิบาย/SP ทุกเลเวลไว้ให้)
+const skillsForClient = () => Object.fromEntries(Object.entries(SKILLS).map(([k, s]) => {
+  const o = { name: s.name, passive: !!s.passive, max: s.max, innate: s.innate || 0, req: s.req || null, icon: s.icon, color: s.color,
+    target: s.target || null, cooldown: s.cooldown || 0, range: s.range || 0, fx: s.fx || null, descs: [], sps: [] };
+  for (let L = 1; L <= s.max; L++) { o.descs.push(s.desc(L)); if (s.sp) o.sps.push(Math.round(lvVal(s.sp, L))); }
+  o.desc = o.descs[0]; o.sp = o.sps[0] || 0;
+  return [k, o];
+}));
+// ผลของสกิลติดตัวทั้งหมด
+function passiveBonus(sk, job, wt) {
+  const out = { atk: 0, def: 0, hpPct: 0, spPct: 0, crit: 0, hit: 0, range: 0, healPct: 0, spRegen: 0 };
+  for (const k of treeKeys(job)) {
+    const S = SKILLS[k], L = sk[k] || 0;
+    if (!S.passive || !L) continue;
+    for (const [f, v] of Object.entries(S.pas(L, wt))) out[f] = (out[f] || 0) + v;
+  }
+  return out;
+}
 
 // ---------- เควสเปลี่ยนอาชีพ (คุยกับครูฝึกอาชีพในเมือง) ----------
 // kill = [มอน, จำนวน] · item = [ของที่ต้องนำมา, จำนวน] · reward = อาวุธประจำอาชีพที่ได้เมื่อผ่าน
@@ -229,4 +326,5 @@ module.exports = {
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
   JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS,
+  SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus,
 };
