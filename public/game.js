@@ -340,6 +340,8 @@ function bindRoom(room) {
     room.onMessage("buff", (b) => onBuff(b));
     room.onMessage("skills", (d) => onSkills(d));
     room.onMessage("bossCast", (c) => scene && scene.bossCast(c));
+    room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
+    room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
     room.onMessage("bossSlam", (c) => scene && scene.bossSlam(c));
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
     room.onLeave((code) => {
@@ -476,7 +478,12 @@ class WorldScene extends Phaser.Scene {
     });
 
     // ---------- เหตุการณ์ต่อสู้ ----------
-    room.onMessage("atk", ({ id, dir, fx, tgt }) => {
+    room.onMessage("atk", ({ id, dir, fx, tgt, mob }) => {
+      if (mob && fx) { // มอนยิงจากระยะไกล
+        this.playOnce(id, "cast", dir, 440);
+        this.time.delayedCall(200, () => this.projectile(id, tgt, fx));
+        return;
+      }
       // ธนู: น้าวสายแล้วปล่อยลูกศรตอนเฟรมปล่อย · คทา/คัมภีร์: ชี้ไปข้างหน้าแล้วยิงลูกเวท
       if (fx === "arrow") { this.playOnce(id, "aim", dir, 560); this.time.delayedCall(SHOOT_RELEASE_MS, () => this.projectile(id, tgt, "arrow")); }
       else if (fx) { this.playOnce(id, this.hasAnim(id, "thrust") ? "thrust" : "cast", dir, 440); this.time.delayedCall(CAST_RELEASE_MS, () => this.projectile(id, tgt, fx)); }
@@ -745,6 +752,7 @@ class WorldScene extends Phaser.Scene {
       const diff = me ? lv - me.level : 0;
       v.label.setColor(diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
+      this.syncRank(v, e);
       if (e.boss) v.label.setColor("#ffb84a").setText(`👑 ${e.name}  Lv.${lv}`).setY(-58 * (e.scale || 1) + 4);
     } else {
       if ((e.gear || "") !== v.gear || e.job !== v.job) { // เปลี่ยนอุปกรณ์/อาชีพ → ประกอบภาพตัวละครใหม่
@@ -851,9 +859,13 @@ class WorldScene extends Phaser.Scene {
   }
 
   // ---------- เอฟเฟกต์ ----------
-  onHit({ tgt, src, dmg, crit, miss }) {
+  onHit({ tgt, src, dmg, crit, miss, poison }) {
     const v = this.views.get(tgt);
     if (!v) return;
+    if (poison) { // พิษ: ตัวเลขเขียวเล็ก ๆ เฉพาะคนที่โดน
+      if (tgt === room.sessionId) { this.floatText(v.root.x + Phaser.Math.Between(-8, 8), v.root.y - 64, String(dmg), "#7dff6a", 12, 700); v.sprite.setTint(0x9dff8a); this.time.delayedCall(200, () => v.sprite.clearTint()); }
+      return;
+    }
     const mine = src === room.sessionId, onMe = tgt === room.sessionId;
     if (!mine && !onMe && !v.isMob) return;
     const x = v.root.x + Phaser.Math.Between(-10, 10), y = v.root.y - 72;
@@ -890,11 +902,14 @@ class WorldScene extends Phaser.Scene {
     const x0 = a.root.x, y0 = a.root.y - 30;
     const x1 = b ? b.root.x : toXY.x, y1 = (b ? b.root.y : toXY.y) - 26;
     const d = Math.hypot(x1 - x0, y1 - y0), ms = Math.min(450, 60 + d * 1.4);
-    const COL = { magic: 0xc38bff, fire: 0xff8a3a, holy: 0xfff1a0 };
+    const COL = { magic: 0xc38bff, fire: 0xff8a3a, holy: 0xfff1a0, poison: 0x7dff6a, ice: 0x9fe3ff, dark: 0x9a4ae0, rock: 0xa08060 };
     let o;
     if (kind === "arrow") {
       o = this.add.container(x0, y0, [this.add.rectangle(0, 0, 14, 2, 0x8a5a2b), this.add.triangle(8, 0, 0, -3, 0, 3, 5, 0, 0xe8e8f0), this.add.rectangle(-7, 0, 3, 4, 0xffffff)]);
       o.rotation = Math.atan2(y1 - y0, x1 - x0);
+    } else if (kind === "rock") { // หินขว้าง: หมุนไปตามทาง
+      o = this.add.container(x0, y0, [this.add.circle(0, 0, 6, 0x6e5a44), this.add.circle(-2, -2, 3, 0xa08a6e)]);
+      this.tweens.add({ targets: o, angle: 720, duration: ms });
     } else {
       const c = COL[kind] || 0xffffff;
       o = this.add.container(x0, y0, [this.add.circle(0, 0, kind === "fire" ? 7 : 6, c, 0.35), this.add.circle(0, 0, kind === "fire" ? 4 : 3, 0xffffff, 0.95)]);
@@ -975,6 +990,42 @@ class WorldScene extends Phaser.Scene {
     const p = this.add.circle(x, y, sz, col, 0.95).setDepth(v.root.depth + 2).setBlendMode(Phaser.BlendModes.ADD);
     const g = this.add.circle(x, y, sz * 2.6, col, 0.25).setDepth(v.root.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: [p, g], y: y - 18 - Math.random() * 14, alpha: 0, duration: 700 + Math.random() * 300, onComplete: () => { p.destroy(); g.destroy(); } });
+  }
+
+  // ชั้นยอด (rank 1) = ตัวใหญ่ขึ้น + เรืองแสงทอง · มินิบอส (rank 2) = ใหญ่มาก + เรืองแสงแดง + มงกุฎ
+  syncRank(v, e) {
+    const sc = e.scale || 1;
+    if (v.scaleNow !== sc) { v.scaleNow = sc; v.sprite.setScale(sc); v.root.list[0].setScale(sc); v.label.y = -58 * sc; }
+    if (e.rank === 1) v.label.setColor("#ffc04a");
+    if (e.rank === 2) v.label.setColor("#ff6a5a").setText(`👑 ${e.name}  Lv.${e.level}`);
+    if (v.rankNow === (e.rank || 0)) return;
+    v.rankNow = e.rank || 0;
+    if (this.game.renderer.type !== Phaser.WEBGL || !v.sprite.preFX) return;
+    if (v.rankFx) { this.tweens.killTweensOf(v.rankFx); v.sprite.preFX.remove(v.rankFx); v.rankFx = null; }
+    if (v.rankNow) {
+      v.rankFx = v.sprite.preFX.addGlow(v.rankNow === 2 ? 0xff4a3a : 0xffc04a, 2, 0, false, 0.1, 10);
+      this.tweens.add({ targets: v.rankFx, outerStrength: { from: 1, to: v.rankNow === 2 ? 4 : 3 }, duration: 800, yoyo: true, repeat: -1 });
+    }
+  }
+
+  // ---------- พฤติกรรมมอน ----------
+  mobCharge({ id, x, y, tx, ty, ms }) { // เส้นเตือนก่อนพุ่งชน
+    const ang = Math.atan2(ty - y, tx - x), len = Math.hypot(tx - x, ty - y);
+    const r = this.add.rectangle(x, y - 6, len, 26, 0xff3a2a, 0.22).setOrigin(0, 0.5).setRotation(ang).setDepth(-7000).setStrokeStyle(2, 0xff5a4a, 0.8);
+    const fill = this.add.rectangle(x, y - 6, len, 26, 0xff3a2a, 0.35).setOrigin(0, 0.5).setRotation(ang).setDepth(-6999).setScale(0, 1);
+    this.tweens.add({ targets: fill, scaleX: 1, duration: ms });
+    this.time.delayedCall(ms + 250, () => { r.destroy(); fill.destroy(); });
+    const v = this.views.get(id);
+    if (v) { v.sprite.setTint(0xff8a7a); this.time.delayedCall(ms, () => v.sprite.clearTint()); }
+  }
+  mobFx({ id, kind }) {
+    const v = this.views.get(id);
+    if (!v) return;
+    if (kind === "heal") {
+      this.playOnce(id, "cast", v.dir, 500);
+      const ring = this.add.circle(v.root.x, v.root.y - 4, 20, 0x7dff9a, 0.25).setStrokeStyle(2, 0x9dffb0, 0.9).setDepth(v.root.depth - 1);
+      this.tweens.add({ targets: ring, scale: 5, alpha: 0, duration: 650, onComplete: () => ring.destroy() });
+    } else if (kind === "flee") this.floatText(v.root.x, v.root.y - 70, "!!", "#ffe08a", 16, 700);
   }
 
   // ---------- World Boss ----------
@@ -1152,7 +1203,7 @@ class WorldScene extends Phaser.Scene {
       else { r.x += (v.tx - r.x) * k; r.y += (v.ty - r.y) * k; }
       r.setDepth(v.dead ? r.y - 40 : r.y);
       // ชื่อมอนแสดงเฉพาะตอนชี้เมาส์ / เป็นเป้าหมาย / โดนตี (จอจะได้ไม่รก)
-      if (v.isMob) v.label.setVisible(!v.dead && (v.e.boss || v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
+      if (v.isMob) v.label.setVisible(!v.dead && (v.e.boss || v.e.rank || v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
       if (v.dead) {
         if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
         return;
@@ -1658,6 +1709,12 @@ function drawMinimap() {
     ctx.beginPath();
     ctx.arc(v.root.x * sx, v.root.y * sy, v.isMe ? 3 : v.isMob ? 1.4 : 2.2, 0, Math.PI * 2);
     ctx.fill();
+  });
+  // มินิบอส: จุดส้มขอบทอง
+  scene.views.forEach((v) => {
+    if (!v.isMob || v.e.rank !== 2 || v.dead) return;
+    ctx.fillStyle = "#ff6a3a"; ctx.strokeStyle = "#ffd36b"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(v.root.x * sx, v.root.y * sy, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   });
   // World Boss: หัวกะโหลกในวงแดงกะพริบ (วาดทับทุกอย่าง จะได้เห็นชัด)
   scene.views.forEach((v) => {

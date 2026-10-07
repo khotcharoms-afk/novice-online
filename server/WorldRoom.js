@@ -22,7 +22,9 @@ const MELEE_RANGE = 44;      // ระยะตีใกล้
 const MOB_ATK_MS = 1500;
 const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
-const LEASH = 420;           // มอนไล่ไกลเกินนี้จะกลับบ้าน
+const LEASH = 420;
+const ELITE_CHANCE = 0.04;      // โอกาสมอนเกิดเป็นชั้นยอด
+const MINI_RESPAWN_MS = [8 * 60000, 12 * 60000]; // มินิบอสเกิดใหม่ 8–12 นาทีหลังตาย           // มอนไล่ไกลเกินนี้จะกลับบ้าน
 const RESPAWN_PLAYER_MS = 4000;
 const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
 const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
@@ -48,6 +50,7 @@ defineTypes(Monster, {
   kind: "string", name: "string", level: "uint16", sprite: "string", tint: "uint32", scale: "number",
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean",
   hp: "uint32", maxHp: "uint32", boss: "boolean",
+  rank: "uint8", // 0 = ปกติ · 1 = ชั้นยอด (สุ่มเกิด) · 2 = มินิบอสประจำแผนที่
 });
 // สัตว์เลี้ยง (key = sessionId ของเจ้าของ) — บินได้ จึงไม่ชนสิ่งกีดขวาง
 class Pet extends Schema {}
@@ -161,6 +164,7 @@ class WorldRoom extends Room {
     this.mobSeq = 0;
     this.spawnMonsters();
     this.mapKinds = new Set(this.def.spawns.map(([k]) => k));
+    this.spawnMini();
     if (pendingBoss.has(this.mapId)) { const k = pendingBoss.get(this.mapId); pendingBoss.delete(this.mapId); this.spawnBoss(k); }
 
     this.onMessage("getMap", (client) => {
@@ -593,13 +597,40 @@ class WorldRoom extends Room {
     }
   }
 
+  // มินิบอสประจำแผนที่ (ตัวแรงที่สุดของแมพในร่างใหญ่ + ชื่อเฉพาะ) — เกิดใหม่ 8–12 นาทีหลังตาย
+  spawnMini() {
+    const MB = D.MINI_BOSSES[this.mapId];
+    if (!MB) return;
+    const baseDef = D.MONSTERS[MB.base], def = { ...baseDef, ...MB, name: MB.name, aggressive: true };
+    const id = "mini" + this.mobSeq++, m = new Monster();
+    m.kind = MB.base; m.name = MB.name; m.level = MB.level || baseDef.level + 3;
+    m.sprite = baseDef.sprite || MB.base; m.tint = MB.tint || baseDef.tint || 0xffffff; m.scale = MB.scale || 1.7; m.rank = 2;
+    const st = D.monsterStats(m.level);
+    const stats = { maxHp: st.maxHp * 10, atk: Math.round(st.atk * 1.5), def: Math.round(st.def * 1.3), exp: st.exp * 15 };
+    this.state.monsters.set(id, m);
+    this.mr.set(id, { def, stats, base: stats, mini: true, rank: 2, home: null, target: null, wander: null, nextWander: 0, atkReady: 0, respawnAt: 0, dmgBy: new Map() });
+    this.respawnMob(id);
+  }
+
   respawnMob(id) {
     const m = this.state.monsters.get(id), r = this.mr.get(id);
     // จุดเกิดคงที่ของมอนแต่ละตัว → มอนเกิดใหม่ที่เดิม ความหนาแน่นในแต่ละโซนไม่เปลี่ยน
     if (!r.spawn) r.spawn = this.mobSpot();
     m.x = r.spawn.x; m.y = r.spawn.y; m.dir = "down"; m.moving = false; m.dead = false;
+    // ชั้นยอด: สุ่มเกิด 4% (เฉพาะมอนปกติ) — ตัวใหญ่ เรืองแสง แรงขึ้น EXP/ของดีขึ้น
+    if (!r.mini) {
+      r.base = r.base || r.stats;
+      const elite = Math.random() < ELITE_CHANCE;
+      r.rank = elite ? 1 : 0; m.rank = r.rank;
+      r.stats = elite ? { maxHp: r.base.maxHp * 4, atk: Math.round(r.base.atk * 1.4), def: Math.round(r.base.def * 1.2), exp: r.base.exp * 4 } : r.base;
+      m.scale = (r.def.scale || 1) * (elite ? 1.3 : 1);
+      m.name = elite ? `★${r.def.name}` : r.def.name;
+    }
     m.maxHp = r.stats.maxHp; m.hp = m.maxHp;
     r.home = { ...r.spawn }; r.target = null; r.wander = null; r.returning = false; r.dmgBy.clear();
+    r.cast = null; r.dash = null; r.fled = false; r.fleeUntil = 0;
+    if (r.mini && r.announced) this.broadcast("system", `⚠️ ${m.name} ปรากฏตัวในแผนที่นี้อีกครั้ง! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`);
+    if (r.mini) r.announced = true;
   }
 
   // จุดเกิดมอน: ที่เดินได้ ห่างทางเข้า/จุดเกิดผู้เล่นอย่างน้อย 9 ช่อง และไปถึงได้จากจุดเกิด
@@ -802,6 +833,7 @@ class WorldRoom extends Room {
 
   stepToward(e, to, step) {
     const d = dist(e, to);
+    if (!(d > 0.5)) return false;
     return this.move(e, (to.x - e.x) / d, (to.y - e.y) / d, step);
   }
 
@@ -832,16 +864,58 @@ class WorldRoom extends Room {
 
     if (r.target) {
       const p = this.state.players.get(r.target);
-      if (!p || p.dead || dist(m, r.home) > LEASH) { r.target = null; r.returning = true; }
+      if (!p || p.dead || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1)) { r.target = null; r.returning = true; r.dash = null; }
       else {
-        const d = dist(m, p);
-        if (d > MOB_RANGE) { if (!this.navTo(m, r, p, step * 1.25, t)) { r.target = null; r.returning = true; } }
+        const B = r.def, d = dist(m, p);
+        // หนี: เลือดต่ำ → วิ่งหนี 3 วิ (ครั้งเดียวต่อชีวิต) แล้วกลับมาสู้
+        if (B.flee && !r.fled && m.hp < m.maxHp * B.flee) { r.fled = true; r.fleeUntil = t + 3000; this.broadcast("mobFx", { id, kind: "flee" }); }
+        if (t < r.fleeUntil) { this.stepToward(m, { x: m.x * 2 - p.x, y: m.y * 2 - p.y }, step * 1.3); return; }
+        // พุ่งชน: ตั้งท่า (มีเส้นเตือน) แล้วพุ่งไปจุดที่ผู้เล่นยืน
+        if (r.dash) {
+          if (t < r.dash.at) { m.moving = false; return; }
+          const dsh = r.dash, sp = (620 * dt) / 1000;
+          const moved = this.stepToward(m, { x: dsh.tx, y: dsh.ty }, sp);
+          if (!dsh.hit) this.state.players.forEach((pp, pid) => {
+            if (!dsh.hit && !pp.dead && dist(m, pp) < 34) { dsh.hit = true; this.hitPlayer(id, m, r, pid, B.charge.mult || 1.8); }
+          });
+          if (!moved || t > dsh.at + 450 || Math.hypot(m.x - dsh.tx, m.y - dsh.ty) < 6) { r.dash = null; r.atkReady = t + 700; }
+          return;
+        }
+        if (B.charge && t >= (r.nextCharge || 0) && d > 70 && d < 280) {
+          r.nextCharge = t + B.charge.every;
+          const ux = (p.x - m.x) / d, uy = (p.y - m.y) / d, L = Math.min(300, d + 40);
+          r.dash = { at: t + 650, tx: m.x + ux * L, ty: m.y + uy * L };
+          m.moving = false; m.dir = dirOf(ux, uy);
+          this.broadcast("mobCharge", { id, x: m.x, y: m.y, tx: r.dash.tx, ty: r.dash.ty, ms: 650 });
+          return;
+        }
+        // ฮีลพวกเดียวกันที่บาดเจ็บรอบตัว (รวมตัวเอง)
+        if (B.healer && t >= (r.nextHeal || 0)) {
+          let healed = 0;
+          this.state.monsters.forEach((mm, mid) => {
+            if (mm.dead || mm.hp >= mm.maxHp * 0.75 || dist(mm, m) > B.healer.r) return;
+            const amt = Math.round(mm.maxHp * B.healer.pct / 100);
+            mm.hp = Math.min(mm.maxHp, mm.hp + amt); healed++;
+            this.broadcast("heal", { id: mid, amount: amt });
+          });
+          if (healed) { r.nextHeal = t + B.healer.every; this.broadcast("mobFx", { id, kind: "heal" }); m.moving = false; return; }
+          r.nextHeal = t + 1500;
+        }
+        const RG = B.ranged, range = RG ? RG.range : MOB_RANGE + ((m.scale || 1) - 1) * 24;
+        if (d > range) { if (!this.navTo(m, r, p, step * 1.25, t)) { r.target = null; r.returning = true; } }
         else {
           m.moving = false; m.dir = dirOf(p.x - m.x, p.y - m.y);
           if (t >= r.atkReady) {
-            r.atkReady = t + MOB_ATK_MS;
-            this.broadcast("atk", { id, dir: m.dir, mob: true });
-            this.hitPlayer(id, m, r, r.target);
+            if (RG) { // ยิงจากระยะไกล: ลูกพิษ/เวท/ไฟ/น้ำแข็ง/หิน — ดาเมจตอนกระสุนถึง
+              r.atkReady = t + (RG.every || 1800);
+              const tgt = r.target;
+              this.broadcast("atk", { id, dir: m.dir, mob: true, fx: RG.fx, tgt });
+              this.clock.setTimeout(() => { if (!m.dead) this.hitPlayer(id, m, r, tgt); }, 200 + Math.min(450, 60 + d * 1.4));
+            } else {
+              r.atkReady = t + MOB_ATK_MS;
+              this.broadcast("atk", { id, dir: m.dir, mob: true });
+              this.hitPlayer(id, m, r, r.target);
+            }
           }
         }
         return;
@@ -1040,7 +1114,8 @@ class WorldRoom extends Room {
 
   killMob(mid, m, r) {
     m.dead = true; m.moving = false;
-    r.respawnAt = r.temp ? Infinity : now() + D.MONSTER_RESPAWN_MS;
+    r.respawnAt = r.temp ? Infinity : r.mini ? now() + rand(...MINI_RESPAWN_MS) : now() + D.MONSTER_RESPAWN_MS;
+    if (r.mini) this.broadcast("system", `🏆 ${m.name} ถูกปราบแล้ว! (จะกลับมาอีกในอีกประมาณ 10 นาที)`);
     // บอส/ลูกน้องบอส: ไม่เกิดใหม่ ลบออกจากแผนที่หลังเล่นท่าตาย
     if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); }, r.boss ? 15000 : 2500);
     r.target = null;
@@ -1056,16 +1131,24 @@ class WorldRoom extends Room {
       if (cl) { cl.send("quest", q); cl.send("toast", `เควส: ${m.name} ${q.kills}/${Q.kill[1]}`); }
     });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
-    const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1);
+    const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1) * (r.rank === 2 ? 8 : r.rank === 1 ? 3 : 1);
     let top = null, topDmg = -1;
     r.dmgBy.forEach((dmg, pid) => {
       if (dmg > topDmg) { topDmg = dmg; top = pid; }
       const pp = this.state.players.get(pid), g = Math.max(1, Math.round((gold * dmg) / total));
       if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { goldGain: g, at: { x: m.x, y: m.y } }); }
     });
-    const tp = top && this.state.players.get(top), dropMul = 1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100;
-    for (const [id, chance, lo, hi] of I.DROPS[m.kind] || [])
-      if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, I.makeGear(id));
+    const tp = top && this.state.players.get(top), rankMul = r.rank === 2 ? 6 : r.rank === 1 ? 3 : 1;
+    const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul;
+    // ชั้นยอด/มินิบอส: ของดีขึ้น (อุปกรณ์ระดับขั้นต่ำสูงขึ้น)
+    const gearOf = (id) => { const g = I.makeGear(id); if (g && r.rank) g.r = Math.max(g.r, r.rank === 2 ? 2 : 1); return g; };
+    const table = I.DROPS[m.kind] || [];
+    for (const [id, chance, lo, hi] of table)
+      if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, gearOf(id));
+    if (r.rank === 2) { // มินิบอส: อุปกรณ์ 1 ชิ้นแน่นอน
+      const eq = table.filter(([id]) => I.ITEMS[id].type === "equip");
+      if (eq.length) { const id = eq[Math.floor(Math.random() * eq.length)][0]; this.spawnDrop(id, 1, m.x + 10, m.y + 6, top, gearOf(id)); }
+    }
     if (r.boss) {
       this.bossLoot(m, r, top, total);
       // บอสตาย → ลูกน้องหายไปด้วย
@@ -1086,6 +1169,12 @@ class WorldRoom extends Room {
     if (res.miss) return;
     p.hp = Math.max(0, p.hp - res.dmg);
     pr.lastHurt = now();
+    const PZ = r.def && r.def.poison;
+    if (PZ && p.hp > 0 && !pr.poison) {
+      pr.poison = { until: now() + PZ.ms, dmg: Math.max(1, Math.round(r.stats.atk * PZ.pct / 100)) };
+      const cl = this.clients.find((c) => c.sessionId === pid);
+      if (cl) cl.send("toast", `☠ ติดพิษจาก${m.name}!`);
+    }
     if (p.hp <= 0) {
       p.dead = true; p.moving = false; p.auto = false; p.autoState = "";
       pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0; pr.buffs = {}; pr.combo = 0;
@@ -1587,6 +1676,11 @@ class WorldRoom extends Room {
     this.state.players.forEach((p, id) => {
       const r = this.pr.get(id);
       if (!r || p.dead) return;
+      // พิษจากมอน: เสียเลือดทุกวินาที (ไม่ทำให้ตาย)
+      if (r.poison) {
+        if (t > r.poison.until) r.poison = null;
+        else if (p.hp > 1) { const d = Math.min(p.hp - 1, r.poison.dmg); p.hp -= d; r.lastHurt = t; this.broadcast("hit", { tgt: id, dmg: d, poison: true }); }
+      }
       if (t - r.lastHurt > 6000 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.03 * (1 + ((p.sx && p.sx.hpRegen) || 0) / 100)));
       // SP ฟื้นช้าลงตอนสู้: กำลังสู้ (โดนตีหรือตี/ใช้สกิลใน 6 วิ) 0.6%/วิ · พักอยู่ 1.5%/วิ (+INT เล็กน้อย)
       if (p.sp < p.maxSp) {

@@ -150,6 +150,83 @@ const MONSTERS = {
   darkcyclops:  { name: "ไซคลอปส์ทมิฬ",          level: 96, sprite: "darkcyclops",  speed: 80,  aggressive: true,  scale: 1.3 },
   abysslord:    { name: "จอมมารแห่งห้วงลึก",      level: 98, sprite: "abysslord",    speed: 95,  aggressive: true,  scale: 1.3 },
 };
+// ---------- มอนรูปร่างไม่ใช่คน (ภาพวาดด้วยโค้ด tools/mobs/creatures.py) ----------
+// mat = วัตถุดิบที่ดรอป · borrow = ยืมรายการอุปกรณ์ที่ดรอปจากมอนตัวนี้ (แผนที่เดียวกัน)
+Object.assign(MONSTERS, {
+  slime_green:  { name: "สไลม์เขียว",           level: 3,  sprite: "slime_green",  speed: 55,  aggressive: false, mat: ["slime_gel", "เจลสไลม์"], borrow: "rabbit" },
+  shroom_red:   { name: "เห็ดพิษเดินได้",        level: 9,  sprite: "shroom_red",   speed: 55,  aggressive: true,  mat: ["red_spore", "สปอร์เห็ดพิษ"], borrow: "lizard", poison: { pct: 12, ms: 5000 } },
+  bat_brown:    { name: "ค้างคาวผลไม้",          level: 12, sprite: "bat_brown",    speed: 115, aggressive: true,  mat: ["bat_fang", "เขี้ยวค้างคาว"], borrow: "redwolf", flee: 0.2 },
+  ghost_white:  { name: "วิญญาณเร่ร่อน",         level: 17, sprite: "ghost_white",  speed: 80,  aggressive: true,  mat: ["ectoplasm", "เอ็กโทพลาสซึม"], borrow: "skeleton", ranged: { range: 160, fx: "ice", every: 2000 } },
+  golem_stone:  { name: "โกเลมหิน",             level: 26, sprite: "golem_stone",  speed: 55,  aggressive: true,  scale: 1.1, mat: ["golem_core", "แกนโกเลม"], borrow: "troll", charge: { every: 8000, mult: 2 } },
+  slime_ice:    { name: "สไลม์น้ำแข็ง",          level: 30, sprite: "slime_ice",    speed: 60,  aggressive: true,  mat: ["ice_gel", "เจลน้ำแข็ง"], borrow: "frostskel" },
+  wisp_frost:   { name: "ภูตน้ำแข็ง",            level: 41, sprite: "wisp_frost",   speed: 95,  aggressive: true,  mat: ["frost_essence", "แก่นน้ำแข็ง"], ranged: { range: 180, fx: "ice", every: 1800 } },
+  slime_poison: { name: "สไลม์พิษ",              level: 44, sprite: "slime_poison", speed: 60,  aggressive: true,  mat: ["venom_gel", "เจลพิษ"], poison: { pct: 14, ms: 6000 } },
+  spider_bog:   { name: "แมงมุมบึง",             level: 47, sprite: "spider_bog",   speed: 105, aggressive: true,  mat: ["bog_silk", "ใยแมงมุมบึง"], poison: { pct: 12, ms: 6000 }, charge: { every: 8000, mult: 1.5 } },
+  plant_bog:    { name: "ดอกไม้กินคน",           level: 50, sprite: "plant_bog",    speed: 30,  aggressive: true,  scale: 1.1, mat: ["maneater_petal", "กลีบดอกกินคน"], ranged: { range: 170, fx: "poison", every: 1900 } },
+  eye_float:    { name: "ดวงตาลอยได้",           level: 55, sprite: "eye_float",    speed: 75,  aggressive: true,  mat: ["floating_eye", "ลูกตาลอยได้"], ranged: { range: 190, fx: "magic", every: 1800 } },
+  ghost_dark:   { name: "วิญญาณอัศวิน",          level: 57, sprite: "ghost_dark",   speed: 85,  aggressive: true,  mat: ["dark_ecto", "วิญญาณมืด"], ranged: { range: 170, fx: "dark", every: 1800 } },
+  bat_vampire:  { name: "ค้างคาวแวมไพร์",         level: 61, sprite: "bat_vampire",  speed: 120, aggressive: true,  mat: ["vamp_fang", "เขี้ยวค้างคาวแวมไพร์"], charge: { every: 6000, mult: 1.6 } },
+  shroom_glow:  { name: "เห็ดเรืองแสง",          level: 63, sprite: "shroom_glow",  speed: 55,  aggressive: true,  mat: ["glow_spore", "สปอร์เรืองแสง"], healer: { every: 6000, pct: 18, r: 200 }, ranged: { range: 150, fx: "magic", every: 2100 } },
+  plant_cursed: { name: "ดอกไม้ต้องสาป",         level: 65, sprite: "plant_cursed", speed: 30,  aggressive: true,  scale: 1.15, mat: ["cursed_petal", "กลีบต้องสาป"], ranged: { range: 180, fx: "poison", every: 1800 }, poison: { pct: 10, ms: 5000 } },
+  wisp_fire:    { name: "ภูตเพลิง",              level: 69, sprite: "wisp_fire",    speed: 100, aggressive: true,  mat: ["fire_essence", "แก่นเพลิง"], ranged: { range: 180, fx: "fire", every: 1700 } },
+  slime_lava:   { name: "สไลม์ลาวา",             level: 71, sprite: "slime_lava",   speed: 60,  aggressive: true,  mat: ["lava_gel", "เจลลาวา"], poison: { pct: 14, ms: 5000 } },
+  golem_magma:  { name: "โกเลมแมกมา",            level: 74, sprite: "golem_magma",  speed: 55,  aggressive: true,  scale: 1.15, mat: ["magma_core", "แกนแมกมา"], charge: { every: 7000, mult: 2.1 } },
+  spider_sand:  { name: "แมงมุมทราย",            level: 79, sprite: "spider_sand",  speed: 110, aggressive: true,  mat: ["sand_silk", "ใยแมงมุมทราย"], poison: { pct: 12, ms: 6000 }, charge: { every: 7000, mult: 1.6 } },
+  golem_sand:   { name: "โกเลมทราย",             level: 81, sprite: "golem_sand",   speed: 55,  aggressive: true,  scale: 1.15, mat: ["sand_core", "แกนโกเลมทราย"], charge: { every: 7000, mult: 2 } },
+  bat_drake:    { name: "ค้างคาวมังกร",          level: 87, sprite: "bat_drake",    speed: 120, aggressive: true,  scale: 1.05, mat: ["drake_wing", "ปีกค้างคาวมังกร"], ranged: { range: 170, fx: "fire", every: 1900 } },
+  eye_abyss:    { name: "ดวงตาอเวจี",            level: 93, sprite: "eye_abyss",    speed: 75,  aggressive: true,  scale: 1.1, mat: ["abyss_eye", "ลูกตาอเวจี"], ranged: { range: 200, fx: "dark", every: 1700 } },
+  ghost_abyss:  { name: "วิญญาณอเวจี",           level: 95, sprite: "ghost_abyss",  speed: 90,  aggressive: true,  scale: 1.1, mat: ["abyss_ecto", "วิญญาณอเวจี"], ranged: { range: 180, fx: "dark", every: 1700 }, flee: 0.1 },
+  slime_abyss:  { name: "สไลม์อเวจี",            level: 97, sprite: "slime_abyss",  speed: 65,  aggressive: true,  scale: 1.1, mat: ["abyss_gel", "เจลอเวจี"], poison: { pct: 14, ms: 6000 } },
+});
+
+// ---------- พฤติกรรมพิเศษของมอน ----------
+// ranged = ยิงจากระยะไกล {range, fx, every} · charge = พุ่งชน (มีเส้นเตือน) {every, mult}
+// poison = ติดพิษ {pct ของ ATK ต่อวินาที, ms} · healer = ฮีลพวกเดียวกัน {every, pct, r} · flee = หนีเมื่อเลือดต่ำกว่า (สัดส่วน)
+const BEHAVIOR = {
+  goblin: { flee: 0.25 }, rabbit: { flee: 0.35 }, sheep: { flee: 0.3 }, wolfpup: { flee: 0.3 },
+  rat: { poison: { pct: 15, ms: 5000 } }, zombie: { poison: { pct: 12, ms: 6000 } },
+  boar: { charge: { every: 7000, mult: 1.8 } }, wolf: { charge: { every: 9000, mult: 1.5 } }, redwolf: { charge: { every: 8000, mult: 1.6 } },
+  lizard: { ranged: { range: 150, fx: "poison", every: 1900 } }, jack: { ranged: { range: 160, fx: "fire", every: 2000 } },
+  vampire: { ranged: { range: 150, fx: "dark", every: 1800 }, flee: 0.15 }, frostskel: { ranged: { range: 170, fx: "ice", every: 1900 } },
+  minotaur: { charge: { every: 6500, mult: 2 } }, orcchief: { charge: { every: 8000, mult: 1.8 } }, troll: { charge: { every: 9000, mult: 1.7 } },
+  frostgiant: { charge: { every: 8000, mult: 1.8 } }, snowwraith: { ranged: { range: 170, fx: "ice", every: 1800 } },
+  frostcyclops: { ranged: { range: 180, fx: "rock", every: 2200 } },
+  bogzombie: { poison: { pct: 12, ms: 6000 } }, venomlizard: { poison: { pct: 15, ms: 6000 }, charge: { every: 9000, mult: 1.5 } },
+  bogboar: { charge: { every: 6500, mult: 1.9 } }, swampwitch: { ranged: { range: 170, fx: "poison", every: 1900 }, healer: { every: 7000, pct: 18, r: 200 } },
+  skelknight: { charge: { every: 9000, mult: 1.6 } }, gargoyle: { charge: { every: 7000, mult: 1.7 } },
+  lich: { ranged: { range: 180, fx: "dark", every: 1800 }, healer: { every: 8000, pct: 15, r: 200 } },
+  cursedwolf: { charge: { every: 6000, mult: 1.6 }, flee: 0.12 }, wartotaur: { charge: { every: 6500, mult: 2 } },
+  dryad: { ranged: { range: 170, fx: "poison", every: 1900 }, healer: { every: 6000, pct: 20, r: 220 } },
+  vamplord: { ranged: { range: 160, fx: "dark", every: 1700 }, flee: 0.15 },
+  salamander: { ranged: { range: 160, fx: "fire", every: 1800 }, poison: { pct: 10, ms: 5000 } }, flameorc: { charge: { every: 8000, mult: 1.8 } },
+  firedemon: { ranged: { range: 180, fx: "fire", every: 1700 } }, lavataur: { charge: { every: 6000, mult: 2.1 } },
+  mummy: { poison: { pct: 12, ms: 7000 } }, sandrat: { flee: 0.2, poison: { pct: 10, ms: 5000 } },
+  sandspirit: { ranged: { range: 180, fx: "magic", every: 1700 }, healer: { every: 7000, pct: 15, r: 200 } },
+  sandwarlord: { charge: { every: 7000, mult: 2 } }, draconian: { ranged: { range: 180, fx: "fire", every: 1800 } },
+  wyvern: { charge: { every: 6000, mult: 1.8 }, poison: { pct: 10, ms: 6000 } }, dragonknight: { charge: { every: 7000, mult: 2 } },
+  volcanogiant: { ranged: { range: 190, fx: "rock", every: 2300 } }, deathknight: { charge: { every: 7000, mult: 2 } },
+  shadowdemon: { ranged: { range: 190, fx: "dark", every: 1700 } }, darkcyclops: { ranged: { range: 190, fx: "rock", every: 2100 }, charge: { every: 9000, mult: 2 } },
+  abysslord: { charge: { every: 6000, mult: 2.2 }, ranged: { range: 170, fx: "dark", every: 2000 } },
+};
+for (const [k, b] of Object.entries(BEHAVIOR)) if (MONSTERS[k]) Object.assign(MONSTERS[k], b);
+
+// ---------- มินิบอสประจำแผนที่ (เกิดใหม่ 8–12 นาทีหลังตาย) ----------
+const MINI_BOSSES = {
+  meadow: { base: "goblin", name: "ราชาก็อบลินหัวโต", level: 8, tint: 0xff9a80, scale: 1.8, charge: { every: 7000, mult: 1.6 }, flee: 0 },
+  pine:   { base: "lizard", name: "จอมเวทกิ้งก่าบึง", level: 15, tint: 0xa0ff90, scale: 1.7 },
+  maple:  { base: "jack", name: "ราชาฟักทองคลั่ง", level: 21, tint: 0xffb060, scale: 1.8 },
+  bones:  { base: "vampire", name: "เคานต์แวมไพร์", level: 25, tint: 0xff8090, scale: 1.6, flee: 0 },
+  orcamp: { base: "orcchief", name: "แม่ทัพออร์คเลือดเหล็ก", level: 30, tint: 0xff6060, scale: 1.8 },
+  snow:   { base: "snowtroll", name: "ราชาโทรลล์น้ำแข็ง", level: 37, tint: 0xc0f0ff, scale: 1.8, charge: { every: 7000, mult: 2 } },
+  frost:  { base: "frostcyclops", name: "ไซคลอปส์ภูผาหิมะ", level: 47, scale: 1.7, charge: { every: 8000, mult: 2 } },
+  swamp:  { base: "swampwitch", name: "แม่มดหนองมรณะ", level: 55, tint: 0xc0ffa0, scale: 1.7 },
+  ruins:  { base: "lich", name: "อาร์ชลิชผู้ถูกสาป", level: 63, tint: 0xd8a0ff, scale: 1.7 },
+  cursed: { base: "vamplord", name: "ราชันแวมไพร์โลหิต", level: 71, tint: 0xff8080, scale: 1.6, flee: 0 },
+  lava:   { base: "lavataur", name: "มิโนทอร์ภูเขาไฟ", level: 79, scale: 1.7 },
+  desert: { base: "mummy", name: "ฟาโรห์ผู้ตื่นคืน", level: 87, tint: 0xffe090, scale: 1.8, ranged: { range: 180, fx: "magic", every: 1900 } },
+  dragon: { base: "dragonknight", name: "ขุนพลมังกรเพลิง", level: 95, tint: 0xffc080, scale: 1.7, ranged: { range: 170, fx: "fire", every: 2000 } },
+  abyss:  { base: "abysslord", name: "เจ้าแห่งห้วงอเวจี", level: 99, tint: 0xd090ff, scale: 1.6 },
+};
 const monsterStats = (lv) => ({
   maxHp: 30 + lv * 20 + Math.round(0.5 * lv * lv),
   atk: 3 + Math.round(lv * 3.2),
@@ -214,7 +291,7 @@ const WEAPON_TYPES = {
   staff:      { name: "คทา", stat: "int", range: 170, delay: 1.3, twoHand: true, fx: "magic", trait: { spPct: 10 }, style: "เวทแรง SP เยอะ" },
   book:       { name: "คัมภีร์", stat: "int", range: 150, delay: 1.25, fx: "holy", trait: { healPct: 10 }, style: "ฮีลแรงขึ้น" },
 };
-const UNDEAD = ["skeleton", "zombie", "vampire", "skelwarrior", "frostskel", "snowwraith", "bogzombie", "skelknight", "lich", "vamplord", "mummy", "deathknight"];
+const UNDEAD = ["ghost_white", "ghost_dark", "ghost_abyss", "skeleton", "zombie", "vampire", "skelwarrior", "frostskel", "snowwraith", "bogzombie", "skelknight", "lich", "vamplord", "mummy", "deathknight"];
 
 // ---------- สกิล ----------
 // ได้แต้มสกิล 1 แต้มทุกครั้งที่เลเวลอัป · กด + ในหน้าต่างสกิลเพื่ออัปทีละขั้น
@@ -374,7 +451,7 @@ const JOB_QUESTS = {
     story: "แสงแห่งการรักษาเผาผลาญความตาย จงไปชำระผีดิบที่เร่ร่อน แล้วนำผ้าเปื่อยของพวกมันมาเผาทำพิธี" },
 };
 
-module.exports = { WORLD_BOSSES,
+module.exports = { WORLD_BOSSES, MINI_BOSSES,
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,

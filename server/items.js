@@ -477,6 +477,21 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
+// ---------- มอนรูปร่างไม่ใช่คน: วัตถุดิบ + ตารางดรอป (สร้างจาก mat/borrow ใน data.js) ----------
+{
+  const D = require("./data");
+  for (const [k, m] of Object.entries(D.MONSTERS)) {
+    if (!m.mat || DROPS[k]) continue;
+    const [mid, mname] = m.mat, lv = m.level;
+    ITEMS[mid] = { name: mname, type: "material", sell: Math.round((lv * 5.6) / 5) * 5 || 5 };
+    const pot = lv < 20 ? "potion_s" : lv < 40 ? "potion_m" : lv < 66 ? "potion_l" : "potion_xl";
+    const row = [[mid, 0.55, 1, 2], [lv < 15 ? "stone_1" : "stone_2", 0.12, 1, 2], [pot, 0.1, 1, 2]];
+    if (lv >= 20) row.push(["stone_3", Math.round((0.02 + lv / 2500) * 1000) / 1000, 1, 1]);
+    if (lv >= 40) row.push(["potion_sp_l", 0.05, 1, 1]);
+    if (m.borrow && DROPS[m.borrow]) for (const e of DROPS[m.borrow]) if (ITEMS[e[0]] && ITEMS[e[0]].type === "equip") row.push(e);
+    DROPS[k] = row;
+  }
+}
 // ---------- อุปกรณ์เลเวลสูง Lv.40–90 (server/tiers.js) ----------
 {
   const TIERS = require("./tiers");
