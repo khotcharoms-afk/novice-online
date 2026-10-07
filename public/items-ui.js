@@ -30,7 +30,7 @@ const frameOf = (s) => { if (!s) return null; const r = rarOf(s); if (r) return 
 const applyFrame = (el, s) => { const c = frameOf(s); el.classList.toggle("rr", !!c); el.style.setProperty("--rc", c || ""); };
 // ชื่อไอเทมเป็นสีขาวเสมอ (ระดับดูจากสีกรอบแทน)
 const nameHtml = (g) => `<span class="iname">${gearName(g)}</span>`;
-const myPlayer = () => room && room.state.players.get(room.sessionId);
+const myPlayer = () => room && room.state && room.state.players && room.state.players.get(room.sessionId);
 // อาชีพของเราใส่ไอเทมนี้ได้ไหม (null = ได้, ข้อความ = เหตุผลที่ไม่ได้)
 const wearErr = (id) => { const me = myPlayer(), w = gameData && gameData.wear && gameData.wear[id]; return me && w ? w[me.job] || null : null; };
 // บรรทัด "ใช้ได้: …" ในการ์ดไอเทม
