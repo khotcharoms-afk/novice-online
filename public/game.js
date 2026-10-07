@@ -18,16 +18,6 @@ const T = 32;
 const COLS = 9; // เฟรมต่อแถวในไฟล์ภาพตัวละคร
 // แถวในไฟล์ภาพ: เดิน 0–3, ฟัน 4–7, ล้ม 8, ร่ายเวท 9–12 (ทิศ ขึ้น/ซ้าย/ลง/ขวา)
 const DIR_ROW = { up: 0, left: 1, down: 2, right: 3 };
-const DIR_VEC = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
-// ตัวละคร chibi: เฟรมในภาพเรียง หน้า ซ้าย ขวา หลัง · ปิดได้ด้วย ?classic
-const CHIBI_FRAME = { down: 0, left: 1, right: 2, up: 3 };
-const CHIBI_SCALE = 0.46;
-const CHIBI_OFF = /[?&]classic\b/.test(location.search);
-function chibiOf(e) {
-  if (CHIBI_OFF || !e || !e.look) return null;
-  const sex = String(e.look).split("|")[0];
-  return (MANIFEST.chibiJobs || {})[`${e.job}_${sex}`] || null;
-}
 const SHOOT_RELEASE_MS = 380; // ธนูปล่อยลูกศรที่เฟรมที่ 7 ของท่ายิง (ต้องตรงกับฝั่งเซิร์ฟเวอร์)
 const CAST_RELEASE_MS = 170;  // คทา/คัมภีร์ปล่อยลูกเวทตอนชี้สุด
 const ZOOMS = [1, 1.25, 1.5, 2];
@@ -387,8 +377,6 @@ class WorldScene extends Phaser.Scene {
       this.load.spritesheet("atkb_" + id, `/assets/equip/${id}_atkb.png`, { frameWidth: f, frameHeight: f });
     }
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
-    // ตัวละครสไตล์ chibi (ภาพนิ่ง 4 ทิศ: หน้า ซ้าย ขวา หลัง — ขยับด้วยโค้ด)
-    for (const [k, [fw, fh]] of Object.entries(MANIFEST.chibi || {})) this.load.spritesheet("chibi/" + k, `/assets/chibi/${k}.png`, { frameWidth: fw, frameHeight: fh });
     (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
@@ -680,7 +668,6 @@ class WorldScene extends Phaser.Scene {
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
-    const chibi = isMob ? null : chibiOf(e);
     const label = this.add.text(0, -58, "", {
       fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#ffffff",
       stroke: "#0d1124", strokeThickness: 3, resolution: 2,
@@ -698,8 +685,7 @@ class WorldScene extends Phaser.Scene {
       sprite.on("pointerout", () => { v.hover = false; });
     }
     const v = { id, isMob, isMe, key, root, sprite, label, bars, wbg, wfg, bubble: null, e, gear: e.gear || "", job: e.job,
-      tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0, chibi: null, seed: Math.random() * 1000 };
-    this.setChibi(v, chibi);
+      tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
     this.views.set(id, v);
     this.syncView(v, e);
     return v;
@@ -709,7 +695,7 @@ class WorldScene extends Phaser.Scene {
     v.tx = e.x; v.ty = e.y; v.moving = e.moving; v.dir = e.dir || v.dir;
     if (v.dead !== e.dead) {
       v.dead = e.dead;
-      if (!v.dead) { v.deadShown = false; v.root.setAlpha(1); if (v.chibi) v.sprite.setAngle(0).setPosition(0, 0); if (v.isMob) v.sprite.setInteractive(); }
+      if (!v.dead) { v.deadShown = false; v.root.setAlpha(1); if (v.isMob) v.sprite.setInteractive(); }
       else {
         if (v.isMob) { v.sprite.disableInteractive(); if (this.myTarget === v.id) this.myTarget = null; }
         if (v.isMe) { $("deathMsg").hidden = false; stopTravel(); }
@@ -727,7 +713,6 @@ class WorldScene extends Phaser.Scene {
         v.gear = e.gear || ""; v.job = e.job;
         v.key = this.buildSheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
         v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
-        this.setChibi(v, chibiOf(e));
         if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
       }
       v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
@@ -772,66 +757,13 @@ class WorldScene extends Phaser.Scene {
     if (!v || v.dead) return;
     v.dir = dir || v.dir;
     v.busyUntil = this.time.now + ms;
-    if (v.chibi) return this.chibiAct(v, kind, ms, repeat);
     v.sprite.play({ key: `${v.key}:${kind}:${v.dir}`, repeat });
     this.weaponSwing(v, kind === "slash", repeat);
   }
 
-  // ---------- ตัวละคร chibi ----------
-  setChibi(v, ck) {
-    if (v.chibi === ck) return;
-    v.chibi = ck;
-    this.tweens.killTweensOf(v.sprite);
-    if (ck) {
-      v.sprite.stop();
-      v.sprite.setTexture("chibi/" + ck, CHIBI_FRAME[v.dir] ?? 0).setOrigin(0.5, 0.985).setScale(CHIBI_SCALE).setAngle(0).setPosition(0, 0);
-      v.label.y = -74; v.wfg.setVisible(false); v.wbg.setVisible(false);
-    } else {
-      v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS).setOrigin(0.5, 0.97).setScale(1).setAngle(0).setPosition(0, 0);
-      v.label.y = -58;
-    }
-  }
-  // ท่าโจมตี/ร่ายเวทแบบ tween: พุ่งไปทางที่หัน + เอียงตัว + เส้นฟัน
-  chibiAct(v, kind, ms, repeat) {
-    const s = v.sprite, d = DIR_VEC[v.dir] || DIR_VEC.down;
-    this.tweens.killTweensOf(s);
-    s.setFrame(CHIBI_FRAME[v.dir] ?? 0).setPosition(0, 0).setAngle(0).setScale(CHIBI_SCALE);
-    const n = repeat + 1, per = Math.min(ms / n, 380);
-    if (kind === "slash") {
-      for (let i = 0; i < n; i++) this.time.delayedCall(i * per, () => {
-        if (!v.sprite.active) return;
-        this.tweens.add({ targets: s, x: d.x * 12, y: d.y * 8, angle: (d.x || (i % 2 ? -1 : 1)) * 12, duration: per * 0.35, ease: "Quad.easeOut", yoyo: true, hold: per * 0.1 });
-        this.time.delayedCall(per * 0.25, () => this.slashArc(v, d, i));
-      });
-    } else if (kind === "hurt") {
-      this.tweens.add({ targets: s, x: { from: -3, to: 3 }, duration: 50, yoyo: true, repeat: 2, onComplete: () => s.setX(0) });
-    } else { // cast / aim / thrust: ถอยไปตั้งท่าแล้วปล่อย
-      this.tweens.add({ targets: s, x: -d.x * 5, y: -d.y * 4 - 2, scaleY: CHIBI_SCALE * 1.05, duration: ms * 0.4, ease: "Sine.easeOut",
-        onComplete: () => this.tweens.add({ targets: s, x: d.x * 4, y: d.y * 3, scaleY: CHIBI_SCALE, duration: 90, yoyo: true, ease: "Quad.easeOut" }) });
-    }
-  }
-  slashArc(v, d, i) {
-    const g = this.add.graphics().setDepth(v.root.depth + 1);
-    const cx = v.root.x + d.x * 22, cy = v.root.y - 30 + d.y * 16, base = Math.atan2(d.y, d.x), flip = i % 2 ? -1 : 1;
-    g.lineStyle(4, 0xffffff, 0.9).beginPath().arc(cx, cy, 24, base - 1.1 * flip, base + 1.1 * flip, flip < 0).strokePath();
-    g.lineStyle(2, 0xbfe6ff, 0.8).beginPath().arc(cx, cy, 19, base - 0.9 * flip, base + 0.9 * flip, flip < 0).strokePath();
-    this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
-  }
-  chibiIdle(v, time) {
-    const s = v.sprite;
-    s.setFrame(CHIBI_FRAME[v.dir] ?? 0);
-    if (v.moving) { // เดิน: เด้งขึ้นลง + เอียงซ้ายขวาเล็กน้อย
-      const t = (time + v.seed) / 95;
-      s.setPosition(0, -Math.abs(Math.sin(t)) * 4).setAngle(Math.sin(t) * 4).setScale(CHIBI_SCALE);
-    } else { // ยืน: หายใจ
-      const t = (time + v.seed) / 420;
-      s.setPosition(0, 0).setAngle(0).setScale(CHIBI_SCALE, CHIBI_SCALE * (1 + Math.sin(t) * 0.012));
-    }
-  }
-
   // อาวุธประชิดตอนฟัน (ภาพในตัวละครไม่มีอาวุธในท่าฟัน เพราะภาพท่าฟันใหญ่กว่ากรอบ 64 px)
   weaponSwing(v, on, repeat = 0) {
-    if (v.isMob || !v.wfg || v.chibi) return;
+    if (v.isMob || !v.wfg) return;
     const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), wid = m && m[1];
     if (!on || !wid || !(MANIFEST.atk || {})[wid]) { v.wfg.setVisible(false); v.wbg.setVisible(false); return; }
     for (const [spr, k] of [[v.wfg, "atk_"], [v.wbg, "atkb_"]]) {
@@ -1056,16 +988,10 @@ class WorldScene extends Phaser.Scene {
       // ชื่อมอนแสดงเฉพาะตอนชี้เมาส์ / เป็นเป้าหมาย / โดนตี (จอจะได้ไม่รก)
       if (v.isMob) v.label.setVisible(!v.dead && (v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
       if (v.dead) {
-        if (!v.deadShown) {
-          v.deadShown = true;
-          if (v.chibi) { this.tweens.killTweensOf(v.sprite); v.sprite.setPosition(0, 0); this.tweens.add({ targets: v.sprite, angle: 90, y: -6, duration: 350, ease: "Quad.easeIn" }); }
-          else v.sprite.play(`${v.key}:die`);
-          this.tweens.add({ targets: r, alpha: 0.75, duration: 400 });
-        }
+        if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
         return;
       }
       if (time < v.busyUntil) return;
-      if (v.chibi) { this.chibiIdle(v, time); return; }
       if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);
       if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);
       else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
