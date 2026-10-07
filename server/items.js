@@ -129,13 +129,17 @@ const ITEMS = {
   orc_scrap:  { name: "เศษเกราะออร์ค", type: "material", sell: 40 },
 };
 
-// ของที่ร้านค้าขาย (เรียงตามที่แสดง)
-const SHOP = ["potion_s", "potion_m", "potion_sp", "mace", "dagger", "kite", "bandana", "hood", "leather", "chain",
-  "gloves", "cape", "boots", "mailcoif", "bracers", "ironboots", "ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird",
-  // อุปกรณ์อาชีพ Lv20
-  "saber", "shield_knight", "greatsword", "bow_hunter", "staff_oak", "book_light",
-  "ranger_cap", "ranger_vest", "ranger_gloves", "ranger_boots", "mage_hat", "mage_robe", "mage_gloves", "mage_shoes",
-  "priest_hood", "priest_robe", "priest_gloves", "priest_shoes"];
+// ร้านค้าในเมือง: แต่ละ NPC ขายของคนละหมวด (ทุกร้านรับซื้อของคืนได้)
+const SHOPS = {
+  shop_potion: { name: "ป้าบัวขาว", title: "ร้านยา", items: ["potion_s", "potion_m", "potion_sp"] },
+  shop_weapon: { name: "พี่ศรเพชร", title: "ร้านอาวุธ", items: ["mace", "dagger", "saber", "greatsword", "bow_hunter", "staff_oak", "book_light", "kite", "shield_knight"] },
+  shop_armor: { name: "ลุงหนักแน่น", title: "ร้านชุดเกราะ", items: ["bandana", "hood", "leather", "gloves", "boots", "cape", "chain", "mailcoif", "bracers", "ironboots",
+    "ranger_cap", "ranger_vest", "ranger_gloves", "ranger_boots", "mage_hat", "mage_robe", "mage_gloves", "mage_shoes",
+    "priest_hood", "priest_robe", "priest_gloves", "priest_shoes"] },
+  merchant: { name: "ลุงสมปอง", title: "ร้านของจิปาถะ", items: ["ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"] },
+};
+// รายการของทุกร้านรวมกัน (ใช้ตรวจของที่ขายในร้าน / ราคาของ)
+const SHOP = [...new Set(Object.values(SHOPS).flatMap((x) => x.items))];
 
 // ของดรอปจากมอน: [itemId, โอกาส 0–1, จำนวนต่ำสุด, สูงสุด]
 const DROPS = {
@@ -250,4 +254,4 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
-module.exports = { STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

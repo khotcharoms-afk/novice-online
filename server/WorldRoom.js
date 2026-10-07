@@ -85,7 +85,7 @@ function worldInfo() {
     exits: Object.values(m.exits),
     mobs: [...new Set(m.spawns.map(([k]) => k))].map((k) => ({ kind: k, name: D.MONSTERS[k].name, level: D.MONSTERS[k].level,
       aggressive: D.MONSTERS[k].aggressive, drops: (I.DROPS[k] || []).map(([id]) => id) })),
-    services: m.type === "town" ? ["ร้านค้า (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)", "เปลี่ยนอาชีพ (ปู่ธาราจารย์)"] : [],
+    services: m.type === "town" ? ["ร้านยา (ป้าบัวขาว)", "ร้านอาวุธ (พี่ศรเพชร)", "ร้านชุดเกราะ (ลุงหนักแน่น)", "ของจิปาถะ · คริสตัล · สัตว์เลี้ยง (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)", "เปลี่ยนอาชีพ (ปู่ธาราจารย์)"] : [],
   })) };
   return worldCache;
 }
@@ -127,7 +127,10 @@ class WorldRoom extends Room {
     this.map = getMap(this.mapId);
     const cx = (this.map.width / 2) * this.map.tile, cy = (this.map.height / 2) * this.map.tile;
     this.npcs = this.def.type !== "town" ? [] : [
-      { id: "merchant", name: "ลุงสมปอง (ร้านค้า)", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
+      { id: "shop_weapon", name: "พี่ศรเพชร (ร้านอาวุธ)", sprite: "npc_weapon", x: cx - 256, y: cy - 110 },
+      { id: "merchant", name: "ลุงสมปอง (ของจิปาถะ)", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
+      { id: "shop_armor", name: "ลุงหนักแน่น (ร้านชุดเกราะ)", sprite: "npc_armor", x: cx + 256, y: cy + 110 },
+      { id: "shop_potion", name: "ป้าบัวขาว (ร้านยา)", sprite: "npc_potion", x: cx - 256, y: cy + 110 },
       { id: "smith", name: "ลุงเหล็กกล้า (ตีบวก)", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
       { id: "jobmaster", name: "ปู่ธาราจารย์ (ครูฝึกอาชีพ)", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
     ];
@@ -165,7 +168,7 @@ class WorldRoom extends Room {
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: D.SKILLS, jobSkills: D.JOB_SKILLS,
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
-        statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
+        statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
@@ -191,8 +194,8 @@ class WorldRoom extends Room {
     this.onMessage("unequip", (client, m) => this.withBag(client, m, (p, b) => Bag.unequip(b, String(m.slot))));
     this.onMessage("moveItem", (client, m) => this.withBag(client, m, (p, b) => Bag.moveSlot(b, Number(m.from), Number(m.to))));
     this.onMessage("useItem", (client, m) => this.withBag(client, m, (p, b) => this.useItem(client.sessionId, p, b, Number(m.idx))));
-    this.onMessage("buy", (client, m) => this.withBag(client, m, (p, b) => this.buy(p, b, String(m.id), Number(m.n) || 1)));
-    this.onMessage("buyMany", (client, m) => this.withBag(client, m, (p, b) => this.buyMany(client, p, b, m.items)));
+    this.onMessage("buy", (client, m) => this.withBag(client, m, (p, b) => this.buy(p, b, String(m.id), Number(m.n) || 1, m.npc)));
+    this.onMessage("buyMany", (client, m) => this.withBag(client, m, (p, b) => this.buyMany(client, p, b, m.items, m.npc)));
     this.onMessage("sellMany", (client, m) => this.withBag(client, m, (p, b) => this.sellMany(client, p, b, m.items)));
     this.onMessage("sell", (client, m) => this.withBag(client, m, (p, b) => this.sell(p, b, Number(m.idx), Number(m.n) || 1)));
     this.onMessage("refine", (client, m) => this.withBag(client, m, (p, b) => this.refine(client, p, b, m)));
@@ -999,11 +1002,17 @@ class WorldRoom extends Room {
     const n = this.npcs.find((x) => x.id === id);
     return n && dist(p, n) <= NPC_RANGE;
   }
-  buy(p, b, id, n) {
-    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+  // ร้านที่ยืนอยู่ใกล้ (ระบุ npc มา = ต้องเป็นร้านนั้น) → คืน id ร้าน หรือ null
+  nearShop(p, npc) {
+    const ids = npc && I.SHOPS[npc] ? [npc] : Object.keys(I.SHOPS);
+    return ids.find((id) => this.nearNpc(p, id)) || null;
+  }
+  buy(p, b, id, n, npc) {
+    const shop = this.nearShop(p, npc);
+    if (!shop) return "เดินเข้าใกล้ร้านค้าก่อน";
     const it = I.ITEMS[id];
     n = Math.max(1, Math.min(99, Math.floor(n)));
-    if (!it || !I.SHOP.includes(id)) return "ร้านไม่มีของนี้";
+    if (!it || !I.SHOPS[shop].items.includes(id)) return "ร้านนี้ไม่มีของนี้";
     const cost = it.price * n;
     if (b.gold < cost) return "gold ไม่พอ";
     if (!Bag.canFit(b, id, n)) return "กระเป๋าเต็ม";
@@ -1012,13 +1021,14 @@ class WorldRoom extends Room {
     if (cost >= 500) this.saveSoon(p.sid);
   }
   // ซื้อหลายอย่างพร้อมกัน (ตะกร้าซื้อ): items = [{ id, n }] — ทำทั้งหมดหรือไม่ทำเลย
-  buyMany(client, p, b, items) {
-    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+  buyMany(client, p, b, items, npc) {
+    const shop = this.nearShop(p, npc);
+    if (!shop) return "เดินเข้าใกล้ร้านค้าก่อน";
     if (!Array.isArray(items) || !items.length) return;
     const list = items.slice(0, 40).map((x) => ({ id: String(x.id), n: Math.max(1, Math.min(999, Math.floor(Number(x.n) || 1))) }));
     let cost = 0;
     for (const x of list) {
-      if (!I.ITEMS[x.id] || !I.SHOP.includes(x.id)) return "ร้านไม่มีของนี้";
+      if (!I.ITEMS[x.id] || !I.SHOPS[shop].items.includes(x.id)) return `${I.SHOPS[shop].title}ไม่มี ${I.ITEMS[x.id] ? I.ITEMS[x.id].name : "ของนี้"}`;
       cost += I.ITEMS[x.id].price * x.n;
     }
     if (b.gold < cost) return `gold ไม่พอ (ต้องใช้ ${cost.toLocaleString()})`;
@@ -1033,7 +1043,7 @@ class WorldRoom extends Room {
   }
   // ขายหลายอย่างพร้อมกัน (ตะกร้าขาย): items = [{ idx, id, n }] — ตรวจว่าช่องยังเป็นของเดิม
   sellMany(client, p, b, items) {
-    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+    if (!this.nearShop(p)) return "เดินเข้าใกล้ร้านค้าก่อน";
     if (!Array.isArray(items) || !items.length) return;
     const seen = new Set();
     const list = [];
@@ -1051,7 +1061,7 @@ class WorldRoom extends Room {
     this.saveSoon(client.sessionId);
   }
   sell(p, b, idx, n) {
-    if (!this.nearNpc(p, "merchant")) return "เดินเข้าใกล้ร้านค้าก่อน";
+    if (!this.nearShop(p)) return "เดินเข้าใกล้ร้านค้าก่อน";
     const s = b.inv[idx];
     if (!s) return;
     n = Math.max(1, Math.min(s.n, Math.floor(n)));

@@ -21,12 +21,19 @@ const catOk = (cat, id) => { const c = SHOP_CATS.find((x) => x[0] === cat); cons
 const priceOf = (s) => s.sell ?? itemOf(s.id).sell ?? Math.floor((itemOf(s.id).price || 0) / 2);
 const g = (n) => `${Number(n).toLocaleString()} gold`;
 
-function openShop() { $("shopPanel").hidden = false; shopTab = "buy"; shopCat = "all"; renderShop(); }
+let shopNpc = "merchant"; // ร้านที่เปิดอยู่ (แต่ละ NPC ขายของคนละหมวด)
+function openShop(npc) {
+  if (npc && npc !== shopNpc) buyCart.clear();
+  shopNpc = (gameData.shops && gameData.shops[npc]) ? npc : "merchant";
+  const sh = gameData.shops && gameData.shops[shopNpc];
+  if (sh) $("shopTitle").textContent = `${sh.title} · ${sh.name}`;
+  $("shopPanel").hidden = false; shopTab = "buy"; shopCat = "all"; renderShop();
+}
 function closeShop() { $("shopPanel").hidden = true; hideCard(); }
 
 // รายการที่แสดงในแท็บปัจจุบัน
 function shopEntries() {
-  if (shopTab === "buy") return gameData.shop.map((id) => ({ id, it: itemOf(id) }));
+  if (shopTab === "buy") return ((gameData.shops && gameData.shops[shopNpc]) ? gameData.shops[shopNpc].items : gameData.shop).map((id) => ({ id, it: itemOf(id) }));
   const out = [];
   INV.inv.forEach((s, idx) => {
     if (!s) return;
@@ -162,7 +169,7 @@ async function checkout(buying, items, total) {
   const ok = await askConfirm(`<b>${buying ? "ยืนยันการซื้อ" : "ยืนยันการขาย"}</b><ul class="cb-list">${lines}</ul>${warn}
     <div class="cb-total">${buying ? "จ่าย" : "ได้รับ"} <b>${g(total)}</b></div>`, { okText: buying ? "ซื้อ" : "ขาย", danger: rare.length > 0 });
   if (!ok) return;
-  if (buying) room.send("buyMany", { items: items.map((x) => ({ id: x.key, n: x.n })) });
+  if (buying) room.send("buyMany", { npc: shopNpc, items: items.map((x) => ({ id: x.key, n: x.n })) });
   else room.send("sellMany", { items: items.map((x) => ({ idx: x.key, id: x.s.id, n: x.n })) });
 }
 

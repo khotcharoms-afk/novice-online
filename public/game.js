@@ -373,6 +373,7 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
+    for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
   }
 
   create() {
@@ -979,7 +980,7 @@ class WorldScene extends Phaser.Scene {
     if (this.pendingNpc) {
       const mv = this.views.get(room.sessionId);
       if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
-        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else openShop();
+        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else openShop(this.pendingNpc.id);
         this.pendingNpc = null;
       }
     }

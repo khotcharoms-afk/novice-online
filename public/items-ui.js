@@ -314,7 +314,7 @@ function setupItemsUI() {
   setInterval(() => {
     if (!gameData) return;
     const me = myPlayer(), far = (id) => { const n = gameData.npcs.find((x) => x.id === id); return me && n && Math.hypot(me.x - n.x, me.y - n.y) > 200; };
-    if (!$("shopPanel").hidden && far("merchant")) closeShop();
+    if (!$("shopPanel").hidden && far(typeof shopNpc === "string" ? shopNpc : "merchant")) closeShop();
     if (!$("smithPanel").hidden && far("smith")) closeSmith();
   }, 500);
   renderInv(); renderPaperDoll(); renderItemBar();
