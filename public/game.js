@@ -368,6 +368,11 @@ class WorldScene extends Phaser.Scene {
     paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
     (MANIFEST.mobs || MOB_KINDS).forEach((k) => this.load.image("mobsrc_" + k, `/assets/mobs/${k}.png`));
     MANIFEST.equip.forEach((k) => this.load.image("equip/" + k, `/assets/equip/${k}.png`));
+    // ท่าฟันของอาวุธประชิด (เฟรมใหญ่กว่าตัวละคร เลยแยกเป็นภาพซ้อนตอนฟัน)
+    for (const [id, f] of Object.entries(MANIFEST.atk || {})) {
+      this.load.spritesheet("atk_" + id, `/assets/equip/${id}_atk.png`, { frameWidth: f, frameHeight: f });
+      this.load.spritesheet("atkb_" + id, `/assets/equip/${id}_atkb.png`, { frameWidth: f, frameHeight: f });
+    }
     MANIFEST.icons.forEach((k) => this.load.image("icon/" + k, `/assets/icons/${k}.png`));
     (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
@@ -377,6 +382,10 @@ class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    for (const id of Object.keys(MANIFEST.atk || {})) for (const k of ["atk_", "atkb_"]) for (const dir in DIR_ROW) {
+      const key = `${k}${id}:${dir}`;
+      if (!this.anims.exists(key)) this.anims.create({ key, frames: this.anims.generateFrameNumbers(k + id, { start: DIR_ROW[dir] * 6, end: DIR_ROW[dir] * 6 + 5 }), frameRate: 16 });
+    }
     scene = this;
     this.input.setDefaultCursor(CUR.arrow);
     this.views = new Map();      // id -> ตัวละคร/มอนสเตอร์บนจอ
@@ -654,7 +663,10 @@ class WorldScene extends Phaser.Scene {
       stroke: "#0d1124", strokeThickness: 3, resolution: 2,
     }).setOrigin(0.5, 1);
     const bars = this.add.graphics();
-    root.add([shadow, sprite, bars, label]);
+    // ภาพอาวุธตอนฟัน: หลังตัว (wbg) และหน้าตัว (wfg) — จุดกึ่งกลางตรงกับกลางเฟรมตัวละคร
+    const wbg = this.add.sprite(0, -30, "__DEFAULT").setVisible(false);
+    const wfg = this.add.sprite(0, -30, "__DEFAULT").setVisible(false);
+    root.add([shadow, wbg, sprite, wfg, bars, label]);
     if (isMob && e.scale && e.scale !== 1) { sprite.setScale(e.scale); shadow.setScale(e.scale); label.y = -58 * e.scale; }
     if (isMob) {
       sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(18, 12, 28, 50), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: CUR.sword });
@@ -662,7 +674,7 @@ class WorldScene extends Phaser.Scene {
       sprite.on("pointerover", () => { v.hover = true; });
       sprite.on("pointerout", () => { v.hover = false; });
     }
-    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e, gear: e.gear || "", job: e.job,
+    const v = { id, isMob, isMe, key, root, sprite, label, bars, wbg, wfg, bubble: null, e, gear: e.gear || "", job: e.job,
       tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
     this.views.set(id, v);
     this.syncView(v, e);
@@ -735,6 +747,18 @@ class WorldScene extends Phaser.Scene {
     v.dir = dir || v.dir;
     v.busyUntil = this.time.now + ms;
     v.sprite.play({ key: `${v.key}:${kind}:${v.dir}`, repeat });
+    this.weaponSwing(v, kind === "slash", repeat);
+  }
+
+  // อาวุธประชิดตอนฟัน (ภาพในตัวละครไม่มีอาวุธในท่าฟัน เพราะภาพท่าฟันใหญ่กว่ากรอบ 64 px)
+  weaponSwing(v, on, repeat = 0) {
+    if (v.isMob || !v.wfg) return;
+    const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), wid = m && m[1];
+    if (!on || !wid || !(MANIFEST.atk || {})[wid]) { v.wfg.setVisible(false); v.wbg.setVisible(false); return; }
+    for (const [spr, k] of [[v.wfg, "atk_"], [v.wbg, "atkb_"]]) {
+      spr.setVisible(true).play({ key: `${k}${wid}:${v.dir}`, repeat });
+      spr.once("animationcomplete", () => spr.setVisible(false));
+    }
   }
 
   // ---------- ของบนพื้น / NPC ----------
@@ -957,6 +981,7 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       if (time < v.busyUntil) return;
+      if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);
       if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);
       else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
     });
