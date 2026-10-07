@@ -420,7 +420,7 @@ const SPAWN_CATS = [
 ];
 const WT_TH = { sword: "ดาบ", mace: "กระบอง", dagger: "มีดสั้น", greatsword: "ดาบใหญ่", axe: "ขวาน", bow: "ธนู", staff: "คทา", book: "คัมภีร์", shield: "โล่" };
 const AC_TH = { heavy: "เกราะหนัก", light: "เกราะเบา", cloth: "ชุดผ้า" };
-let SP = { cat: "all", job: "all", q: "", sel: null, charId: null, name: "", uid: null, given: 0 };
+let SP = { cat: "all", job: "all", lv: "all", q: "", sel: null, charId: null, name: "", uid: null, given: 0 };
 function openSpawn(charId, name, uid) {
   SP = { ...SP, charId, name, uid, sel: SP.sel, given: 0 };
   const dlg = $("spawnDlg");
@@ -429,6 +429,7 @@ function openSpawn(charId, name, uid) {
     <div class="row"><input id="spQ" type="search" placeholder="ค้นหาชื่อไอเทม…" value="${esc(SP.q)}" style="flex:1;min-width:180px"></div>
     <div class="chips" id="spCats"></div>
     <div class="chips" id="spJobs"></div>
+    <div class="chips" id="spLvs"></div>
     <div class="sp-grid" id="spGrid"></div>
     <div class="sp-foot" id="spFoot"></div>`;
   dlg.showModal();
@@ -441,13 +442,17 @@ function openSpawn(charId, name, uid) {
 function spawnList() {
   const cat = SPAWN_CATS.find((c) => c[0] === SP.cat)[2], q = SP.q.trim().toLowerCase();
   return ITEMS.filter((i) => cat(i) && (!q || i.name.toLowerCase().includes(q) || i.id.includes(q)) &&
-    (SP.job === "all" || (i.type === "equip" && i.jobs.includes(SP.job))))
+    (SP.job === "all" || (i.type === "equip" && i.jobs.includes(SP.job))) &&
+    (SP.lv === "all" || (SP.lv === "low" ? (i.lv || 0) <= 30 : i.lv === Number(SP.lv))))
     .sort((a, b) => (a.type === "equip" ? 0 : 1) - (b.type === "equip" ? 0 : 1) || (a.lv || 0) - (b.lv || 0) || a.name.localeCompare(b.name, "th"));
 }
 function renderSpawn() {
   $("spCats").innerHTML = SPAWN_CATS.map(([k, n, f]) => `<button class="chip${SP.cat === k ? " on" : ""}" data-c="${k}">${n} <small>${ITEMS.filter(f).length}</small></button>`).join("");
   $("spJobs").innerHTML = `<span class="muted">ใช้ได้กับอาชีพ:</span>` + [["all", "ทุกอาชีพ", "#a7abc4"], ...Object.entries(JOBS_INFO).filter(([k]) => k !== "villager").map(([k, j]) => [k, j.name, j.color])]
     .map(([k, n, c]) => `<button class="chip${SP.job === k ? " on" : ""}" data-j="${k}" style="--jc:${c}">${n}</button>`).join("");
+  const LVS = [["all", "ทุกเลเวล"], ["low", "Lv.1–30"], ["40", "Lv.40 ธารน้ำแข็ง"], ["50", "Lv.50 ราชันโบราณ"], ["60", "Lv.60 ราตรีต้องสาป"], ["70", "Lv.70 เพลิงนรก"], ["80", "Lv.80 เกล็ดมังกร"], ["90", "Lv.90 อเวจี"]];
+  $("spLvs").innerHTML = `<span class="muted">เลเวล:</span>` + LVS.map(([k, n]) => `<button class="chip${SP.lv === k ? " on" : ""}" data-l="${k}">${n}</button>`).join("");
+  $("spLvs").querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => { SP.lv = b.dataset.l; renderSpawn(); }));
   $("spCats").querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => { SP.cat = b.dataset.c; renderSpawn(); }));
   $("spJobs").querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => { SP.job = b.dataset.j; renderSpawn(); }));
   const list = spawnList();

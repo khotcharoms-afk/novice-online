@@ -476,4 +476,18 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
+// ---------- อุปกรณ์เลเวลสูง Lv.40–90 (server/tiers.js) ----------
+{
+  const TIERS = require("./tiers");
+  const { items, sets } = TIERS.build(ITEMS);
+  Object.assign(ITEMS, items);
+  Object.assign(ITEM_SETS, sets);
+  // มอน Lv.34+ ดรอปอุปกรณ์ขั้นใกล้เลเวลตัวเอง (ตัวใหญ่ประจำโซน = โอกาสสูงขึ้น)
+  const D = require("./data");
+  for (const [k, m] of Object.entries(D.MONSTERS)) {
+    if (m.level < 34 || !DROPS[k]) continue;
+    const big = (m.scale || 1) >= 1.2;
+    DROPS[k].push(...TIERS.tierDrops(m.level, big ? 0.002 : 0.0012));
+  }
+}
 module.exports = { SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

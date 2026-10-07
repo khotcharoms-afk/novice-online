@@ -140,7 +140,7 @@ const loadImg = (path) => {
 const AFTER_HAIR = new Set(["head", "weapon", "offhand"]);
 const layersFor = (lk, job = "villager", gear = "") => {
   const [sex, skin, hair, color] = lk.split("|");
-  const has = (k) => MANIFEST.equip.includes(k);
+  const has = (k) => MANIFEST.equip.includes(k) || (MANIFEST.equipLazy || []).includes(k);
   const pick = (base) => (has(`${base}_${sex}`) ? `equip/${base}_${sex}` : has(base) ? `equip/${base}` : null);
   const items = gear ? gear.split(",").map((x) => x.split(":")) : [];
   const back = items.map(([, id]) => pick(`${id}_back`)).filter(Boolean);
@@ -545,6 +545,39 @@ class WorldScene extends Phaser.Scene {
 
   // ---------- ประกอบภาพตัวละครจากหลายชั้น (ตัว + ชุด + ผม) ----------
   // tint = ย้อมสีมอน (อบสีลงภาพเลย — ใช้ได้ทั้งโหมด WebGL และ Canvas)
+  // อุปกรณ์เลเวลสูง (equipLazy) ไม่โหลดล่วงหน้า → โหลดตอนมีคนใส่ แล้วประกอบภาพตัวละครใหม่
+  lazySheet(key, layers) {
+    const miss = layers.filter((k) => !this.textures.exists(k));
+    if (!miss.length) return this.buildSheet(key, layers);
+    this.lazyLoad(miss.map((k) => [k, `/assets/${k}.png`]));
+    return this.buildSheet(`${key}~${miss.length}`, layers.filter((k) => this.textures.exists(k)));
+  }
+  prefetchAtk(gear) { // โหลดภาพท่าฟันของอาวุธเลเวลสูงไว้ก่อนฟันครั้งแรก
+    const m = /(?:^|,)weapon:([^,]+)/.exec(gear || ""), wid = m && m[1], lz = wid && (MANIFEST.atkLazy || {})[wid];
+    if (lz) this.lazyLoad([["atk_" + wid, `/assets/equip/${wid}_atk.png`], ["atkb_" + wid, `/assets/equip/${wid}_atkb.png`]], lz);
+  }
+  lazyLoad(list, sheet) {
+    this.lazyPending = this.lazyPending || new Set();
+    let added = 0;
+    for (const [k, url] of list) {
+      if (this.lazyPending.has(k) || this.textures.exists(k)) continue;
+      this.lazyPending.add(k); added++;
+      if (sheet) this.load.spritesheet(k, url, { frameWidth: sheet, frameHeight: sheet }); else this.load.image(k, url);
+    }
+    if (!added) return;
+    if (!this.lazyHooked) {
+      this.lazyHooked = true;
+      this.load.on("complete", () => {
+        this.lazyPending.clear();
+        // สร้างท่าฟันของอาวุธที่เพิ่งโหลด แล้วประกอบภาพตัวละครที่ใส่ของนั้นใหม่
+        for (const [id] of Object.entries(MANIFEST.atkLazy || {})) for (const kk of ["atk_", "atkb_"]) if (this.textures.exists(kk + id))
+          for (const dir in DIR_ROW) { const key = `${kk}${id}:${dir}`; if (!this.anims.exists(key)) this.anims.create({ key, frames: this.anims.generateFrameNumbers(kk + id, { start: DIR_ROW[dir] * 6, end: DIR_ROW[dir] * 6 + 5 }), frameRate: 16 }); }
+        if (this.views) this.views.forEach((v) => { if (!v.isMob && v.key && v.key.includes("~")) { v.gear = null; this.syncView(v, v.e); } });
+      });
+    }
+    this.load.start();
+  }
+
   buildSheet(key, layerKeys, tint) {
     if (this.textures.exists(key)) return key;
     // ภาพผู้เล่นสูง 21 แถว (มีท่ายิงธนู/แทงคทา) · มอน/NPC 13 แถว
@@ -667,7 +700,8 @@ class WorldScene extends Phaser.Scene {
   createView(e, id, isMob) {
     const isMe = id === room.sessionId;
     const mobSprite = e.sprite || e.kind;
-    const key = isMob ? (e.tint && e.tint !== 0xffffff ? this.buildSheet(`mob_${mobSprite}_${e.tint}`, ["mobsrc_" + mobSprite], e.tint) : "mob_" + mobSprite) : this.buildSheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
+    const key = isMob ? (e.tint && e.tint !== 0xffffff ? this.buildSheet(`mob_${mobSprite}_${e.tint}`, ["mobsrc_" + mobSprite], e.tint) : "mob_" + mobSprite) : this.lazySheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
+    if (!isMob) this.prefetchAtk(e.gear);
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, DIR_ROW[e.dir || "down"] * COLS).setOrigin(0.5, 0.97);
@@ -715,7 +749,8 @@ class WorldScene extends Phaser.Scene {
     } else {
       if ((e.gear || "") !== v.gear || e.job !== v.job) { // เปลี่ยนอุปกรณ์/อาชีพ → ประกอบภาพตัวละครใหม่
         v.gear = e.gear || ""; v.job = e.job;
-        v.key = this.buildSheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
+        v.key = this.lazySheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
+        this.prefetchAtk(v.gear);
         v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
         if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
       }
@@ -769,7 +804,12 @@ class WorldScene extends Phaser.Scene {
   weaponSwing(v, on, repeat = 0) {
     if (v.isMob || !v.wfg) return;
     const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), wid = m && m[1];
-    if (!on || !wid || !(MANIFEST.atk || {})[wid]) { v.wfg.setVisible(false); v.wbg.setVisible(false); return; }
+    const lz = (MANIFEST.atkLazy || {})[wid];
+    if (on && lz && !this.anims.exists(`atk_${wid}:down`)) { // อาวุธเลเวลสูง: โหลดภาพท่าฟันครั้งแรกที่ใช้
+      this.lazyLoad([["atk_" + wid, `/assets/equip/${wid}_atk.png`], ["atkb_" + wid, `/assets/equip/${wid}_atkb.png`]], lz);
+      on = false;
+    }
+    if (!on || !wid || !((MANIFEST.atk || {})[wid] || lz)) { v.wfg.setVisible(false); v.wbg.setVisible(false); return; }
     for (const [spr, k] of [[v.wfg, "atk_"], [v.wbg, "atkb_"]]) {
       spr.setVisible(true).play({ key: `${k}${wid}:${v.dir}`, repeat });
       spr.once("animationcomplete", () => spr.setVisible(false));
@@ -865,6 +905,20 @@ class WorldScene extends Phaser.Scene {
     } });
   }
   // วงระเบิดสั้น ๆ
+  // ออร่าอาวุธเลเวลสูง: ประกายแสงลอยขึ้นรอบตัวคนที่ถืออยู่
+  weaponAura(v, time) {
+    if (!gameData || time < (v.auraNext || 0)) return;
+    const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), it = m && gameData.items[m[1]];
+    if (!it || !it.aura) return;
+    v.auraNext = time + 140 + Math.random() * 120;
+    const col = Phaser.Display.Color.HexStringToColor(it.aura).color;
+    const x = v.root.x + (Math.random() - 0.5) * 30, y = v.root.y - 6 - Math.random() * 40;
+    const sz = 1 + Math.random() * 1.6;
+    const p = this.add.circle(x, y, sz, col, 0.95).setDepth(v.root.depth + 2).setBlendMode(Phaser.BlendModes.ADD);
+    const g = this.add.circle(x, y, sz * 2.6, col, 0.25).setDepth(v.root.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: [p, g], y: y - 18 - Math.random() * 14, alpha: 0, duration: 700 + Math.random() * 300, onComplete: () => { p.destroy(); g.destroy(); } });
+  }
+
   // ---------- World Boss ----------
   bossCast({ id, x, y, r, ms }) {
     const ring = this.add.circle(x, y, r, 0xff2a2a, 0.12).setStrokeStyle(3, 0xff4a4a, 0.95).setDepth(-8000);
@@ -1045,6 +1099,7 @@ class WorldScene extends Phaser.Scene {
         if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
         return;
       }
+      if (!v.isMob) this.weaponAura(v, time);
       if (time < v.busyUntil) return;
       if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);
       if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);
