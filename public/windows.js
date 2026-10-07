@@ -3,7 +3,7 @@
 //  (จอเล็กกว่า 760px ใช้ตำแหน่งตายตัว ไม่ให้ลาก)
 // =============================================================
 (() => {
-  const PANELS = ["statPanel", "invPanel", "shopPanel", "smithPanel", "autoPanel", "worldPanel", "jobPanel", "skillPanel", "spiritPanel"];
+  const PANELS = ["statPanel", "invPanel", "shopPanel", "smithPanel", "autoPanel", "worldPanel", "jobPanel", "skillPanel", "spiritPanel", "bossPanel"];
   const wide = () => window.innerWidth >= 760;
   const key = (id) => "pn_win_" + id;
   const load = (id) => { try { return JSON.parse(localStorage.getItem(key(id)) || "null"); } catch { return null; } };

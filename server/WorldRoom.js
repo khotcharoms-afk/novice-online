@@ -250,6 +250,7 @@ class WorldRoom extends Room {
     }));
     this.onMessage("sortBag", (client, m) => this.withBag(client, m || {}, (p, b) => Bag.sortBag(b)));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
+    this.onMessage("bossBoard", (client) => client.send("bossBoard", { at: Date.now(), list: WorldRoom.bossBoard() }));
     this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
     this.onMessage("spiritQuest", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritQuest(client, p, b, m || {})));
     this.onMessage("spiritUp", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritUp(client, p, b, m || {})));
@@ -544,6 +545,19 @@ class WorldRoom extends Room {
     pendingBoss.forEach((k, mapId) => out.push({ map: W.MAPS[mapId].name, name: D.WORLD_BOSSES[k].name, pending: true }));
     for (const [k, s] of Object.entries(bossSched)) if (!s.alive) out.push({ name: D.WORLD_BOSSES[k].name, next: Math.max(0, s.next - Date.now()), map: s.map ? W.MAPS[s.map].name : null });
     return out;
+  }
+  // บอร์ด World Boss สำหรับผู้เล่น: สถานะทุกตัว (อยู่ที่ไหน เลือดเท่าไร / จะเกิดอีกกี่นาที ที่แมพไหน)
+  static bossBoard() {
+    const t = Date.now();
+    return Object.entries(D.WORLD_BOSSES).map(([key, B]) => {
+      const s = bossSched[key], o = { key, name: B.name, level: B.level, sprite: B.sprite, maps: (B.maps || []).map((m) => W.MAPS[m].name) };
+      if (s.alive) {
+        o.state = "alive"; o.endsIn = Math.max(0, BOSS_LIFE_MS - (t - s.since)); o.map = s.map && W.MAPS[s.map] ? W.MAPS[s.map].name : null;
+        rooms.forEach((rm) => rm.mr.forEach((r, id) => { const m = rm.state.monsters.get(id); if (r.boss && r.bossKey === key && m && !m.dead) { o.map = rm.def.name; o.hp = m.hp; o.maxHp = m.maxHp; o.tx = Math.floor(m.x / rm.map.tile); o.ty = Math.floor(m.y / rm.map.tile); } }));
+        if (o.hp === undefined) o.state = "waiting"; // สั่งเกิดแล้ว รอมีคนเข้าแผนที่
+      } else { o.state = "next"; o.next = Math.max(0, s.next - t); o.map = s.map ? W.MAPS[s.map].name : null; }
+      return o;
+    });
   }
   static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
 

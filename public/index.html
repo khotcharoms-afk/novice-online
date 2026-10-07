@@ -100,7 +100,8 @@
         <span id="pos">-</span>
       </div>
       <div class="zoom">
-        <button id="worldBtn" type="button" class="world-btn" title="แผนที่โลก (M)">🗺 แผนที่โลก</button>
+        <button id="worldBtn" type="button" class="world-btn" title="แผนที่โลก (M)">🗺 แผนที่</button>
+        <button id="bossBtn" type="button" class="boss-btn" title="ตาราง World Boss (O)">👑 บอส</button>
         <button id="zoomOut" aria-label="ซูมออก">−</button>
         <span id="zoomTxt">150%</span>
         <button id="zoomIn" aria-label="ซูมเข้า">+</button>
@@ -206,6 +207,11 @@
       <div id="spiritBody" class="job-body"></div>
       <div id="spiritUp" class="sp-up"></div>
     </section>
+    <section id="bossPanel" class="frame" hidden aria-label="World Boss">
+      <div class="ap-head"><b>👑 ตาราง World Boss</b><button id="bossClose" type="button" aria-label="ปิด">✕</button></div>
+      <p class="ap-note">บอสเกิดเองตามเวลา · ประกาศเตือนก่อนเกิด 5 นาที · เกิดแล้วไม่มีใครปราบภายใน 60 นาทีจะหายไป · ปราบได้รับของดีและ MVP (ดาเมจสูงสุด) ได้ของระดับมหากาพย์ขึ้นไป</p>
+      <div id="bossList" class="boss-list"></div>
+    </section>
     <div id="questTrack" class="frame" hidden></div>
     <div id="spiritTrack" class="frame" hidden></div>
     <div id="buffBar" hidden></div>
@@ -234,7 +240,7 @@
     </section>
     <div id="toast" role="status"></div>
     <div id="deathMsg" hidden>คุณถูกล้ม — กำลังฟื้นที่ลานกลางเมือง…</div>
-    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Q E R F Z X V B = ช่องไอเทม · C = ตัวละคร · I = กระเป๋า · M = แผนที่โลก · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
+    <div id="help">คลิกพื้น = เดิน · คลิกมอนสเตอร์ = โจมตี · 1–9 = สกิล · Q E R F Z X V B = ช่องไอเทม · C = ตัวละคร · I = กระเป๋า · M = แผนที่โลก · O = ตาราง World Boss · AUTO = ตีมอนอัตโนมัติ · Enter = แชท</div>
   </div>
 
   <script src="/lib/firebase-app.js"></script>
@@ -247,6 +253,7 @@
   <script src="/worldmap-ui.js"></script>
   <script src="/job-ui.js"></script>
   <script src="/spirit-ui.js"></script>
+  <script src="/boss-ui.js"></script>
   <script src="/skill-ui.js"></script>
   <script src="/windows.js"></script>
 </body>

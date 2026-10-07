@@ -345,6 +345,7 @@ function bindRoom(room) {
     room.onMessage("bossCast", (c) => scene && scene.bossCast(c));
     room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
+    room.onMessage("bossBoard", (d) => onBossBoard(d));
     room.onMessage("spiritFx", (c) => scene && scene.spiritFx(c));
     room.onMessage("spq", (q) => { INV.spq = q; renderSpiritTrack(); renderSpirit(); });
     room.onMessage("spiritGot", ({ id }) => { const it = itemOf(id); toast(`✨ ได้รับ ${it ? it.name : id}! ภูติลอยตามคุณแล้ว (ถ้ามีภูติอยู่แล้ว ตัวใหม่จะอยู่ในกระเป๋า)`); });
