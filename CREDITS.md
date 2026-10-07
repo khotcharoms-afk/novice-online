@@ -444,3 +444,95 @@
 
 ไอคอนสกิลทั้งหมดมาจาก https://game-icons.net (ที่เก็บ https://github.com/game-icons/icons) สัญญาอนุญาต CC BY 3.0
 ผู้สร้าง: Lorc (https://lorcblog.blogspot.com) และ Delapouite (https://delapouite.com) — ปรับสีและเพิ่มเงาโดยโปรเจกต์นี้
+
+## มอนสเตอร์โซนเลเวลสูง (`mobs/frostgiant … abysslord.png`, Phase 7)
+
+ประกอบจากชิ้นส่วนของ **Universal LPC Spritesheet Character Generator** — https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator (สัญญาอนุญาตตามแต่ละชิ้น) · ชุดเกราะ plate/legion/leather, ชุดคลุม, หมวกพ่อมด และผ้าคลุมใช้ชิ้นเดียวกับที่ระบุไว้ในส่วน Phase 6 ด้านบน · ไอคอนวัตถุดิบใหม่ย้อมสีจากไอคอนเดิมของเกม/วาดขึ้นใหม่ · พื้นแผนที่ธีมใหม่ (บึง ทะเลทราย ลาวา ซากปราสาท เงามืด) ย้อมสีจากชุดภาพพื้นเดิม
+
+- **Body Color** — bluecarrot16, JaidynReiman, Benjamin K. Smith (BenCreating), Evert, Eliza Wyatt (ElizaWy), TheraHedwig, MuffinElZangano, Durrani, Johannes Sjölund (wulax), Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+- **Lizard tail** — Nila122, bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+- **Lizard Wings** — JaidynReiman, Nila122, bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+  - https://opengameart.org/content/lpc-wings-new-animations
+- **Lunar Wings** — The Foreman; OGA-BY 4.0, CC-BY-SA 4.0
+  - https://opengameart.org/content/lpc-fairy-wings-pack-2
+- **Bat Wings** — ElizaWy, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-wings-new-animations
+- **Feathered Wings** — ElizaWy, Stephen Challener (Redshrike), JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-wings-new-animations
+- **Skeleton** — bluecarrot16, Napsio, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-skeleton
+- **Zombie** — Stephen Challener (Redshrike), Johannes Sjölund (wulax), Sander Frenken (castelonia), Benjamin K. Smith (BenCreating), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-zombie
+- **Wolf Tail** — JaidynReiman; OGA-BY 3.0+, CC-BY 3.0+, GPL 3.0
+  - https://opengameart.org/content/lpc-furry-ears-tails-for-rpg-sprites
+- **Backwards Horns** — Nila122; OGA-BY 3.0, GPL 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-lizard-headgear
+- **Curled Horns** — Nila122; OGA-BY 3.0, GPL 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-lizard-headgear
+- **Alien** — bluecarrot16, Benjamin K. Smith (BenCreating), Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+  - https://opengameart.org/content/lpc-character-bases
+- **Lizard male** — bluecarrot16, Benjamin K. Smith (BenCreating), Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/drakes-and-lizardfolk
+  - https://opengameart.org/content/lpc-character-bases
+- **Zombie** — bluecarrot16, Benjamin K. Smith (BenCreating), Sander Frenken (castelonia), Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-zombie
+  - https://opengameart.org/content/lpc-character-bases
+- **Vampire** — Stephen Challener (Redshrike), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-folk
+- **Frankenstein** — Stephen Challener (Redshrike), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-folk
+- **Skeleton** — bluecarrot16, Napsio, JaidynReiman, Johannes Sjölund (wulax), Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-skeleton
+- **Human Male Plump** — Stephen Challener (Redshrike), ??; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-folk
+- **Human Female** — bluecarrot16, Benjamin K. Smith (BenCreating), Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/
+  - https://opengameart.org/content/lpc-character-bases
+- **Human Male** — bluecarrot16, Benjamin K. Smith (BenCreating), Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-character-bases
+- **Orc male** — bluecarrot16, Matthew Krohn (makrohn), Stephen Challener (Redshrike), Zi Ye; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/four-characters-my-lpc-entries
+  - https://opengameart.org/content/sinbad-the-ogre
+  - https://opengameart.org/content/lpc-male-sheets
+- **Troll** — bluecarrot16, AntumDeluge, Tuomo Untinen (reemax); CC-BY 3.0
+  - https://opengameart.org/content/musclemanogreminotaur
+  - https://opengameart.org/content/trolls-0
+  - https://opengameart.org/content/lpc-folk
+- **Wolf male** — bluecarrot16, Sander Frenken (castelonia), Benjamin K. Smith (BenCreating), William.Thompsonj, Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-wolf-animation
+  - https://opengameart.org/content/lpc-wolfman
+- **Wartotaur** — bluecarrot16, Evert, Stephen Challener (Redshrike); OGA-BY 3.0, CC-BY 3.0
+  - https://opengameart.org/content/tower-defense-prototyping-assets-4-monsters-some-tiles-a-background-image
+  - https://opengameart.org/content/wartotaur-4-directions
+  - https://opengameart.org/content/lpc-folk
+- **Boarman** — Benjamin K. Smith (BenCreating), Daniel Eddeland (daneeklu); CC-BY 3.0, GPL 2.0
+  - https://opengameart.org/content/lpc-style-farm-animals
+  - https://opengameart.org/content/lpc-wild-boar
+  - https://opengameart.org/content/lpc-boarman
+- **Minotaur** — Evert, Nila122, Daniel Eddeland (daneeklu); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-style-farm-animals
+  - https://opengameart.org/content/lpc-lizard-headgear
+  - https://opengameart.org/content/lpc-faun-and-minotaur
+- **Rat** — bluecarrot16, Stephen Challener (Redshrike), Napsio (Vitruvian Studio), JaidynReiman; OGA-BY 3.0, CC-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/bunny-rabbit-lpc-style-for-pixelfarm
+  - http://opengameart.org/content/lpc-folk
+- **Cyclops Eyes** — kirts, JaidynReiman; CC0
+  - https://opengameart.org/content/cyclops-and-his-eye

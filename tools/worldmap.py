@@ -131,10 +131,11 @@ for _ in range(2600):
     z = zones[ownpx[int(x), int(y)]]
     if math.hypot(x - z['px'], y - z['py']) < (150 if z['type'] == 'town' else 80): continue
     if near_road(x, y, 34): continue
-    dens = {'pine': 1.0, 'maple': 0.9, 'snow': 0.85, 'meadow': 0.45, 'bones': 0.35, 'orcamp': 0.5, 'town': 0.35}.get(z['id'], 0.6)
+    dens = {'pine': 1.0, 'maple': 0.9, 'snow': 0.85, 'meadow': 0.45, 'bones': 0.35, 'orcamp': 0.5, 'town': 0.35,
+            'frost': 0.8, 'swamp': 0.85, 'ruins': 0.4, 'cursed': 1.0, 'lava': 0.4, 'desert': 0.25, 'dragon': 0.4, 'abyss': 0.5}.get(z['id'], 0.6)
     if random.random() > dens: continue
-    if z['id'] in ('bones', 'orcamp') and random.random() < 0.45: k = random.choice(['dead', 'rock_big', 'rock_round', 'brock_big'])
-    elif z['id'] in ('pine', 'snow'): k = random.choice(['pine1', 'pine2', 'pine3', 'pine1', 'oak2'])
+    if z['id'] in ('bones', 'orcamp', 'ruins', 'lava', 'desert', 'dragon', 'abyss') and random.random() < 0.6: k = random.choice(['dead', 'rock_big', 'rock_round', 'brock_big'])
+    elif z['id'] in ('pine', 'snow', 'frost'): k = random.choice(['pine1', 'pine2', 'pine3', 'pine1', 'oak2'])
     else: k = random.choice(['oak1', 'oak2', 'oak3', 'doak1', 'doak2', 'pine1', 'bush1', 'bush2'])
     items.append((y, x, z['season'], k))
 items.sort()

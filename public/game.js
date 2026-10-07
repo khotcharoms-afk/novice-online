@@ -1495,7 +1495,8 @@ function buildMinimap(map) {
   miniBase.width = cv.width; miniBase.height = cv.height;
   const ctx = miniBase.getContext("2d");
   const COL = { spring: ["#6bb04a", "#b98d5b", "#2f86a6"], summer: ["#5b9a3f", "#b98d5b", "#2f86a6"],
-    autumn: ["#b89a3c", "#a07850", "#2f86a6"], winter: ["#dfeef5", "#a9c7d8", "#4f8fb0"] }[map.season] || ["#5b9a3f", "#b98d5b", "#2f86a6"];
+    autumn: ["#b89a3c", "#a07850", "#2f86a6"], winter: ["#dfeef5", "#a9c7d8", "#4f8fb0"],
+    swamp: ["#4f5a34", "#5e4a32", "#25463f"], ruins: ["#7d8070", "#8e8676", "#4f6e80"], desert: ["#d9b47a", "#c07a4a", "#2f9fa0"], lava: ["#4a3a36", "#5a2a20", "#ff7a1a"], shadow: ["#4a3e5a", "#5a5068", "#2a1f3a"] }[map.season] || ["#5b9a3f", "#b98d5b", "#2f86a6"];
   for (let y = 0; y < map.height; y++)
     for (let x = 0; x < map.width; x++) {
       ctx.fillStyle = COL[map.ground[y * map.width + x]];

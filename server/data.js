@@ -116,6 +116,39 @@ const MONSTERS = {
   snowwolf:    { name: "หมาป่าหิมะ",          level: 28, sprite: "wolf",     speed: 105, aggressive: true,  tint: 0xe8f4ff, scale: 1.05 },
   frostskel:   { name: "โครงกระดูกน้ำแข็ง",    level: 30, sprite: "skeleton", speed: 80,  aggressive: true,  tint: 0x90e0ff },
   snoworc:     { name: "ออร์คหิมะ",           level: 33, sprite: "orc",      speed: 85,  aggressive: true,  tint: 0xc8e8ff, scale: 1.15 },
+  // ---------- โซนเลเวลสูง ----------
+  frostgiant:   { name: "ยักษ์น้ำแข็ง",          level: 36, sprite: "frostgiant",   speed: 75,  aggressive: true,  scale: 1.2 },
+  snowwraith:   { name: "ภูตหิมะ",              level: 38, sprite: "snowwraith",   speed: 95,  aggressive: true },
+  icewolfman:   { name: "มนุษย์หมาป่าน้ำแข็ง",   level: 40, sprite: "icewolfman",   speed: 105, aggressive: true,  scale: 1.05 },
+  frostcyclops: { name: "ไซคลอปส์หิมะ",         level: 43, sprite: "frostcyclops", speed: 75,  aggressive: true,  scale: 1.25 },
+  bogzombie:    { name: "ผีดิบหนองน้ำ",          level: 44, sprite: "bogzombie",    speed: 65,  aggressive: true },
+  venomlizard:  { name: "มนุษย์กิ้งก่าพิษ",       level: 46, sprite: "venomlizard",  speed: 95,  aggressive: true,  scale: 1.05 },
+  bogboar:      { name: "หมูป่าบึงมรณะ",         level: 48, sprite: "bogboar",      speed: 85,  aggressive: true,  scale: 1.12 },
+  swampwitch:   { name: "แม่มดบึง",             level: 51, sprite: "swampwitch",   speed: 80,  aggressive: true },
+  skelknight:   { name: "อัศวินโครงกระดูก",      level: 52, sprite: "skelknight",   speed: 80,  aggressive: true,  scale: 1.08 },
+  frankenstein: { name: "มนุษย์ปะติดปะต่อ",      level: 54, sprite: "frankenstein", speed: 70,  aggressive: true,  scale: 1.18 },
+  gargoyle:     { name: "การ์กอยล์",             level: 56, sprite: "gargoyle",     speed: 100, aggressive: true,  scale: 1.1 },
+  lich:         { name: "ลิช",                  level: 59, sprite: "lich",         speed: 75,  aggressive: true,  scale: 1.1 },
+  cursedwolf:   { name: "หมาป่าคำสาป",          level: 60, sprite: "cursedwolf",   speed: 110, aggressive: true,  scale: 1.08 },
+  wartotaur:    { name: "วอร์ทอร์",              level: 62, sprite: "wartotaur",    speed: 85,  aggressive: true,  scale: 1.2 },
+  dryad:        { name: "นางไม้ต้องสาป",         level: 64, sprite: "dryad",        speed: 90,  aggressive: true },
+  vamplord:     { name: "ลอร์ดแวมไพร์",          level: 67, sprite: "vamplord",     speed: 100, aggressive: true,  scale: 1.12 },
+  salamander:   { name: "ซาลาแมนเดอร์",          level: 68, sprite: "salamander",   speed: 95,  aggressive: true,  scale: 1.05 },
+  flameorc:     { name: "ออร์คเพลิง",            level: 70, sprite: "flameorc",     speed: 85,  aggressive: true,  scale: 1.15 },
+  firedemon:    { name: "ปีศาจเพลิง",            level: 72, sprite: "firedemon",    speed: 100, aggressive: true,  scale: 1.12 },
+  lavataur:     { name: "มิโนทอร์ลาวา",          level: 75, sprite: "lavataur",     speed: 90,  aggressive: true,  scale: 1.25 },
+  mummy:        { name: "มัมมี่",                level: 76, sprite: "mummy",        speed: 70,  aggressive: true },
+  sandrat:      { name: "หนูยักษ์ทะเลทราย",       level: 78, sprite: "sandrat",      speed: 105, aggressive: true,  scale: 1.05 },
+  sandspirit:   { name: "ภูตทราย",              level: 80, sprite: "sandspirit",   speed: 90,  aggressive: true },
+  sandwarlord:  { name: "ขุนศึกทะเลทราย",        level: 83, sprite: "sandwarlord",  speed: 85,  aggressive: true,  scale: 1.22 },
+  draconian:    { name: "ดราโคเนียน",            level: 84, sprite: "draconian",    speed: 95,  aggressive: true,  scale: 1.1 },
+  wyvern:       { name: "ไวเวิร์น",              level: 86, sprite: "wyvern",       speed: 110, aggressive: true,  scale: 1.12 },
+  dragonknight: { name: "อัศวินมังกร",           level: 89, sprite: "dragonknight", speed: 90,  aggressive: true,  scale: 1.15 },
+  volcanogiant: { name: "ยักษ์ภูเขาไฟ",          level: 91, sprite: "volcanogiant", speed: 75,  aggressive: true,  scale: 1.3 },
+  deathknight:  { name: "อัศวินมรณะ",            level: 92, sprite: "deathknight",  speed: 90,  aggressive: true,  scale: 1.15 },
+  shadowdemon:  { name: "ปีศาจเงา",              level: 94, sprite: "shadowdemon",  speed: 105, aggressive: true,  scale: 1.12 },
+  darkcyclops:  { name: "ไซคลอปส์ทมิฬ",          level: 96, sprite: "darkcyclops",  speed: 80,  aggressive: true,  scale: 1.3 },
+  abysslord:    { name: "จอมมารแห่งห้วงลึก",      level: 98, sprite: "abysslord",    speed: 95,  aggressive: true,  scale: 1.3 },
 };
 const monsterStats = (lv) => ({
   maxHp: 30 + lv * 20 + Math.round(0.5 * lv * lv),
@@ -181,7 +214,7 @@ const WEAPON_TYPES = {
   staff:      { name: "คทา", stat: "int", range: 170, delay: 1.3, twoHand: true, fx: "magic", trait: { spPct: 10 }, style: "เวทแรง SP เยอะ" },
   book:       { name: "คัมภีร์", stat: "int", range: 150, delay: 1.25, fx: "holy", trait: { healPct: 10 }, style: "ฮีลแรงขึ้น" },
 };
-const UNDEAD = ["skeleton", "zombie", "vampire", "skelwarrior", "frostskel"];
+const UNDEAD = ["skeleton", "zombie", "vampire", "skelwarrior", "frostskel", "snowwraith", "bogzombie", "skelknight", "lich", "vamplord", "mummy", "deathknight"];
 
 // ---------- สกิล ----------
 // ได้แต้มสกิล 1 แต้มทุกครั้งที่เลเวลอัป · กด + ในหน้าต่างสกิลเพื่ออัปทีละขั้น
