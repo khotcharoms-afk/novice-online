@@ -65,6 +65,15 @@ const ITEMS = {
   orb_star:       { ot: "orb", name: "ลูกแก้วดวงดาว", type: "equip", slot: "offhand", lv: 30, bonus: { int: 5, maxSp: 60, atk: 12 }, special: { cdr: 4 }, price: 15000, visual: true, back: true },
   relic_light:    { ot: "relic", name: "เครื่องรางแสง", type: "equip", slot: "offhand", lv: 20, bonus: { int: 2, vit: 2 }, special: { healPct: 5 }, price: 6000, visual: true, back: true },
   relic_holy:     { ot: "relic", name: "กางเขนศักดิ์สิทธิ์", type: "equip", slot: "offhand", lv: 30, bonus: { int: 4, vit: 3, maxHp: 80 }, special: { healPct: 8, dmgReduce: 2 }, price: 15000, visual: true, back: true },
+  // ---------- อาวุธทางเลือก (build อื่นของแต่ละอาชีพ) ----------
+  warhammer:       { wt: "mace", name: "ค้อนศึกอัศวิน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 46, str: 2, vit: 2 }, price: 7000, visual: true, back: true, desc: "ผู้พิทักษ์สายค้อน: เจาะเกราะ ใช้คู่โล่ได้" },
+  judgehammer:     { wt: "mace", name: "ค้อนพิพากษา", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 72, str: 3, int: 3 }, special: { undeadDmg: 15 }, price: 18000, visual: true, back: true,
+    refineFx: { 7: { sp: { ignoreDef: 10 } }, 9: { sp: { undeadDmg: 20 } } } },
+  priest_mace:     { wt: "mace", name: "คทาหัวค้อนนักบวช", type: "equip", slot: "weapon", lv: 22, bonus: { atk: 42, str: 2, int: 3, maxSp: 20 }, price: 8000, visual: true, back: true, desc: "หมอสายบู๊: ตีระยะใกล้ด้วย STR แต่ยังฮีลได้" },
+  assassin_dagger: { wt: "dagger", name: "มีดสั้นนักฆ่า", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 40, agi: 3, dex: 2 }, price: 7000, visual: true, back: true, desc: "นักล่าสายประชิด: ใช้ AGI ตีเร็วมาก" },
+  shadow_kris:     { wt: "dagger", name: "กริชเงาราตรี", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 64, agi: 5, dex: 3 }, special: { lifesteal: 2 }, price: 18000, visual: true, back: true,
+    refineFx: { 7: { sp: { critPct: 4 } }, 9: { sp: { critDmg: 20 } } } },
+  battleaxe:       { wt: "axe", name: "ขวานศึกคู่คม", type: "equip", slot: "weapon", lv: 22, bonus: { atk: 72, str: 3 }, price: 8500, visual: true, back: true, desc: "นักดาบใหญ่สายขวาน: ตีหนักแต่ช้า" },
   // ---------- นักดาบใหญ่: อาวุธสองมือ ----------
   greatsword:     { refineFx: { 7: { sp: { critPct: 3 } }, 9: { sp: { critDmg: 15 } } }, wt: "greatsword", name: "ดาบใหญ่", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 62, str: 2 }, price: 7500, visual: true, back: true },
   titanaxe:       { refineFx: { 7: { sp: { atkPct: 5 } }, 9: { sp: { critDmg: 20 } } }, special: { critPct: 5 }, wt: "axe", name: "ขวานยักษ์โลหิต", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 96, str: 4 }, price: 19000, visual: true, back: true },
@@ -225,7 +234,7 @@ function refineFxOf(g) {
 // ร้านค้าในเมือง: แต่ละ NPC ขายของคนละหมวด (ทุกร้านรับซื้อของคืนได้)
 const SHOPS = {
   shop_potion: { name: "มิเรล", title: "ร้านยา", items: ["potion_s", "potion_m", "potion_sp"] },
-  shop_weapon: { name: "การ์เร็ธ", title: "ร้านอาวุธ", items: ["mace", "dagger", "saber", "greatsword", "bow_hunter", "staff_oak", "book_light", "kite", "shield_knight",
+  shop_weapon: { name: "การ์เร็ธ", title: "ร้านอาวุธ", items: ["mace", "dagger", "saber", "greatsword", "bow_hunter", "staff_oak", "book_light", "warhammer", "priest_mace", "assassin_dagger", "battleaxe", "kite", "shield_knight",
     "war_emblem", "quiver_leather", "orb_mana", "relic_light"] },
   shop_armor: { name: "บรอนแดน", title: "ร้านชุดเกราะ", items: ["bandana", "hood", "leather", "gloves", "boots", "cape",
     "cape_red", "cape_blue", "cape_green", "cape_white", "cape_knight", "chain", "mailcoif", "bracers", "ironboots",
@@ -250,7 +259,7 @@ const DROPS = {
   lizard:      [["lizard_scale", 0.6, 1, 2], ["stone_1", 0.14, 1, 2], ["stone_2", 0.02, 1, 1], ["kite", 0.015, 1, 1], ["dagger", 0.012, 1, 1], ["bracers", 0.012, 1, 1], ["cape_green", 0.01, 1, 1]],
   jack:        [["pumpkin", 0.55, 1, 1], ["stone_1", 0.14, 1, 2], ["stone_2", 0.03, 1, 1], ["cape", 0.02, 1, 1], ["potion_m", 0.08, 1, 1], ["ironboots", 0.012, 1, 1]],
   zombie:      [["rotten_cloth", 0.6, 1, 2], ["stone_2", 0.06, 1, 1], ["chain", 0.012, 1, 1], ["potion_m", 0.1, 1, 1], ["mailcoif", 0.015, 1, 1], ["amulet_sage", 0.008, 1, 1]],
-  vampire:     [["bat_wing", 0.55, 1, 2], ["stone_2", 0.09, 1, 1], ["stone_3", 0.02, 1, 1], ["fang_necklace", 0.03, 1, 1], ["glasses", 0.02, 1, 1], ["plateboots", 0.012, 1, 1], ["book_holy", 0.004, 1, 1], ["saint_gloves", 0.008, 1, 1], ["arch_gloves", 0.008, 1, 1], ["amulet_frost", 0.003, 1, 1], ["pendant_holy", 0.008, 1, 1], ["round_sage", 0.004, 1, 1], ["cape_shadow", 0.006, 1, 1], ["relic_holy", 0.005, 1, 1]],
+  vampire:     [["bat_wing", 0.55, 1, 2], ["stone_2", 0.09, 1, 1], ["stone_3", 0.02, 1, 1], ["fang_necklace", 0.03, 1, 1], ["glasses", 0.02, 1, 1], ["plateboots", 0.012, 1, 1], ["book_holy", 0.004, 1, 1], ["saint_gloves", 0.008, 1, 1], ["arch_gloves", 0.008, 1, 1], ["amulet_frost", 0.003, 1, 1], ["pendant_holy", 0.008, 1, 1], ["round_sage", 0.004, 1, 1], ["cape_shadow", 0.006, 1, 1], ["relic_holy", 0.005, 1, 1], ["shadow_kris", 0.004, 1, 1]],
   troll:       [["troll_hide", 0.6, 1, 2], ["stone_2", 0.1, 1, 2], ["stone_3", 0.025, 1, 1], ["boar_charm", 0.02, 1, 1], ["nasal", 0.015, 1, 1], ["gauntlets", 0.015, 1, 1], ["shadow_boots", 0.008, 1, 1], ["arch_shoes", 0.008, 1, 1], ["talisman_titan", 0.004, 1, 1], ["cape_shadow", 0.006, 1, 1]],
   minotaur:    [["bull_horn", 0.55, 1, 2], ["stone_2", 0.12, 1, 2], ["stone_3", 0.04, 1, 1], ["waraxe", 0.025, 1, 1], ["plate", 0.015, 1, 1], ["gauntlets", 0.015, 1, 1], ["goldgaunt", 0.006, 1, 1], ["titanaxe", 0.006, 1, 1], ["shield_spartan", 0.006, 1, 1], ["shadow_vest", 0.005, 1, 1], ["ring_dragon", 0.004, 1, 1], ["cape_royal", 0.003, 1, 1], ["war_horn", 0.005, 1, 1]],
   snowtroll:   [["frost_hide", 0.6, 1, 2], ["stone_3", 0.05, 1, 1], ["plate", 0.02, 1, 1], ["boar_charm", 0.025, 1, 1], ["goldplate", 0.004, 1, 1], ["goldhelm", 0.006, 1, 1], ["arch_robe", 0.005, 1, 1], ["saint_robe", 0.005, 1, 1], ["titanaxe", 0.005, 1, 1], ["talisman_titan", 0.005, 1, 1], ["amulet_frost", 0.004, 1, 1], ["cape_royal", 0.004, 1, 1], ["orb_star", 0.004, 1, 1]],
@@ -258,10 +267,10 @@ const DROPS = {
   goblinchief: [["goblin_ear", 0.7, 1, 3], ["stone_1", 0.14, 1, 2], ["bandana", 0.02, 1, 1], ["ring_copper", 0.015, 1, 1], ["potion_s", 0.1, 1, 2], ["eyepatch", 0.01, 1, 1]],
   redwolf:     [["wolf_fang", 0.6, 1, 2], ["stone_1", 0.12, 1, 2], ["stone_2", 0.03, 1, 1], ["fang_necklace", 0.025, 1, 1], ["cape", 0.015, 1, 1], ["bracers", 0.01, 1, 1], ["earring_jade", 0.008, 1, 1]],
   skelwarrior: [["old_bone", 0.6, 1, 2], ["stone_2", 0.08, 1, 1], ["nasal", 0.015, 1, 1], ["plate", 0.01, 1, 1], ["potion_m", 0.1, 1, 1], ["greathelm", 0.012, 1, 1], ["staff_crystal", 0.003, 1, 1], ["ring_silver", 0.01, 1, 1]],
-  shadowwolf:  [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.09, 1, 1], ["fang_necklace", 0.03, 1, 1], ["boots", 0.02, 1, 1], ["bow_shadow", 0.005, 1, 1], ["shadow_hood", 0.008, 1, 1], ["shadow_gloves", 0.008, 1, 1], ["necklace_wind", 0.004, 1, 1], ["cape_shadow", 0.008, 1, 1], ["shades_hawk", 0.005, 1, 1], ["quiver_wind", 0.004, 1, 1]],
-  orcchief:    [["orc_scrap", 0.7, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.03, 1, 1], ["waraxe", 0.02, 1, 1], ["plate", 0.015, 1, 1], ["plateboots", 0.015, 1, 1], ["greathelm", 0.01, 1, 1], ["goldboots", 0.004, 1, 1], ["moonblade", 0.005, 1, 1], ["shield_spartan", 0.005, 1, 1], ["ring_dragon", 0.004, 1, 1], ["cape_royal", 0.004, 1, 1], ["war_horn", 0.005, 1, 1]],
+  shadowwolf:  [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.09, 1, 1], ["fang_necklace", 0.03, 1, 1], ["boots", 0.02, 1, 1], ["bow_shadow", 0.005, 1, 1], ["shadow_hood", 0.008, 1, 1], ["shadow_gloves", 0.008, 1, 1], ["necklace_wind", 0.004, 1, 1], ["cape_shadow", 0.008, 1, 1], ["shades_hawk", 0.005, 1, 1], ["quiver_wind", 0.004, 1, 1], ["shadow_kris", 0.005, 1, 1]],
+  orcchief:    [["orc_scrap", 0.7, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.03, 1, 1], ["waraxe", 0.02, 1, 1], ["plate", 0.015, 1, 1], ["plateboots", 0.015, 1, 1], ["greathelm", 0.01, 1, 1], ["goldboots", 0.004, 1, 1], ["moonblade", 0.005, 1, 1], ["shield_spartan", 0.005, 1, 1], ["ring_dragon", 0.004, 1, 1], ["cape_royal", 0.004, 1, 1], ["war_horn", 0.005, 1, 1], ["judgehammer", 0.004, 1, 1]],
   snowwolf:    [["wolf_fang", 0.6, 2, 3], ["stone_2", 0.1, 1, 2], ["stone_3", 0.035, 1, 1], ["fang_necklace", 0.03, 1, 1], ["bow_shadow", 0.006, 1, 1], ["shadow_vest", 0.006, 1, 1], ["shadow_boots", 0.008, 1, 1], ["necklace_wind", 0.005, 1, 1], ["shades_hawk", 0.006, 1, 1], ["quiver_wind", 0.005, 1, 1]],
-  frostskel:   [["old_bone", 0.6, 2, 3], ["stone_3", 0.045, 1, 1], ["glasses", 0.02, 1, 1], ["potion_m", 0.12, 1, 2], ["goldhelm", 0.005, 1, 1], ["staff_crystal", 0.005, 1, 1], ["arch_hat", 0.008, 1, 1], ["saint_crown", 0.008, 1, 1], ["amulet_frost", 0.005, 1, 1], ["round_sage", 0.005, 1, 1], ["orb_star", 0.005, 1, 1]],
+  frostskel:   [["old_bone", 0.6, 2, 3], ["stone_3", 0.045, 1, 1], ["glasses", 0.02, 1, 1], ["potion_m", 0.12, 1, 2], ["goldhelm", 0.005, 1, 1], ["staff_crystal", 0.005, 1, 1], ["arch_hat", 0.008, 1, 1], ["saint_crown", 0.008, 1, 1], ["amulet_frost", 0.005, 1, 1], ["round_sage", 0.005, 1, 1], ["orb_star", 0.005, 1, 1], ["judgehammer", 0.004, 1, 1]],
   snoworc:     [["orc_scrap", 0.65, 2, 3], ["stone_3", 0.055, 1, 1], ["waraxe", 0.02, 1, 1], ["boar_charm", 0.02, 1, 1], ["goldboots", 0.006, 1, 1], ["moonblade", 0.006, 1, 1], ["saint_shoes", 0.008, 1, 1], ["book_holy", 0.005, 1, 1], ["ring_dragon", 0.005, 1, 1], ["relic_holy", 0.004, 1, 1], ["war_horn", 0.004, 1, 1]],
 };
 // เงินที่ได้ต่อการฆ่า 1 ตัว (แบ่งตามดาเมจเหมือน EXP)
@@ -305,7 +314,9 @@ const SPECIAL = {
   cdr:       { name: "ลดคูลดาวน์สกิล", max: 6, cap: 40 },
   expPct:    { name: "EXP ที่ได้รับ", max: 6 },
   dropPct:   { name: "โอกาสดรอปของ", max: 8 },
+  ignoreDef: { name: "เจาะเกราะ", max: 12, cap: 60 },
 };
+const SPECIAL_MIN_RARITY = 3; // มหากาพย์
 const rollSpecial = (lv, n, skip = []) => {
   const out = {};
   const keys = Object.keys(SPECIAL).filter((k) => !skip.includes(k)).sort(() => Math.random() - 0.5).slice(0, n);
@@ -321,7 +332,8 @@ const cleanSpecial = (o) => {
 function gearSpecial(g) {
   const it = ITEMS[g && g.id];
   if (!it) return {};
-  const out = { ...(it.special || {}) };
+  // สเตตัสแฝงประจำไอเทมจะปลดล็อกเมื่อเป็นระดับมหากาพย์ (สีม่วง) ขึ้นไปเท่านั้น
+  const out = (g.r || 0) >= SPECIAL_MIN_RARITY ? { ...(it.special || {}) } : {};
   for (const [k, v] of Object.entries(g.s || {})) out[k] = (out[k] || 0) + v;
   return out;
 }
@@ -395,4 +407,4 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
-module.exports = { ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

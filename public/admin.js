@@ -11,7 +11,7 @@ let JOBS_INFO = {}, SPECIAL = {};
 function sxEditor(box, init, fixed) {
   let rows = Object.entries(init || {}), edited = false;
   const draw = () => {
-    box.innerHTML = (fixed && Object.keys(fixed).length ? `<div class="muted">ติดมากับไอเทม (แก้ไม่ได้): <span class="sx-fixed">${Object.entries(fixed).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</span></div>` : "") +
+    box.innerHTML = (fixed && Object.keys(fixed).length ? `<div class="muted">ติดมากับไอเทม (แก้ไม่ได้ · ทำงานเมื่อระดับมหากาพย์ขึ้นไป): <span class="sx-fixed">${Object.entries(fixed).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</span></div>` : "") +
       rows.map(([k, v], i) => `<div class="row sx-row"><select data-i="${i}" class="sxk">${Object.entries(SPECIAL).map(([kk, d]) => `<option value="${kk}" ${kk === k ? "selected" : ""}>${d.name}</option>`).join("")}</select>
         <input type="number" class="sxv" data-i="${i}" value="${v}" min="1" max="100" style="width:70px">%<button type="button" class="btn danger" data-del="${i}">✕</button></div>`).join("") +
       `<div class="row"><button type="button" class="btn" data-add>+ เพิ่มสเตตัสแฝง</button>${rows.length ? '<button type="button" class="btn" data-clear>ล้างทั้งหมด</button>' : ""}</div>`;

@@ -72,7 +72,8 @@ function allocate(st, points, split) {
 // job = อาชีพ (ตัวคูณ HP/SP/DEF) · wt = ชนิดอาวุธที่ถือ (กำหนดค่าหลักของพลังโจมตี และความเร็วตี)
 const playerStats = (lv, st = baseStats(), job = "villager", wt = null) => {
   const J = JOBS[job] || JOBS.villager, Wt = (wt && WEAPON_TYPES[wt]) || WEAPON_TYPES.fist;
-  const main = Wt.stat === "dex" ? st.dex * 2 + st.str * 0.5 : Wt.stat === "int" ? st.int * 2 + st.dex * 0.3 : st.str * 2 + st.dex * 0.5;
+  const main = Wt.stat === "dex" ? st.dex * 2 + st.str * 0.5 : Wt.stat === "int" ? st.int * 2 + st.dex * 0.3
+    : Wt.stat === "agi" ? st.agi * 1.8 + st.dex * 0.6 + st.str * 0.4 : st.str * 2 + st.dex * 0.5;
   return {
     maxHp: Math.round((50 + (lv - 1) * 14 + st.vit * 6) * J.hp),
     maxSp: Math.round((15 + (lv - 1) * 2 + st.int * 3) * J.sp),
@@ -151,16 +152,17 @@ const RECOMMEND = JOBS.villager.rec;
 const ARMOR_NAME = { heavy: "เกราะหนัก", light: "เกราะเบา", cloth: "ชุดผ้า" };
 const JOB_FREE_LV = 20; // อุปกรณ์ป้องกันที่ Lv ต่ำกว่านี้ ใส่ได้ทุกอาชีพ
 // ชนิดอาวุธ: stat = ค่าหลักของพลังโจมตี · range = ระยะตี · delay = ตัวคูณเวลาต่อการตี · twoHand = ใส่โล่ไม่ได้ · fx = ภาพตอนตี
+// trait = คุณสมบัติประจำชนิดอาวุธ (สเตตัส % แบบเดียวกับสเตตัสแฝง) — เลือกอาวุธต่างชนิด = เล่นคนละแบบ
 const WEAPON_TYPES = {
   fist:       { name: "มือเปล่า", stat: "str", range: 44, delay: 1 },
-  sword:      { name: "ดาบ", stat: "str", range: 44, delay: 1 },
-  mace:       { name: "กระบอง", stat: "str", range: 44, delay: 1 },
-  dagger:     { name: "มีดสั้น", stat: "str", range: 44, delay: 0.85 },
-  greatsword: { name: "ดาบใหญ่", stat: "str", range: 50, delay: 1.15, twoHand: true },
-  axe:        { name: "ขวาน", stat: "str", range: 48, delay: 1.15, twoHand: true },
-  bow:        { name: "ธนู", stat: "dex", range: 190, delay: 1.05, twoHand: true, fx: "arrow" },
-  staff:      { name: "คทา", stat: "int", range: 170, delay: 1.3, twoHand: true, fx: "magic" },
-  book:       { name: "คัมภีร์", stat: "int", range: 150, delay: 1.25, fx: "holy" },
+  sword:      { name: "ดาบ", stat: "str", range: 44, delay: 1, trait: { critPct: 3, flee: 2 }, style: "สมดุล ตีแม่น หลบดี" },
+  mace:       { name: "กระบอง/ค้อน", stat: "str", range: 44, delay: 1.1, trait: { ignoreDef: 30, undeadDmg: 10 }, style: "เจาะเกราะ แรงกับอันเดด ตีช้ากว่าดาบ" },
+  dagger:     { name: "มีดสั้น", stat: "agi", range: 44, delay: 0.8, trait: { critPct: 10, critDmg: 10 }, style: "ใช้ AGI · ตีเร็วมาก คริบ่อย" },
+  greatsword: { name: "ดาบใหญ่", stat: "str", range: 50, delay: 1.15, twoHand: true, trait: { critPct: 5, critDmg: 15 }, style: "คริแรง" },
+  axe:        { name: "ขวาน", stat: "str", range: 48, delay: 1.25, twoHand: true, trait: { atkPct: 12, ignoreDef: 10 }, style: "ตีหนักแต่ช้า" },
+  bow:        { name: "ธนู", stat: "dex", range: 190, delay: 1.05, twoHand: true, fx: "arrow", trait: { critPct: 3 }, style: "ยิงไกล" },
+  staff:      { name: "คทา", stat: "int", range: 170, delay: 1.3, twoHand: true, fx: "magic", trait: { spPct: 10 }, style: "เวทแรง SP เยอะ" },
+  book:       { name: "คัมภีร์", stat: "int", range: 150, delay: 1.25, fx: "holy", trait: { healPct: 10 }, style: "ฮีลแรงขึ้น" },
 };
 const UNDEAD = ["skeleton", "zombie", "vampire", "skelwarrior", "frostskel"];
 

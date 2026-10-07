@@ -169,7 +169,7 @@ class WorldRoom extends Room {
     });
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
-        statInfo: D.STAT_INFO, special: I.SPECIAL, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
+        statInfo: D.STAT_INFO, special: I.SPECIAL, specialMinRarity: I.SPECIAL_MIN_RARITY, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
@@ -490,6 +490,8 @@ class WorldRoom extends Room {
     s.atk += pb.atk; s.def += pb.def; s.crit = Math.min(0.6, s.crit + pb.crit); s.hitBonus += pb.hit; s.range += pb.range;
     // สเตตัสแฝงจากอุปกรณ์ (%)
     const sx = Bag.gearSpecial(bag, p.job), X = (k) => (sx[k] || 0) / 100;
+    // คุณสมบัติชนิดอาวุธ
+    for (const [k, v] of Object.entries((D.WEAPON_TYPES[p.wt || "fist"] || {}).trait || {})) sx[k] = Math.min((I.SPECIAL[k] && I.SPECIAL[k].cap) || 999, (sx[k] || 0) + v);
     s.maxHp = Math.round(s.maxHp * (1 + pb.hpPct / 100 + X("hpPct"))); s.maxSp = Math.round(s.maxSp * (1 + pb.spPct / 100 + X("spPct")));
     s.atk = Math.round(s.atk * (1 + X("atkPct"))); s.crit = Math.min(0.6, s.crit + X("critPct"));
     s.flee = Math.min(0.6, s.flee + X("flee")); s.atkDelay = Math.round(s.atkDelay / (1 + X("aspd")));
@@ -834,7 +836,7 @@ class WorldRoom extends Room {
     if (Math.random() < Math.max(0, missChance - (a.hitBonus || 0))) return { dmg: 0, miss: true };
     if (d.flee && Math.random() < d.flee) return { dmg: 0, miss: true };
     const crit = Math.random() < (a.crit ?? 0.05);
-    let dmg = a.atk * rand(0.9, 1.1) * mult - d.def * 0.5;
+    let dmg = a.atk * rand(0.9, 1.1) * mult - d.def * 0.5 * (1 - (a.ignoreDef || 0));
     if (crit) dmg *= 1.5 + (a.critDmg || 0);
     return { dmg: Math.max(1, Math.round(dmg)), crit };
   }
@@ -867,7 +869,7 @@ class WorldRoom extends Room {
     if (!m || m.dead) return null;
     const sx = p.sx || {};
     if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
-    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100 },
+    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100, ignoreDef: (sx.ignoreDef || 0) / 100 },
       { def: r.stats.def, lv: m.level }, mult);
     this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return res;

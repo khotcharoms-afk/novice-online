@@ -32,7 +32,9 @@ function wearHtml(id, it) {
   const wt = it.wt && it.wt !== "shield" && gameData.weaponTypes[it.wt];
   const typ = it.ot ? "มือรอง · " + ({ emblem: "ตรานักรบ", quiver: "กระบอกธนู", orb: "ลูกแก้วเวท", relic: "เครื่องรางศักดิ์สิทธิ์" }[it.ot] || "") : it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";
   const err = wearErr(id);
-  return `<div class="meta wear">${typ ? typ + " · " : ""}ใช้ได้: ${tags}</div>` + (err ? `<div class="need">${err}</div>` : "");
+  const SX = gameData.special || {};
+  const trait = wt && wt.trait ? `<div class="meta trait">ลักษณะ${wt.name}: ${wt.style ? wt.style + " · " : ""}${Object.entries(wt.trait).map(([k, v]) => `${(SX[k] || {}).name || k} +${v}%`).join(", ")}</div>` : "";
+  return `<div class="meta wear">${typ ? typ + " · " : ""}ใช้ได้: ${tags}</div>` + trait + (err ? `<div class="need">${err}</div>` : "");
 }
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
@@ -179,8 +181,11 @@ function openCard(g, ctx, ev) {
     for (const [k, v] of Object.entries(g.x || {})) extra.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   } else for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   // สเตตัสแฝง (สีเหลือง): ของในกระเป๋า = ค่าจริงของชิ้นนั้น · ของในร้าน = ค่าที่ติดมากับไอเทม
-  const SX = gameData.special || {}, spc = g.sp || (g.st ? null : it.special) || {};
+  const SX = gameData.special || {}, spc = g.sp || {};
   const hidden = Object.entries(spc).map(([k, v]) => `<li>${(SX[k] || {}).name || k} +${v}%</li>`);
+  // สเตตัสแฝงประจำไอเทมที่ยังล็อก (ปลดเมื่อระดับมหากาพย์ขึ้นไป)
+  const minR = gameData.specialMinRarity ?? 3, locked = it.special && (g.r || 0) < minR;
+  if (locked) for (const [k, v] of Object.entries(it.special)) hidden.push(`<li class="locked">${(SX[k] || {}).name || k} +${v}% <small>(ระดับ${(gameData.rarity[minR] || {}).name || "มหากาพย์"}ขึ้นไป)</small></li>`);
   const fxTxt = (t) => [...Object.entries(t.b || {}).map(([k, v]) => `${BONUS_NAME[k] || k} +${v}`), ...Object.entries(t.sp || {}).map(([k, v]) => `${(SX[k] || {}).name || k} +${v}%`)].join(" · ");
   // โบนัสตีบวก (ถึงขั้นแล้ว = สีเหลือง, ยังไม่ถึง = จาง)
   const refineHtml = it.refineFx ? `<div class="meta">โบนัสตีบวก</div><ul class="refine-fx">${Object.entries(it.refineFx).map(([need, t]) =>

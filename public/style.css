@@ -652,3 +652,5 @@ html, body { overscroll-behavior: none; }
 #itemCard .set-pcs .on { color: #dfe3f5; } #itemCard .set-pcs .on::before { content: "✔ "; color: #7dff9a; }
 #itemCard .set-box ul { margin: 0; padding-left: 16px; font-size: 11.5px; } #itemCard .set-box li { color: #6f7590; } #itemCard .set-box li.on { color: #7dff9a; }
 #spDerived .sx-head.set { color: #7dff9a; } #spDerived .sx.set b { color: #7dff9a; }
+#itemCard ul.hidden-st li.locked { color: #6f7590; } #itemCard ul.hidden-st li.locked small { font-size: 10.5px; }
+#itemCard .trait { color: #ffb86b; }
