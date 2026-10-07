@@ -79,6 +79,12 @@ const SAVE_EVERY_MS = 60000;
 const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
 const rooms = new Set();  // ห้องโลกเกมที่เปิดอยู่
 const pendingBoss = new Map(); // mapId -> bossKey (สั่งเรียกบอสตอนแผนที่ยังไม่มีคน → เกิดเมื่อมีคนเข้า)
+// ตารางเกิด World Boss อัตโนมัติ: key -> { next: เวลาเกิดครั้งถัดไป, alive, since, map, warned }
+const BOSS_LIFE_MS = 60 * 60000;   // เกิดแล้วไม่มีใครปราบภายใน 60 นาที → หายไป
+const BOSS_WARN_MS = 5 * 60000;    // ประกาศเตือนล่วงหน้า 5 นาที
+const bossSched = {};
+const randMin = ([a, b]) => (a + Math.random() * (b - a)) * 60000;
+for (const [k, B] of Object.entries(D.WORLD_BOSSES)) bossSched[k] = { next: Date.now() + randMin([10, 25]), alive: false, since: 0, map: null, warned: false };
 // ปิดปรับปรุง: แอดมินตั้งเวลานับถอยหลัง → ครบเวลา = บันทึกทุกคน + ให้ออกจากเกม + ปิดไม่ให้เข้า (จนแอดมินเปิดหรือเซิร์ฟรีสตาร์ท)
 const maint = { endAt: 0, msg: "", closed: false, timer: null };
 const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.loginId === "admin");
@@ -488,22 +494,55 @@ class WorldRoom extends Room {
   // ---------- World Boss (แอดมิน) ----------
   static spawnWorldBoss(key, mapId) {
     if (!D.WORLD_BOSSES[key]) throw new Error("ไม่มีบอสนี้");
+    if (WorldRoom.bossExists(key)) throw new Error(`${D.WORLD_BOSSES[key].name} อยู่ในเกมแล้ว`);
     if (!W.MAPS[mapId] || W.MAPS[mapId].type === "town") throw new Error("เลือกแผนที่ล่ามอน (ไม่ใช่ในเมือง)");
     const rm = [...rooms].find((x) => x.mapId === mapId);
-    if (rm) { if (rm.bossAlive()) throw new Error("แผนที่นี้มีบอสอยู่แล้ว"); rm.spawnBoss(key); return { msg: `เรียก ${D.WORLD_BOSSES[key].name} ที่ ${W.MAPS[mapId].name} แล้ว` }; }
+    if (pendingBoss.has(mapId) || (rm && rm.bossAlive())) throw new Error("แผนที่นี้มีบอสอยู่แล้ว");
+    Object.assign(bossSched[key], { alive: true, since: Date.now(), map: mapId, warned: false });
+    if (rm) { rm.spawnBoss(key); return { msg: `เรียก ${D.WORLD_BOSSES[key].name} ที่ ${W.MAPS[mapId].name} แล้ว` }; }
     pendingBoss.set(mapId, key);
     WorldRoom.announce(`⚠️ World Boss ${D.WORLD_BOSSES[key].name} กำลังจะปรากฏที่ ${W.MAPS[mapId].name}!`);
     return { msg: `ตอนนี้ยังไม่มีคนใน ${W.MAPS[mapId].name} — บอสจะเกิดทันทีที่มีคนเข้าแผนที่` };
   }
-  static removeWorldBoss() {
-    let n = pendingBoss.size; pendingBoss.clear();
-    rooms.forEach((rm) => { n += rm.removeBosses(); });
+  static removeWorldBoss(only) {
+    let n = 0;
+    pendingBoss.forEach((k, mapId) => { if (!only || k === only) { pendingBoss.delete(mapId); n++; } });
+    rooms.forEach((rm) => { n += rm.removeBosses(only); });
+    for (const k of Object.keys(bossSched)) if ((!only || k === only) && bossSched[k].alive) WorldRoom.bossGone(k);
     return { msg: n ? `ลบบอส ${n} ตัวแล้ว` : "ไม่มีบอสอยู่" };
+  }
+  static bossExists(key) {
+    if ([...pendingBoss.values()].includes(key)) return true;
+    let a = false;
+    rooms.forEach((rm) => rm.mr.forEach((r, id) => { const m = rm.state.monsters.get(id); if (r.boss && r.bossKey === key && m && !m.dead) a = true; }));
+    return a;
+  }
+  // บอสถูกปราบ/หายไป → ตั้งเวลาเกิดครั้งถัดไป
+  static bossGone(key) {
+    const s = bossSched[key];
+    if (s) Object.assign(s, { alive: false, next: Date.now() + randMin(D.WORLD_BOSSES[key].every || [60, 90]), map: null, warned: false });
+  }
+  // ทุก 15 วินาที: เตือนล่วงหน้า → เกิด → ไม่มีใครปราบนาน 60 นาทีก็หายไป
+  static bossTick() {
+    const t = Date.now();
+    for (const [key, s] of Object.entries(bossSched)) {
+      const B = D.WORLD_BOSSES[key];
+      if (s.alive) {
+        if (!WorldRoom.bossExists(key)) { WorldRoom.bossGone(key); continue; }
+        if (t - s.since > BOSS_LIFE_MS) { WorldRoom.removeWorldBoss(key); WorldRoom.announce(`🌫️ World Boss ${B.name} หายไปแล้ว... (ไม่มีใครปราบได้ทันเวลา)`); }
+        continue;
+      }
+      if (!s.map) { const free = (B.maps || ["orcamp"]).filter((mp) => !pendingBoss.has(mp) && ![...rooms].some((rm) => rm.mapId === mp && rm.bossAlive())); s.map = free[Math.floor(Math.random() * free.length)] || null; }
+      if (!s.map) continue;
+      if (!s.warned && t >= s.next - BOSS_WARN_MS) { s.warned = true; WorldRoom.announce(`⏳ World Boss ${B.name} Lv.${B.level} จะปรากฏที่ ${W.MAPS[s.map].name} ในอีก ${Math.max(1, Math.round((s.next - t) / 60000))} นาที!`); }
+      if (t >= s.next) { try { WorldRoom.spawnWorldBoss(key, s.map); } catch (e) { s.map = null; s.next = t + 60000; } }
+    }
   }
   static bossStatus() {
     const out = [];
     rooms.forEach((rm) => rm.state.monsters.forEach((m, id) => { const r = rm.mr.get(id); if (r && r.boss && !m.dead) out.push({ map: rm.def.name, name: m.name, hp: m.hp, maxHp: m.maxHp }); }));
     pendingBoss.forEach((k, mapId) => out.push({ map: W.MAPS[mapId].name, name: D.WORLD_BOSSES[k].name, pending: true }));
+    for (const [k, s] of Object.entries(bossSched)) if (!s.alive) out.push({ name: D.WORLD_BOSSES[k].name, next: Math.max(0, s.next - Date.now()), map: s.map ? W.MAPS[s.map].name : null });
     return out;
   }
   static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
@@ -1126,10 +1165,18 @@ class WorldRoom extends Room {
   }
 
   // ================= World Boss =================
+  // ห้องที่มีบอสอยู่จะไม่ถูกปิดแม้ไม่มีคน (ตายแล้วกลับเมือง บอสยังอยู่) · บอสหมดแล้วค่อยปิดได้ตามปกติ
+  bossCleanup() {
+    if (this.bossAlive()) return;
+    this.autoDispose = true;
+    if (!this.clients.length) this.clock.setTimeout(() => { if (!this.clients.length && !this.bossAlive()) this.disconnect(); }, 1000);
+  }
   bossAlive() { let a = false; this.mr.forEach((r, id) => { const m = this.state.monsters.get(id); if (r.boss && m && !m.dead) a = true; }); return a; }
-  removeBosses() {
+  removeBosses(only) {
     let n = 0;
+    if (only && ![...this.mr.values()].some((r) => r.boss && r.bossKey === only)) return 0;
     [...this.mr.entries()].forEach(([id, r]) => { if (r.boss || r.minion) { if (r.boss) n++; this.state.monsters.delete(id); this.mr.delete(id); } });
+    this.bossCleanup();
     return n;
   }
   spawnBoss(key) {
@@ -1143,7 +1190,8 @@ class WorldRoom extends Room {
     m.maxHp = stats.maxHp; m.hp = m.maxHp;
     this.state.monsters.set(id, m);
     this.mr.set(id, { def: B, stats, boss: B, temp: true, home: { ...spot }, target: null, wander: null, nextWander: 0, atkReady: 0, respawnAt: Infinity,
-      dmgBy: new Map(), nextSlam: now() + 5000, cast: null, summoned: 0, enraged: false, idleSince: now() });
+      dmgBy: new Map(), nextSlam: now() + 5000, cast: null, summoned: 0, enraged: false, idleSince: now(), bossKey: key });
+    this.autoDispose = false;
     const tx = Math.floor(spot.x / this.map.tile), ty = Math.floor(spot.y / this.map.tile);
     WorldRoom.announce(`⚠️ World Boss ${B.name} Lv.${B.level} ปรากฏตัวที่ ${this.def.name} (${tx}, ${ty})! รวมพลังกันไปปราบ`);
   }
@@ -1170,7 +1218,7 @@ class WorldRoom extends Room {
     }
     if (!p) { // ไม่มีใครอยู่ใกล้: ฟื้นเลือดช้า ๆ แล้วเดินวนแถวบ้าน
       m.moving = false;
-      if (t - r.idleSince > 8000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * 0.01 * dt / 1000));
+      if (t - r.idleSince > 15000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * 0.002 * dt / 1000));
       return;
     }
     r.idleSince = t;
@@ -1219,7 +1267,8 @@ class WorldRoom extends Room {
   bossLoot(m, r, mvp, total) {
     const B = r.boss, L = B.loot, mp = mvp && this.state.players.get(mvp);
     const at = (i, n) => { const a = (i / n) * Math.PI * 2; return [m.x + Math.cos(a) * 46, m.y + Math.sin(a) * 30]; };
-    const pool = [...L.pool].sort(() => Math.random() - 0.5);
+    const tierPool = (L.tiers || []).flatMap((lv) => Object.keys(I.ITEMS).filter((k) => k.startsWith(`t${lv}_`)));
+    const pool = [...(L.pool || []), ...tierPool].sort(() => Math.random() - 0.5);
     const N = L.gear + L.items.length;
     for (let i = 0; i < L.gear; i++) {
       // ชิ้นแรก = รางวัล MVP: มหากาพย์ขึ้นไปแน่นอน · ชิ้นอื่นสุ่ม ดี–ตำนาน
@@ -1307,7 +1356,8 @@ class WorldRoom extends Room {
     r.respawnAt = r.temp ? Infinity : r.mini ? now() + rand(...MINI_RESPAWN_MS) : now() + D.MONSTER_RESPAWN_MS;
     if (r.mini) this.broadcast("system", `🏆 ${m.name} ถูกปราบแล้ว! (จะกลับมาอีกในอีกประมาณ 10 นาที)`);
     // บอส/ลูกน้องบอส: ไม่เกิดใหม่ ลบออกจากแผนที่หลังเล่นท่าตาย
-    if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); }, r.boss ? 15000 : 2500);
+    if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); if (r.boss) this.bossCleanup(); }, r.boss ? 15000 : 2500);
+    if (r.boss) WorldRoom.bossGone(r.bossKey);
     r.target = null;
     // แบ่ง EXP ตามสัดส่วนดาเมจที่ทำ
     const total = [...r.dmgBy.values()].reduce((a, b) => a + b, 0) || 1;
@@ -1959,3 +2009,5 @@ class WorldRoom extends Room {
 }
 
 module.exports = { WorldRoom };
+// ตัวจับเวลา World Boss (ทำงานตลอด แม้ไม่มีห้องเปิดอยู่)
+setInterval(() => { try { WorldRoom.bossTick(); } catch (e) { console.error("bossTick", e.message); } }, 15000).unref();

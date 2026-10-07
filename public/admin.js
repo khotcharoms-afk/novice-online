@@ -117,7 +117,9 @@ async function loadBoss() {
     $("wbBoss").innerHTML = Object.entries(d.bosses).map(([k, b]) => `<option value="${k}">${esc(b.name)} Lv.${b.level}</option>`).join("");
     $("wbMap").innerHTML = Object.entries(d.maps).map(([k, n]) => `<option value="${k}" ${k === "orcamp" ? "selected" : ""}>${esc(n)}</option>`).join("");
   }
-  $("wbStatus").innerHTML = d.status.length ? d.status.map((b) => b.pending
+  $("wbStatus").innerHTML = d.status.length ? d.status.map((b) => b.next !== undefined
+    ? `<div>🕒 <b>${esc(b.name)}</b> เกิดเองในอีก ${Math.ceil(b.next / 60000)} นาที${b.map ? ` ที่ ${esc(b.map)}` : ""}</div>`
+    : b.pending
     ? `<div>⏳ <b>${esc(b.name)}</b> รอเกิดที่ ${esc(b.map)} (ยังไม่มีผู้เล่นในแผนที่)</div>`
     : `<div>🔥 <b>${esc(b.name)}</b> อยู่ที่ ${esc(b.map)} — HP ${fmt(b.hp)} / ${fmt(b.maxHp)} (${Math.round((b.hp * 100) / b.maxHp)}%)</div>`).join("")
     : "ไม่มีบอสในเกมตอนนี้";
