@@ -1,0 +1,141 @@
+{
+ "rapier": {
+  "visual": true,
+  "back": true,
+  "atk": 192
+ },
+ "glowred": {
+  "visual": true,
+  "back": true,
+  "atk": 192
+ },
+ "arming": {
+  "visual": true,
+  "back": true,
+  "atk": 128
+ },
+ "halberd": {
+  "visual": true,
+  "back": true,
+  "atk": 192
+ },
+ "scythe": {
+  "visual": true,
+  "back": true,
+  "atk": 192
+ },
+ "flail": {
+  "visual": true,
+  "back": true,
+  "atk": 192
+ },
+ "greatbow": {
+  "visual": true,
+  "back": true
+ },
+ "staff_gnarled": {
+  "visual": true,
+  "back": true
+ },
+ "staff_diamond": {
+  "visual": true,
+  "back": true
+ },
+ "staff_loop": {
+  "visual": true,
+  "back": true
+ },
+ "staff_s": {
+  "visual": true,
+  "back": true
+ },
+ "shield_kite": {
+  "visual": true,
+  "sexed": true,
+  "back": false
+ },
+ "shield_engrailed": {
+  "visual": true,
+  "sexed": true,
+  "back": true
+ },
+ "helm_bascinet": {
+  "visual": true
+ },
+ "helm_armet": {
+  "visual": true
+ },
+ "helm_sugarloaf": {
+  "visual": true,
+  "sexed": true
+ },
+ "helm_horned": {
+  "visual": true
+ },
+ "helm_maximus": {
+  "visual": true
+ },
+ "helm_xeon": {
+  "visual": true
+ },
+ "hat_cavalier": {
+  "visual": true
+ },
+ "hat_tricorne": {
+  "visual": true
+ },
+ "hat_bicorne": {
+  "visual": true
+ },
+ "hood_sack": {
+  "visual": true
+ },
+ "hat_celestial": {
+  "visual": true
+ },
+ "hat_moon": {
+  "visual": true
+ },
+ "hat_large": {
+  "visual": true
+ },
+ "hat_crown": {
+  "visual": true
+ },
+ "plate_pauldron": {
+  "visual": true,
+  "sexed": true
+ },
+ "legion_cuirass": {
+  "visual": true,
+  "sexed": true
+ },
+ "plate_bauldron": {
+  "visual": true,
+  "sexed": true
+ },
+ "plate_mantal": {
+  "visual": true,
+  "sexed": true
+ },
+ "legion_epaulet": {
+  "visual": true,
+  "sexed": true
+ },
+ "plate_full": {
+  "visual": true,
+  "sexed": true
+ },
+ "leather_epaulet": {
+  "visual": true,
+  "sexed": true
+ },
+ "leather_mantal": {
+  "visual": true,
+  "sexed": true
+ },
+ "chain_pauldron": {
+  "visual": true,
+  "sexed": true
+ }
+}

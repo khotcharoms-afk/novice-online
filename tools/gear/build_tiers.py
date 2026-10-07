@@ -17,6 +17,7 @@ THEMES = {
     "dragon":     dict(main=[(36, 18, 4), (120, 70, 14), (214, 160, 50), (252, 222, 120), (255, 255, 230)], accent=[(6, 60, 34), (20, 180, 90), (170, 255, 190)], glow=(255, 211, 107)),
     "abyss":      dict(main=[(6, 2, 12), (30, 14, 46), (74, 40, 108), (170, 70, 200), (255, 170, 250)], accent=[(90, 0, 80), (255, 60, 210), (255, 220, 255)], glow=(255, 90, 216)),
 }
+SHP = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shapes.json")))
 GLOW = {"glacial": 1, "ancient": 1, "nightshade": 1, "infernal": 2, "dragon": 2, "abyss": 2}
 
 def grad(stops, t):
@@ -98,6 +99,11 @@ if __name__ == "__main__":
     man = json.load(open(f"{A}/manifest.json"))
     lazy, atkl, icons = set(man.get("equipLazy", [])), dict(man.get("atkLazy", {})), set(man["icons"])
     cache = {}
+    import glob
+    for iid, it in ITEMS.items():
+        if want and it["tier"] not in want: continue
+        for f in glob.glob(f"{A}/equip/{iid}.png") + glob.glob(f"{A}/equip/{iid}_*.png"): os.remove(f)
+        lazy -= {k for k in lazy if k == iid or k.startswith(iid + "_")}; atkl.pop(iid, None)
     for iid, it in ITEMS.items():
         tk = it["tier"]
         if want and tk not in want: continue
@@ -114,7 +120,7 @@ if __name__ == "__main__":
                 fr = 64 if suf in ("", "_m", "_f", "_back") else (arr.shape[1] // 6)
                 out = glow(out, th["glow"], GLOW[tk], frame=fr)
             Image.fromarray(out).save(f"{A}/equip/{iid}{suf}.png")
-            if suf in ("_atk",): atkl[iid] = man["atk"][base]
+            if suf in ("_atk",): atkl[iid] = man["atk"].get(base) or SHP[base[4:]]["atk"]
             if suf in ("", "_m", "_f", "_back"): lazy.add(f"{iid}{suf}")
         if os.path.exists(icon):
             arr = np.array(Image.open(icon).convert("RGBA"))

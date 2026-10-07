@@ -536,3 +536,205 @@
   - http://opengameart.org/content/lpc-folk
 - **Cyclops Eyes** — kirts, JaidynReiman; CC0
   - https://opengameart.org/content/cyclops-and-his-eye
+
+## อุปกรณ์ทรงใหม่ Lv.40–90 (`equip/shp_*` → ย้อมสีเป็น `equip/t40_…t90_*`)
+
+ชิ้นส่วนจาก **Universal LPC Spritesheet Character Generator** (สัญญาอนุญาตตามแต่ละชิ้น):
+
+- **Crown** — DarkwallLKE, Charles Sanchez (CharlesGabriel); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-crown
+- **Bicorne Foreaft Commodore Trim** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Foreaft Commodore** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne foreaft** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Commodore Trim** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Admiral Trim** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Admiral Cockade** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Skull** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Captain** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Admiral** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Commodore** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bicorne Athwart Captain Skull** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Celestial Wizard Moon Hat Second Color** — Napsio (Vitruvian Studio), Michael Whitlock (bigbeargames), Tracy; CC-BY 3.0
+  - https:/opengameart.org/content/lpc-celestial-wizard-hats
+  - https:/opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Celestial Wizard Hat Second Color** — Napsio (Vitruvian Studio), JaidynReiman, Michael Whitlock (bigbeargames), Tracy; CC-BY 3.0
+  - https://opengameart.org/content/lpc-celestial-wizard-hats
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Large Hat** — Stafford McIntyre, PlatForge project, Evert; CC-BY-SA 3.0
+  - https://opengameart.org/content/wizard-2
+  - https://opengameart.org/content/wizard-hat
+- **Celestial Wizard Hat** — Napsio (Vitruvian Studio), Michael Whitlock (bigbeargames), Tracy; CC-BY 3.0
+  - https://opengameart.org/content/lpc-celestial-wizard-hats
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Celestial Wizard Moon Hat** — Napsio (Vitruvian Studio), Michael Whitlock (bigbeargames), Tracy; CC-BY 3.0
+  - https:/opengameart.org/content/lpc-celestial-wizard-hats
+  - https:/opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Cavalier** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Cavalier feather** — bluecarrot16, JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Lieutenant** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Captain Trim** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Thatching** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Captain** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Stitching** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Lieutenant Trim** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne Captain Skull** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Tricorne** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-pirates
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Sack Cloth Hood** — Nila122, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-lizard-headgear
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Helmet wings** — bluecarrot16, DCSS authors; CC0
+  - http://opengameart.org/content/dungeon-crawl-32x32-tiles
+  - https://opengameart.org/content/cc0-headgear-icons
+- **Upward Horns** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Legion Plumage** — bluecarrot16, Nila122, JaidynReiman, Matthew Krohn (makrohn), Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-roman-armor
+  - https://opengameart.org/content/lpc-helmets-mega-pack
+- **Downward Horns** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Plumage** — ElizaWy; OGA-BY 3.0, CC-BY-SA 3.0, CC-BY-SA 4.0, GPL 3.0
+  - https://opengameart.org/content/lpc-realistic-helmet-pack
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Centurion Crest** — bluecarrot16, DCSS authors; CC0
+  - http://opengameart.org/content/dungeon-crawl-32x32-tiles
+  - https://opengameart.org/content/cc0-headgear-icons
+- **Crest** — bluecarrot16; OGA-BY 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Centurion Plumage** — bluecarrot16, DCSS authors; CC0
+  - http://opengameart.org/content/dungeon-crawl-32x32-tiles
+  - https://opengameart.org/content/cc0-headgear-icons
+- **Slit visor** — bluecarrot16, Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Round visor** — bluecarrot16, ElizaWy, Sander Frenken (castelonia); OGA-BY 3.0, CC-BY-SA 4.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-realistic-helmet-pack
+  - https://opengameart.org/content/lpc-helmets-mega-pack
+- **Round visor raised** — bluecarrot16, ElizaWy, Sander Frenken (castelonia); OGA-BY 3.0, CC-BY-SA 4.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-realistic-helmet-pack
+  - https://opengameart.org/content/lpc-helmets-mega-pack
+- **Narrow slit visor** — bluecarrot16, Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Xeon helmet** — Stephen Challener (Redshrike), JaidynReiman; OGA-BY 3.0
+  - https://opengameart.org/content/four-characters-my-lpc-entries
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Armet** — bluecarrot16, Johannes Sjölund (wulax), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Bascinet** — bluecarrot16, ElizaWy, Sander Frenken (castelonia); OGA-BY 3.0, CC-BY-SA 4.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-realistic-helmet-pack
+  - https://opengameart.org/content/lpc-helmets-mega-pack
+- **Maximus** — bluecarrot16; CC-BY 3.0, CC-BY 4.0, OGA-BY 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Horned helmet** — bluecarrot16, Shaun Williams, Matthew Krohn (makrohn), Johannes Sjölund (wulax), Sander Frenken (castelonia); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-full-plate-golden-armor
+- **Simple Armet** — bluecarrot16, Johannes Sjölund (wulax), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Simple sugarloaf helm** — bluecarrot16; CC-BY 3.0, CC-BY 4.0, OGA-BY 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Sugarloaf greathelm** — bluecarrot16; CC-BY 3.0, CC-BY 4.0, OGA-BY 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-helmets
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **Round bascinet** — bluecarrot16, JaidynReiman, ElizaWy, Sander Frenken (castelonia); OGA-BY 3.0, CC-BY-SA 4.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-realistic-helmet-pack
+  - https://opengameart.org/content/lpc-helmets-mega-pack
+- **Simple staff** — bluecarrot16, Dr. Jamgo; CC0
+  - https://opengameart.org/content/lpc-simple-staff
+- **Diamond staff** — bluecarrot16; OGA-BY 3.0+, GPL 3.0, CC-BY 4.0
+  - https://opengameart.org/content/lpc-more-weapons
+- **Loop staff** — bluecarrot16; OGA-BY 3.0+, GPL 3.0, CC-BY 4.0
+  - https://opengameart.org/content/lpc-more-weapons
+- **Gnarled staff** — bluecarrot16; OGA-BY 3.0+, GPL 3.0, CC-BY 4.0
+  - https://opengameart.org/content/lpc-more-weapons
+- **S staff** — LordNeo, Michael Whitlock (bigbeargames), bluecarrot16; CC0
+  - https://opengameart.org/content/staff-64-x64
+  - https://opengameart.org/content/lpc-magic-staff
+- **Rapier** — Johannes Sjölund (wulax), bluecarrot16; OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-extended-weapon-animations
+- **Arming Sword** — ElizaWy; walk and down by JaidynReiman; OGA-BY 3.0
+  - https://github.com/ElizaWy/LPC/tree/main/Characters/Props/Sword%2001%20-%20Arming%20Sword
+  - https://opengameart.org/content/lpc-expanded-sit-run-jump-more
+- **Glowsword** — bluecarrot16, tskaufma, Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-glow-sword
+- **Great** — Daniel Eddeland (daneeklu), gr3yh47, Johannes Sjölund (wulax), Pierre Vigier (pvigier); CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-weapons-two-bows-a-spear-and-a-trident
+  - https://opengameart.org/content/lpc-walk-animations-for-bows
+- **Kite** — DarkwallLKE, Tuomo Untinen (reemax), Michael Whitlock (bigbeargames); CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-kite-shield
+  - https://opengameart.org/content/lpc-shields-pack
+- **Two engrailed shield** — bluecarrot16, Sander Frenken (castelonia); OGA-BY 3.0
+  - https://opengameart.org/content/lpc-shields
+- **Two engrailed shield trim** — bluecarrot16, Sander Frenken (castelonia); OGA-BY 3.0
+  - https://opengameart.org/content/lpc-shields
+- **Halberd** — Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-weapons
+- **Scythe** — bluecarrot16; CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-extended-weapon-animations
+- **Flail** — Benjamin K. Smith (BenCreating), bluecarrot16, Sander Frenken (castelonia); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-weapons
+- **Legion** — Napsio (Vitruvian Studio), JaidynReiman, bluecarrot16, Nila122; OGA-BY 3.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-roman-armor
+- **Bauldron** — Nila122, JaidynReiman; GPL 2.0, GPL 3.0, OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/more-lpc-clothes-and-hair
+- **Epaulets** — bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-pirates
+- **Mantal** — bluecarrot16, JaidynReiman; OGA-BY 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-pirates
+- **Pauldrons** — Matthew Krohn (makrohn), Johannes Sjölund (wulax), bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
