@@ -150,6 +150,14 @@ const ITEMS = {
   earring_pearl:  { name: "ต่างหูมุกทะเล", type: "equip", slot: "ear", lv: 8, bonus: { int: 2, maxSp: 15 }, price: 1200 },
   earring_ruby:   { name: "ต่างหูทับทิม", type: "equip", slot: "ear", lv: 22, bonus: { str: 3, atk: 8 }, price: 9000 },
   earring_star:   { special: { critPct: 3 }, name: "ต่างหูดาวตก", type: "equip", slot: "ear", lv: 30, bonus: { dex: 4, agi: 3 }, price: 20000 },
+  // ---------- ชุดอัศวินคราม (นักดาบใหญ่ Lv.35) — ดรอปจาก World Boss ----------
+  azure_helm:  { ac: "heavy", name: "หมวกเขาอัศวินคราม", type: "equip", slot: "head", lv: 35, bonus: { def: 20, vit: 3, maxHp: 120 }, price: 30000, visual: true, set: "azure" },
+  azure_plate: { special: { dmgReduce: 3 }, ac: "heavy", name: "เกราะอัศวินคราม", type: "equip", slot: "armor", lv: 35, bonus: { def: 46, str: 3, vit: 4 }, price: 42000, visual: true, sexed: true, set: "azure" },
+  azure_gaunt: { ac: "heavy", name: "ถุงมือเกราะอัศวินคราม", type: "equip", slot: "gloves", lv: 35, bonus: { def: 12, str: 4 }, price: 26000, visual: true, sexed: true, set: "azure" },
+  azure_boots: { ac: "heavy", name: "รองเท้าเกราะอัศวินคราม", type: "equip", slot: "shoes", lv: 35, bonus: { def: 13, agi: 3 }, price: 26000, visual: true, sexed: true, set: "azure" },
+  azure_cape:  { special: { hpPct: 3 }, name: "ผ้าคลุมอัศวินคราม", type: "equip", slot: "cape", lv: 35, bonus: { def: 9, str: 2, vit: 3 }, price: 30000, visual: true, back: true, set: "azure" },
+  azure_blade: { special: { critDmg: 15 }, refineFx: { 7: { sp: { critPct: 4 } }, 9: { sp: { critDmg: 18 } } }, wt: "greatsword", base: "greatsword", name: "มหาดาบอัศวินคราม", type: "equip", slot: "weapon", lv: 35, bonus: { atk: 108, str: 4 }, price: 60000, visual: true, back: true, glowColor: "#5aa0ff", slashFx: "#5aa0ff", set: "azure",
+    desc: "ฟันแล้วปล่อยคลื่นแสงสีน้ำเงิน" },
   // ---------- ชุดเครื่องประดับค้างคาวราตรี (ดูดเลือด Lv.30) — ดรอปในเนินกระดูก (แวมไพร์ + มินิบอสเคานต์แวมไพร์) ----------
   bat_ring:       { special: { lifesteal: 1 }, name: "แหวนค้างคาวราตรี", type: "equip", slot: "ring", lv: 30, bonus: { str: 3, atk: 12 }, price: 24000, set: "batnight" },
   bat_necklace:   { special: { lifesteal: 1 }, name: "สร้อยเขี้ยวค้างคาว", type: "equip", slot: "neck", lv: 30, bonus: { vit: 3, maxHp: 90 }, price: 24000, set: "batnight" },
@@ -231,6 +239,8 @@ const ITEMS = {
 //  pieces = รายการช่อง แต่ละช่องใส่ชิ้นไหนก็ได้ในกลุ่ม (เช่นอาวุธของเซ็ตเลือกได้หลายแบบ)
 // =============================================================
 const ITEM_SETS = {
+  azure: { name: "ชุดอัศวินคราม", job: "นักดาบใหญ่", pieces: [["azure_helm"], ["azure_plate"], ["azure_gaunt"], ["azure_boots"], ["azure_cape"], ["azure_blade"]],
+    tiers: { 2: { b: { atk: 15 } }, 4: { b: { def: 15, maxHp: 300 } }, 6: { b: { atk: 30 }, sp: { atkPct: 5, critDmg: 10, dmgReduce: 3 } } } },
   batnight: { name: "ชุดเครื่องประดับค้างคาวราตรี", job: "ทุกอาชีพ", pieces: [["bat_ring"], ["bat_necklace"], ["bat_earring"]],
     tiers: { 2: { sp: { lifesteal: 2 } }, 3: { b: { atk: 12, maxHp: 100 }, sp: { lifesteal: 2, atkPct: 2 } } } },
   blood: { name: "ชุดเครื่องประดับโลหิต", job: "ทุกอาชีพ", pieces: [["blood_ring"], ["blood_necklace"], ["blood_earring"]],

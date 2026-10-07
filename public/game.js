@@ -518,7 +518,7 @@ class WorldScene extends Phaser.Scene {
       // ธนู: น้าวสายแล้วปล่อยลูกศรตอนเฟรมปล่อย · คทา/คัมภีร์: ชี้ไปข้างหน้าแล้วยิงลูกเวท
       if (fx === "arrow") { this.playOnce(id, "aim", dir, 560); this.time.delayedCall(SHOOT_RELEASE_MS, () => this.projectile(id, tgt, "arrow")); }
       else if (fx) { this.playOnce(id, this.hasAnim(id, "thrust") ? "thrust" : "cast", dir, 440); this.time.delayedCall(CAST_RELEASE_MS, () => this.projectile(id, tgt, fx)); }
-      else this.playOnce(id, "slash", dir, 380);
+      else { this.playOnce(id, "slash", dir, 380); this.slashWave(id, dir, tgt); }
     });
     room.onMessage("skillfx", (f) => this.skillFx(f, false));
     room.onMessage("cast", (f) => this.skillFx(f, true));
@@ -1316,6 +1316,33 @@ class WorldScene extends Phaser.Scene {
     const b = tgts && this.views.get(tgts[0]);
     if (!b) return;
     this.shotFrom(from, b, fx === "dark" ? "dark" : fx);
+  }
+  // อาวุธที่มี slashFx (เช่น มหาดาบอัศวินคราม): ฟันแล้วมีคลื่นแสงรูปเสี้ยวพุ่งออกไปข้างหน้า
+  slashWave(id, dir, tgt) {
+    const v = this.views.get(id);
+    if (!v || !gameData) return;
+    const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), it = m && gameData.items[m[1]];
+    if (!it || !it.slashFx) return;
+    const col = Phaser.Display.Color.HexStringToColor(it.slashFx).color;
+    const t = tgt && this.views.get(tgt);
+    const ang = t ? Math.atan2(t.root.y - v.root.y, t.root.x - v.root.x) : { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[dir] || 0;
+    const x0 = v.root.x + Math.cos(ang) * 14, y0 = v.root.y - 26 + Math.sin(ang) * 10;
+    this.time.delayedCall(120, () => {
+      const g = this.add.graphics().setDepth(v.root.depth + 5).setBlendMode(Phaser.BlendModes.ADD);
+      const draw = (r, a) => {
+        g.clear();
+        for (const [w, al, c] of [[9, 0.35 * a, col], [5, 0.7 * a, col], [2, a, 0xffffff]]) {
+          g.lineStyle(w, c, al); g.beginPath(); g.arc(0, 0, r, -1.05, 1.05); g.strokePath();
+        }
+      };
+      g.setPosition(x0, y0).setRotation(ang);
+      const st = { r: 10, a: 1 };
+      draw(st.r, st.a);
+      this.tweens.add({ targets: st, r: 34, a: 0, duration: 320, ease: "Quad.easeOut",
+        onUpdate: () => { g.setPosition(x0 + Math.cos(ang) * (st.r - 10) * 1.2, y0 + Math.sin(ang) * (st.r - 10) * 1.2); draw(st.r, st.a); },
+        onComplete: () => g.destroy() });
+      if (t) this.time.delayedCall(140, () => { this.burst(t.root.x, t.root.y - 26, col, 20); });
+    });
   }
   lightning(a, b, col) {
     const g = this.add.graphics().setDepth(1e6 - 1).setBlendMode(Phaser.BlendModes.ADD);

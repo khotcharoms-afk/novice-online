@@ -245,7 +245,8 @@ const WORLD_BOSSES = {
     slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
     summon: { at: [0.6, 0.3], kind: "orcchief", n: 3 },
     enrage: 0.3,
-    loot: { gear: 4, pool: ["goldhelm", "goldplate", "goldgaunt", "goldboots", "cape_shadow", "shades_hawk", "moonblade", "shield_spartan", "war_horn",
+    // set = ชุดพิเศษของบอส: ดรอปแน่นอน 1 ชิ้นต่อการปราบ (สุ่มชิ้น ระดับน้ำเงินขึ้นไป · ใครก็เก็บได้)
+    loot: { gear: 4, set: ["azure_helm", "azure_plate", "azure_gaunt", "azure_boots", "azure_cape", "azure_blade"], pool: ["goldhelm", "goldplate", "goldgaunt", "goldboots", "cape_shadow", "shades_hawk", "moonblade", "shield_spartan", "war_horn",
       "quiver_wind", "orb_star", "relic_holy", "judgehammer", "shadow_kris", "titanaxe", "bow_shadow", "staff_crystal", "book_holy",
       "shadow_vest", "arch_robe", "saint_robe", "cape_royal", "ring_dragon", "amulet_frost", "necklace_wind", "talisman_titan"],
       items: [["stone_3", 3, 5], ["potion_m", 5, 8]] },

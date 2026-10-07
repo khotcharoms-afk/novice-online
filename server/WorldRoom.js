@@ -1198,6 +1198,11 @@ class WorldRoom extends Room {
       const [dx, dy] = at(i, N);
       this.spawnDrop(pool[i % pool.length], 1, dx, dy, i === 0 ? mvp : null, I.makeGear(pool[i % pool.length], rar));
     }
+    if (L.set && L.set.length) { // ชิ้นชุดพิเศษของบอส 1 ชิ้นแน่นอน
+      const id = L.set[Math.floor(Math.random() * L.set.length)], x = Math.random();
+      this.spawnDrop(id, 1, m.x, m.y + 36, null, I.makeGear(id, x < 0.05 ? 4 : x < 0.3 ? 3 : 2));
+      WorldRoom.announce(`✨ ${m.name} ดรอป ${I.ITEMS[id].name}!`);
+    }
     L.items.forEach(([id, lo, hi], k) => { const [dx, dy] = at(L.gear + k, N); this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), dx, dy, null, null); });
     const rank = [...r.dmgBy.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
       .map(([pid, dmg], i) => { const pp = this.state.players.get(pid); return `${i + 1}. ${pp ? pp.name : "?"} ${Math.round((dmg * 100) / total)}%`; });
