@@ -246,7 +246,7 @@ const WORLD_BOSSES = {
   bloodking: {
     name: "ราชันโลหิตมิโนทอร์", level: 32, sprite: "minotaur", tint: 0xff5a4a, scale: 2.1, speed: 80, aggressive: true,
     maps: ["orcamp", "snow"], every: [60, 90], // เกิดเองตามเวลา: สุ่มแผนที่ · ทุก 60–90 นาทีหลังถูกปราบ/หายไป
-    hpMul: 30, atkMul: 1.5, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
+    hpMul: 250, atkMul: 1.5, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
     slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
     summon: { at: [0.6, 0.3], kind: "orcchief", n: 3 },
     enrage: 0.3,
@@ -259,7 +259,7 @@ const WORLD_BOSSES = {
   lichking: {
     name: "จอมลิชราตรี", level: 60, sprite: "lich", tint: 0xb07aff, scale: 2.2, speed: 75, aggressive: true,
     maps: ["ruins", "cursed"], every: [90, 120],
-    hpMul: 32, atkMul: 1.55, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
+    hpMul: 250, atkMul: 1.55, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
     slam: { every: 8000, cast: 1200, r: 150, mult: 2.3 },
     summon: { at: [0.6, 0.3], kind: "skelknight", n: 4 },
     enrage: 0.3,
@@ -268,7 +268,7 @@ const WORLD_BOSSES = {
   abyssdragon: {
     name: "มังกรอเวจีนิรันดร์", level: 90, sprite: "wyvern", tint: 0x8a4aff, scale: 2.5, speed: 85, aggressive: true,
     maps: ["dragon", "abyss"], every: [120, 180],
-    hpMul: 35, atkMul: 1.6, defMul: 1.7, expMul: 45, goldMul: 30, range: 80,
+    hpMul: 250, atkMul: 1.6, defMul: 1.7, expMul: 45, goldMul: 30, range: 80,
     slam: { every: 7500, cast: 1100, r: 165, mult: 2.4 },
     summon: { at: [0.6, 0.3], kind: "dragonknight", n: 4 },
     enrage: 0.35,
