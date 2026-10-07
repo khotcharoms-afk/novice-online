@@ -39,9 +39,9 @@ const PIECES = {
   robe:      { name: "ชุดคลุม", slot: "armor", ac: "cloth", set: "cloth", base: ["priest_robe", "arch_robe"], b: { def: 21, int: 5, vit: 2, maxSp: 60 }, sp: { spPct: 6 } },
   cgloves:   { name: "ถุงมือเวท", slot: "gloves", ac: "cloth", set: "cloth", base: ["mage_gloves", "saint_gloves"], b: { def: 5, int: 3, maxSp: 20 } },
   shoes:     { name: "รองเท้าเวท", slot: "shoes", ac: "cloth", set: "cloth", base: ["mage_shoes", "arch_shoes"], b: { def: 5, dex: 3, maxHp: 30 } },
-  ring:      { name: "แหวน", slot: "acc", base: ["ring_ruby", "ring_dragon"], b: { str: 6, dex: 3, atk: 18 }, sp: { critDmg: 12 } },
-  amulet:    { name: "จี้", slot: "acc", base: ["amulet_sage", "amulet_frost"], b: { int: 7, maxSp: 80 }, sp: { cdr: 4 } },
-  talisman:  { name: "ตราประจำตัว", slot: "acc", base: ["amulet_guard", "talisman_titan"], b: { vit: 6, def: 10, maxHp: 150 }, sp: { dmgReduce: 4 } },
+  ring:      { name: "แหวน", slot: "ring", base: ["ring_ruby", "ring_dragon"], b: { str: 6, dex: 3, atk: 18 }, sp: { critDmg: 12 } },
+  amulet:    { name: "จี้", slot: "neck", base: ["amulet_sage", "amulet_frost"], b: { int: 7, maxSp: 80 }, sp: { cdr: 4 } },
+  talisman:  { name: "ต่างหู", slot: "ear", base: ["earring_ruby", "earring_star"], b: { vit: 6, def: 10, maxHp: 150 }, sp: { dmgReduce: 4 } },
 };
 // โบนัสเซ็ต (ค่าที่ขั้น Lv.40 · ขั้นสูงขึ้นคูณตามสัดส่วนเลเวล)
 const SET_KINDS = {

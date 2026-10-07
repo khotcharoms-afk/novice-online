@@ -5,8 +5,9 @@
 let INV = { inv: [], equip: {}, gold: 0 };
 const ICON = (id) => `/assets/icons/${id}.png`;
 const BAR_KEYS = ["q", "e", "r", "f", "z", "x", "v", "b"];
-const DOLL_L = ["head", "face", "armor", "gloves", "acc1"];
-const DOLL_R = ["weapon", "offhand", "cape", "shoes", "acc2"];
+const DOLL_L = ["head", "face", "ear", "armor", "gloves", "neck"];
+const DOLL_R = ["weapon", "offhand", "cape", "shoes", "ring"];
+const ACC_TH = { neck: "สร้อยคอ", ring: "แหวน", ear: "ต่างหู" };
 const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง" };
 const BONUS_NAME = { atk: "พลังโจมตี", def: "ป้องกัน", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP สูงสุด", maxSp: "SP สูงสุด" };
 const itemOf = (id) => gameData && gameData.items[id];
@@ -178,7 +179,7 @@ function renderPaperDoll() {
 }
 function fits(s, slot) {
   const it = s && itemOf(s.id);
-  return it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
+  return it && it.type === "equip" && it.slot === slot;
 }
 function drawDoll() {
   const v = scene && scene.views && scene.views.get(room.sessionId);
@@ -228,7 +229,7 @@ function openCard(g, ctx, ev) {
   const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ",
     ranger: "ชุดนักพราน", shadow: "ชุดพรานเงา", mage: "ชุดนักเวท", priest: "ชุดนักบวช", arch: "ชุดจอมเวท", saint: "ชุดนักบุญ" };
   const setTxt = "";
-  const slotTxt = (it.type === "equip" ? ` · ${it.slot === "acc" ? "เครื่องประดับ" : gameData.slotName[it.slot]}` : "") + setTxt;
+  const slotTxt = (it.type === "equip" ? ` · ${ACC_TH[it.slot] ? "เครื่องประดับ (" + ACC_TH[it.slot] + ")" : gameData.slotName[it.slot]}` : "") + setTxt;
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
   const sell = g.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
   const acts = [];

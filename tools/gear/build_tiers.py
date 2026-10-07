@@ -124,7 +124,8 @@ if __name__ == "__main__":
             if suf in ("", "_m", "_f", "_back"): lazy.add(f"{iid}{suf}")
         if os.path.exists(icon):
             arr = np.array(Image.open(icon).convert("RGBA"))
-            out = glow(recolor(arr, th, lo, hi, dom), th["glow"], 1)
+            out = recolor(arr, th, lo, hi, dom)
+            if it["slot"] != "ear": out = glow(out, th["glow"], 1)   # ต่างหูเส้นบาง ใส่แสงแล้วรก
             Image.fromarray(out).save(f"{A}/icons/{iid}.png"); icons.add(iid)
         print("ok", iid, base, len(fl))
     man["equipLazy"] = sorted(lazy); man["atkLazy"] = atkl; man["icons"] = sorted(icons)

@@ -3,16 +3,16 @@
 // =============================================================
 
 // ช่องอุปกรณ์ 10 ช่อง (ซ้าย 5 / ขวา 5 ในหน้าต่างตัวละคร)
-const EQUIP_SLOTS = ["head", "face", "armor", "gloves", "acc1", "weapon", "offhand", "cape", "shoes", "acc2"];
+const EQUIP_SLOTS = ["head", "face", "ear", "armor", "gloves", "neck", "weapon", "offhand", "cape", "shoes", "ring"];
 const SLOT_NAME = {
-  head: "หมวก", face: "หน้า", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", acc1: "เครื่องประดับ",
-  weapon: "อาวุธ", offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", acc2: "เครื่องประดับ",
+  head: "หมวก", face: "หน้า", ear: "ต่างหู", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", neck: "สร้อยคอ",
+  weapon: "อาวุธ", offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", ring: "แหวน",
 };
 const INVENTORY_SIZE = 100;
 const MAX_STACK = 99;
 
 // type: equip | use | material
-// slot: ช่องที่ใส่ได้ ("acc" = ใส่ได้ทั้ง acc1/acc2)
+// slot: ช่องที่ใส่ได้ · เครื่องประดับแยก 3 ช่อง: neck = สร้อยคอ/จี้/เครื่องราง · ring = แหวน · ear = ต่างหู
 // bonus: ค่าที่เพิ่มเมื่อสวม — atk, def, str, agi, vit, int, dex, maxHp, maxSp
 // visual: ภาพบนตัวละคร (มี = เห็นตอนสวม), sexed = ภาพแยกชาย/หญิง, back = มีชั้นหลังตัว
 // price: ราคาซื้อที่ร้าน (ขายคืน = ครึ่งหนึ่ง) · sell: ราคาขายของดรอป
@@ -127,24 +127,33 @@ const ITEMS = {
   cape_shadow:  { name: "ผ้าคลุมขาดวิ่นแห่งเงา", type: "equip", slot: "cape", lv: 26, bonus: { def: 5, agi: 3, dex: 3 }, special: { moveSpd: 4 }, price: 14000, visual: true, back: true },
   cape_royal:   { name: "ผ้าคลุมราชันย์", type: "equip", slot: "cape", lv: 30, bonus: { def: 8, str: 2, vit: 2, int: 2 }, special: { hpPct: 4 }, price: 22000, visual: true, back: true },
   // ---------- เครื่องประดับ (ไม่มีภาพบนตัว) ----------
-  ring_copper:   { name: "แหวนทองแดง", type: "equip", slot: "acc", lv: 1, bonus: { str: 1 }, price: 220 },
-  fang_necklace: { name: "สร้อยเขี้ยวหมาป่า", type: "equip", slot: "acc", lv: 5, bonus: { agi: 2, dex: 1 }, price: 900 },
-  boar_charm:    { name: "เครื่องรางงาหมูป่า", type: "equip", slot: "acc", lv: 9, bonus: { vit: 3 }, price: 1500 },
+  ring_copper:   { name: "แหวนทองแดง", type: "equip", slot: "ring", lv: 1, bonus: { str: 1 }, price: 220 },
+  fang_necklace: { name: "สร้อยเขี้ยวหมาป่า", type: "equip", slot: "neck", lv: 5, bonus: { agi: 2, dex: 1 }, price: 900 },
+  boar_charm:    { name: "เครื่องรางงาหมูป่า", type: "equip", slot: "neck", lv: 9, bonus: { vit: 3 }, price: 1500 },
   // Lv15 — ร้านทอบบี้
-  ring_silver:   { name: "แหวนเงินนักรบ", type: "equip", slot: "acc", lv: 15, bonus: { str: 3, atk: 5 }, price: 3200 },
-  earring_jade:  { name: "ต่างหูหยกลม", type: "equip", slot: "acc", lv: 15, bonus: { agi: 3, dex: 2 }, price: 3200 },
-  amulet_sage:   { name: "จี้ปัญญา", type: "equip", slot: "acc", lv: 15, bonus: { int: 3, maxSp: 30 }, price: 3200 },
+  ring_silver:   { name: "แหวนเงินนักรบ", type: "equip", slot: "ring", lv: 15, bonus: { str: 3, atk: 5 }, price: 3200 },
+  earring_jade:  { name: "ต่างหูหยกลม", type: "equip", slot: "ear", lv: 15, bonus: { agi: 3, dex: 2 }, price: 3200 },
+  amulet_sage:   { name: "จี้ปัญญา", type: "equip", slot: "neck", lv: 15, bonus: { int: 3, maxSp: 30 }, price: 3200 },
   // Lv22 — ร้านทอบบี้ (เหมาะกับแต่ละสาย)
-  ring_ruby:     { name: "แหวนทับทิมโลหิต", type: "equip", slot: "acc", lv: 22, bonus: { str: 4, atk: 12 }, price: 8500, desc: "เหมาะกับสายดาบ" },
-  ring_sapphire: { name: "แหวนไพลินเวท", type: "equip", slot: "acc", lv: 22, bonus: { int: 5, maxSp: 40 }, price: 8500, desc: "เหมาะกับนักเวทย์" },
-  necklace_hawk: { name: "สร้อยขนเหยี่ยว", type: "equip", slot: "acc", lv: 22, bonus: { dex: 4, agi: 3 }, price: 8500, desc: "เหมาะกับนักล่า" },
-  amulet_guard:  { name: "เครื่องรางผู้พิทักษ์", type: "equip", slot: "acc", lv: 22, bonus: { vit: 4, def: 6, maxHp: 80 }, price: 8500, desc: "เหมาะกับผู้พิทักษ์" },
-  pendant_holy:  { name: "จี้แสงศักดิ์สิทธิ์", type: "equip", slot: "acc", lv: 22, bonus: { int: 3, vit: 3, maxSp: 30 }, price: 8500, desc: "เหมาะกับหมอ" },
+  ring_ruby:     { name: "แหวนทับทิมโลหิต", type: "equip", slot: "ring", lv: 22, bonus: { str: 4, atk: 12 }, price: 8500, desc: "เหมาะกับสายดาบ" },
+  ring_sapphire: { name: "แหวนไพลินเวท", type: "equip", slot: "ring", lv: 22, bonus: { int: 5, maxSp: 40 }, price: 8500, desc: "เหมาะกับนักเวทย์" },
+  necklace_hawk: { name: "สร้อยขนเหยี่ยว", type: "equip", slot: "neck", lv: 22, bonus: { dex: 4, agi: 3 }, price: 8500, desc: "เหมาะกับนักล่า" },
+  amulet_guard:  { name: "เครื่องรางผู้พิทักษ์", type: "equip", slot: "neck", lv: 22, bonus: { vit: 4, def: 6, maxHp: 80 }, price: 8500, desc: "เหมาะกับผู้พิทักษ์" },
+  pendant_holy:  { name: "จี้แสงศักดิ์สิทธิ์", type: "equip", slot: "neck", lv: 22, bonus: { int: 3, vit: 3, maxSp: 30 }, price: 8500, desc: "เหมาะกับหมอ" },
   // Lv30 — ดรอปจากมอนเลเวลสูงเท่านั้น
-  ring_dragon:   { special: { critDmg: 15 }, name: "แหวนเกล็ดมังกร", type: "equip", slot: "acc", lv: 30, bonus: { str: 6, dex: 3, atk: 18 }, price: 22000 },
-  amulet_frost:  { special: { cdr: 5 }, name: "เครื่องรางน้ำแข็งนิรันดร์", type: "equip", slot: "acc", lv: 30, bonus: { int: 7, maxSp: 80 }, price: 22000 },
-  necklace_wind: { special: { moveSpd: 8 }, name: "สร้อยวายุ", type: "equip", slot: "acc", lv: 30, bonus: { agi: 5, dex: 5 }, price: 22000 },
-  talisman_titan:{ special: { dmgReduce: 5 }, name: "เครื่องรางไททัน", type: "equip", slot: "acc", lv: 30, bonus: { vit: 6, def: 10, maxHp: 150 }, price: 22000 },
+  ring_dragon:   { special: { critDmg: 15 }, name: "แหวนเกล็ดมังกร", type: "equip", slot: "ring", lv: 30, bonus: { str: 6, dex: 3, atk: 18 }, price: 22000 },
+  amulet_frost:  { special: { cdr: 5 }, name: "เครื่องรางน้ำแข็งนิรันดร์", type: "equip", slot: "neck", lv: 30, bonus: { int: 7, maxSp: 80 }, price: 22000 },
+  necklace_wind: { special: { moveSpd: 8 }, name: "สร้อยวายุ", type: "equip", slot: "neck", lv: 30, bonus: { agi: 5, dex: 5 }, price: 22000 },
+  talisman_titan:{ special: { dmgReduce: 5 }, name: "เครื่องรางไททัน", type: "equip", slot: "neck", lv: 30, bonus: { vit: 6, def: 10, maxHp: 150 }, price: 22000 },
+  // ---------- ต่างหู ----------
+  earring_copper: { name: "ต่างหูทองแดง", type: "equip", slot: "ear", lv: 1, bonus: { dex: 1 }, price: 150 },
+  earring_pearl:  { name: "ต่างหูมุกทะเล", type: "equip", slot: "ear", lv: 8, bonus: { int: 2, maxSp: 15 }, price: 1200 },
+  earring_ruby:   { name: "ต่างหูทับทิม", type: "equip", slot: "ear", lv: 22, bonus: { str: 3, atk: 8 }, price: 9000 },
+  earring_star:   { special: { critPct: 3 }, name: "ต่างหูดาวตก", type: "equip", slot: "ear", lv: 30, bonus: { dex: 4, agi: 3 }, price: 20000 },
+  // ---------- ชุดเครื่องประดับโลหิต (ดูดเลือด) — ดรอปจากมอนสายแวมไพร์ ป่าต้องสาป ----------
+  blood_ring:     { special: { lifesteal: 2 }, name: "แหวนโลหิตราตรี", type: "equip", slot: "ring", lv: 50, bonus: { str: 5, atk: 22 }, price: 60000, set: "blood" },
+  blood_necklace: { special: { lifesteal: 2 }, name: "สร้อยค้างคาวโลหิต", type: "equip", slot: "neck", lv: 50, bonus: { vit: 5, maxHp: 180 }, price: 60000, set: "blood" },
+  blood_earring:  { special: { critPct: 3 }, name: "ต่างหูหยดเลือด", type: "equip", slot: "ear", lv: 50, bonus: { agi: 3, dex: 4, atk: 10 }, price: 60000, set: "blood" },
   // ---------- ของใช้ ----------
   potion_s:  { name: "ยาแดงขวดเล็ก", type: "use", heal: { hp: 45 }, price: 12, desc: "ฟื้น HP 45" },
   potion_m:  { name: "ยาแดง", type: "use", heal: { hp: 150 }, price: 40, desc: "ฟื้น HP 150" },
@@ -217,6 +226,8 @@ const ITEMS = {
 //  pieces = รายการช่อง แต่ละช่องใส่ชิ้นไหนก็ได้ในกลุ่ม (เช่นอาวุธของเซ็ตเลือกได้หลายแบบ)
 // =============================================================
 const ITEM_SETS = {
+  blood: { name: "ชุดเครื่องประดับโลหิต", job: "ทุกอาชีพ", pieces: [["blood_ring"], ["blood_necklace"], ["blood_earring"]],
+    tiers: { 2: { sp: { lifesteal: 3 } }, 3: { b: { atk: 25, maxHp: 200 }, sp: { lifesteal: 4, atkPct: 4 } } } },
   leather: { name: "ชุดหนัง", pieces: [["hood"], ["leather"], ["gloves"], ["boots"]],
     tiers: { 2: { b: { def: 2 } }, 4: { b: { agi: 2, maxHp: 40 } } } },
   chain: { name: "ชุดโซ่", pieces: [["mailcoif"], ["chain"], ["bracers"], ["ironboots"]],
@@ -276,7 +287,7 @@ const SHOPS = {
     "cape_red", "cape_blue", "cape_green", "cape_white", "cape_knight", "chain", "mailcoif", "bracers", "ironboots",
     "ranger_cap", "ranger_vest", "ranger_gloves", "ranger_boots", "mage_hat", "mage_robe", "mage_gloves", "mage_shoes",
     "priest_hood", "priest_robe", "priest_gloves", "priest_shoes"] },
-  merchant: { name: "ทอบบี้", title: "ร้านของจิปาถะ", items: ["ring_copper", "eyepatch", "mask_ninja", "monocle_gold", "ring_silver", "earring_jade", "amulet_sage",
+  merchant: { name: "ทอบบี้", title: "ร้านของจิปาถะ", items: ["ring_copper", "earring_copper", "earring_pearl", "eyepatch", "mask_ninja", "monocle_gold", "ring_silver", "earring_jade", "amulet_sage",
     "ring_ruby", "ring_sapphire", "necklace_hawk", "amulet_guard", "pendant_holy", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"] },
 };
 // รายการของทุกร้านรวมกัน (ใช้ตรวจของที่ขายในร้าน / ราคาของ)
@@ -475,7 +486,8 @@ const sellPrice = (id, g) => {
   const base = it.sell ?? Math.floor((it.price || 0) / 2);
   return Math.floor(base * ((g && RARITY[g.r || 0]) || RARITY[0]).sell);
 };
-const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
+const ACC_SLOTS = ["neck", "ring", "ear"];
+const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
 
 // ---------- มอนรูปร่างไม่ใช่คน: วัตถุดิบ + ตารางดรอป (สร้างจาก mat/borrow ใน data.js) ----------
 {
@@ -492,6 +504,15 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot ||
     DROPS[k] = row;
   }
 }
+// ---------- ต่างหู + ชุดเครื่องประดับโลหิต: ดรอปเพิ่ม ----------
+{
+  const add = (mob, rows) => { if (DROPS[mob]) DROPS[mob].push(...rows); };
+  add("orcchief", [["earring_ruby", 0.006, 1, 1]]); add("skelwarrior", [["earring_ruby", 0.006, 1, 1]]); add("vampire", [["earring_ruby", 0.005, 1, 1]]);
+  add("snowwolf", [["earring_star", 0.004, 1, 1]]); add("frostskel", [["earring_star", 0.004, 1, 1]]); add("snoworc", [["earring_star", 0.004, 1, 1]]);
+  add("sheep", [["earring_pearl", 0.012, 1, 1]]); add("lizard", [["earring_pearl", 0.012, 1, 1]]);
+  for (const [mob, ch] of [["vamplord", 0.006], ["bat_vampire", 0.004], ["cursedwolf", 0.002], ["dryad", 0.002]])
+    add(mob, [["blood_ring", ch, 1, 1], ["blood_necklace", ch, 1, 1], ["blood_earring", ch, 1, 1]]);
+}
 // ---------- อุปกรณ์เลเวลสูง Lv.40–90 (server/tiers.js) ----------
 {
   const TIERS = require("./tiers");
@@ -506,4 +527,4 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot ||
     DROPS[k].push(...TIERS.tierDrops(m.level, big ? 0.002 : 0.0012));
   }
 }
-module.exports = { SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { ACC_SLOTS, SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

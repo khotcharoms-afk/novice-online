@@ -11,7 +11,7 @@ const SHOP_CATS = [
   ["all", "ทั้งหมด", () => true],
   ["weapon", "อาวุธ", (it) => it.type === "equip" && it.slot === "weapon"],
   ["armor", "ชุดเกราะ", (it) => it.type === "equip" && ARMOR_SLOTS.includes(it.slot)],
-  ["acc", "เครื่องประดับ", (it) => it.type === "equip" && it.slot === "acc"],
+  ["acc", "เครื่องประดับ", (it) => it.type === "equip" && ["neck", "ring", "ear"].includes(it.slot)],
   ["use", "ใช้ได้", (it) => it.type === "use"],
   ["pet", "สัตว์เลี้ยง", (it) => it.type === "pet"],
   ["crystal", "คริสตัลตีบวก", (it, id) => isCrystal(id)],

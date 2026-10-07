@@ -276,8 +276,8 @@ async function openAccount(uid) {
 // ---------- หน้าต่างแก้ไอเทม (ระดับ / ตีบวก / ค่าพิเศษ / ลบ) ----------
 let CHARS = {};
 const CHAR_PICK = {};
-const SLOT_TH = { head: "หมวก", face: "หน้า", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", acc1: "เครื่องประดับ 1", weapon: "อาวุธ",
-  offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", acc2: "เครื่องประดับ 2" };
+const SLOT_TH = { head: "หมวก", face: "หน้า", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", neck: "สร้อยคอ", weapon: "อาวุธ",
+  offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", ring: "แหวน", ear: "ต่างหู" };
 const STAT_TH = { atk: "ATK", def: "DEF", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP", maxSp: "SP" };
 function openGearEditor(charId, where, key) {
   const c = CHARS[charId];
@@ -327,7 +327,7 @@ async function loadGameData() {
   for (const [mk, list] of Object.entries(GD.drops)) for (const [id, ch] of list) (dropFrom[id] = dropFrom[id] || []).push(`${GD.monsters[mk].name} ${pct(ch)}`);
   const itemRows = (type) => Object.entries(GD.items).filter(([, it]) => it.type === type).map(([id, it]) => `<tr>
       <td><img src="/assets/icons/${id}.png" alt="" width="22" height="22" style="image-rendering:pixelated;vertical-align:middle"> ${esc(it.name)}</td>
-      <td>${type === "equip" ? esc(SLOT_TH[it.slot] || (it.slot === "acc" ? "เครื่องประดับ" : it.slot)) : esc(it.desc || "")}</td>
+      <td>${type === "equip" ? esc(SLOT_TH[it.slot] || it.slot) : esc(it.desc || "")}</td>
       <td class="num">${it.lv || "-"}</td><td>${esc(bonus(it.bonus) || (it.heal ? [it.heal.hp && `ฟื้น HP ${it.heal.hp}`, it.heal.sp && `ฟื้น SP ${it.heal.sp}`].filter(Boolean).join(", ") : ""))}</td>
       <td>${it.refine10 ? esc(bonus(it.refine10)) : "-"}</td>
       <td class="num">${it.price ? fmt(it.price) : "-"}${GD.shop.includes(id) ? "" : (it.price ? " <span class='muted'>(ไม่ขาย)</span>" : "")}</td>
@@ -412,7 +412,9 @@ const SPAWN_CATS = [
   ["gloves", "ถุงมือ", (i) => i.slot === "gloves"],
   ["shoes", "รองเท้า", (i) => i.slot === "shoes"],
   ["cape", "ผ้าคลุม", (i) => i.slot === "cape"],
-  ["acc", "เครื่องประดับ", (i) => i.slot === "acc"],
+  ["neck", "สร้อยคอ", (i) => i.slot === "neck"],
+  ["ring", "แหวน", (i) => i.slot === "ring"],
+  ["ear", "ต่างหู", (i) => i.slot === "ear"],
   ["use", "ยา", (i) => i.type === "use"],
   ["pet", "สัตว์เลี้ยง", (i) => i.type === "pet"],
   ["stone", "คริสตัล", (i) => /^stone_/.test(i.id)],

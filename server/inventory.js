@@ -38,6 +38,14 @@ function loadBag(c) {
     const g = normGear(c.equip && c.equip[slot]);
     if (g && I.fitsSlot(I.ITEMS[g.id], slot)) bag.equip[slot] = g;
   }
+  // ข้อมูลเก่า: เครื่องประดับ acc1/acc2 → ย้ายเข้าช่องตามประเภท (ช่องซ้ำ → คืนเข้ากระเป๋า)
+  for (const old of ["acc1", "acc2"]) {
+    const g = normGear(c.equip && c.equip[old]);
+    if (!g || !I.ITEMS[g.id]) continue;
+    const slot = I.ITEMS[g.id].slot;
+    if (!bag.equip[slot]) bag.equip[slot] = g;
+    else { const free = bag.inv.findIndex((x) => !x); if (free >= 0) bag.inv[free] = gearSlot(g); }
+  }
   bag.gold = Math.max(0, Math.floor(Number(c.gold) || 0));
   if (c.pet && I.ITEMS[c.pet] && I.ITEMS[c.pet].type === "pet") bag.pet = c.pet;
   return bag;
@@ -152,7 +160,6 @@ function equipFrom(b, idx, level, want, job = "villager") {
   const err = wearError(job, it);
   if (err) return err;
   let slot = it.slot;
-  if (slot === "acc") slot = want === "acc1" || want === "acc2" ? want : !b.equip.acc1 ? "acc1" : !b.equip.acc2 ? "acc2" : "acc1";
   // อาวุธสองมือกับโล่ใช้พร้อมกันไม่ได้
   if (it.wt === "shield") {
     const w = weaponType(b);
@@ -211,7 +218,7 @@ function recallPet(b) {
 }
 // เรียงกระเป๋า: อุปกรณ์ (ตามช่อง → ระดับ → ตีบวก → เลเวล) · ของใช้ · สัตว์เลี้ยง · คริสตัล · วัตถุดิบ
 // รวมกองของชนิดเดียวกันที่แยกกันอยู่ให้เป็นกองเดียวด้วย
-const SORT_SLOT = ["weapon", "offhand", "head", "face", "armor", "gloves", "cape", "shoes", "acc"];
+const SORT_SLOT = ["weapon", "offhand", "head", "face", "armor", "gloves", "cape", "shoes", "neck", "ring", "ear"];
 const SORT_TYPE = { equip: 0, use: 1, pet: 2, material: 4 };
 function sortBag(b) {
   const items = b.inv.filter(Boolean);
