@@ -357,6 +357,8 @@ function bindRoom(room) {
     room.onMessage("respawned", () => hideDeath());
     room.onMessage("spawnFx", (d) => scene && scene.spawnFx(d));
     room.onMessage("spiritFx", (c) => scene && scene.spiritFx(c));
+    room.onMessage("summon", (c) => scene && scene.summonShow(c));
+    room.onMessage("summonFx", (c) => scene && scene.summonShot(c));
     room.onMessage("spq", (q) => { INV.spq = q; renderSpiritTrack(); renderSpirit(); });
     room.onMessage("spiritGot", ({ id }) => { const it = itemOf(id); toast(`✨ ได้รับ ${it ? it.name : id}! ภูติลอยตามคุณแล้ว (ถ้ามีภูติอยู่แล้ว ตัวใหม่จะอยู่ในกระเป๋า)`); });
     room.onMessage("spiritEvolved", ({ id, name }) => { const it = itemOf(id); toast(`🌟 ${it ? it.name : id} พัฒนาเป็น${name}! เพดานเลเวลเพิ่มขึ้น และแรงขึ้น`); });
@@ -391,7 +393,7 @@ class WorldScene extends Phaser.Scene {
     const paths = new Set();
     for (const [sex] of LOOK_OPTS.sex) {
       for (const [skin] of LOOK_OPTS.skin) paths.add(`look/base_${sex}_${skin}`);
-      for (const j of ["villager", "guardian", "slayer", "hunter", "mage", "healer"]) paths.add(`look/outfit_${j}_${sex}`);
+      for (const j of ["villager", "guardian", "slayer", "hunter", "mage", "healer", "paladin", "darkknight", "berserker", "blademaster", "sniper", "assassin", "archmage", "summoner", "saint", "battlepriest"]) paths.add(`look/outfit_${j}_${sex}`);
       for (const [h] of LOOK_OPTS.hair[sex]) for (const [c] of LOOK_OPTS.color) paths.add(`look/hair_${h}_${c}`);
     }
     paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
@@ -843,6 +845,9 @@ class WorldScene extends Phaser.Scene {
       v.label.setColor(v.isMe ? "#ffd36b" : typeof partyNames === "function" && partyNames().has(e.name) ? "#7dff9a" : "#ffffff");
       if (v.isMe && e.job !== v.lastJob) { v.lastJob = e.job; if (gameData) { buildSkillBar(); if (typeof renderQuestTrack === "function") renderQuestTrack(); } }
       v.label.setText(`${e.name}  Lv.${lv}`);
+      const st = !!e.stealth; // ล่องหน: ตัวเองเห็นจาง · คนอื่นแทบมองไม่เห็น
+      if (v.stealthNow !== st) { v.stealthNow = st; v.root.setAlpha(st ? (v.isMe ? 0.45 : 0.12) : 1); }
+      this.jobAura(v, e.job);
       if (v.isMe) {
         updateStatus(e);
         if (v.auto !== e.auto && e.auto) toast("เปิด AUTO — ตีมอนรอบ ๆ จุดนี้");
@@ -1203,8 +1208,22 @@ class WorldScene extends Phaser.Scene {
     } else this.playOnce(f.id, "slash", f.dir, 620, f.skill === "doublehit" ? 1 : 0);
     const tv = f.tgt && this.views.get(f.tgt);
     const S = gameData && gameData.skills[f.skill];
-    if (S && (f.id === room.sessionId || (tv && f.id !== room.sessionId))) this.floatText(v.root.x, v.root.y - 92, S.name, "#9fe3ff", 11, 700);
+    if (S && !f.again && (f.id === room.sessionId || (tv && f.id !== room.sessionId))) this.floatText(v.root.x, v.root.y - 92, S.name, "#9fe3ff", 11, 700);
     switch (fx.type) {
+      case "spin": { // หมุนตัว: วงคมดาบรอบตัวหลายรอบ
+        for (let i = 0; i < 3; i++) this.time.delayedCall(i * 250, () => {
+          const ring = this.add.ellipse(v.root.x, v.root.y - 10, 30, 14).setStrokeStyle(4, fx.color, 0.9).setDepth(v.root.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+          const k = (f.r || 90) / 15;
+          this.tweens.add({ targets: ring, scaleX: k, scaleY: k, alpha: 0, angle: 180, duration: 320, onComplete: () => ring.destroy() });
+          if (i) this.playOnce(f.id, "slash", ["down", "left", "up", "right"][i % 4], 240);
+        });
+        break;
+      }
+      case "chain": {
+        let a = { x: v.root.x, y: v.root.y - 30 };
+        (f.tgts || []).forEach((t, i) => { const b = this.views.get(t); if (!b) return; const to = { x: b.root.x, y: b.root.y - 26 }, a0 = a; this.time.delayedCall(i * 80, () => this.lightning(a0, to, fx.color)); a = to; });
+        break;
+      }
       case "heal": {
         const hv = (f.tgtPlayer && this.views.get(f.tgtPlayer)) || v;
         this.sparkle(hv.root.x, hv.root.y - 20, fx.color);
@@ -1241,6 +1260,52 @@ class WorldScene extends Phaser.Scene {
         break;
       }
     }
+  }
+
+  // อาชีพขั้น 2: วงแสงสีอาชีพใต้เท้า (เต้นช้า ๆ)
+  jobAura(v, job) {
+    if (v.auraJob === job) return;
+    if (!gameData) return;
+    v.auraJob = job;
+    if (v.jobAuraObj) { this.tweens.killTweensOf(v.jobAuraObj); v.jobAuraObj.destroy(); v.jobAuraObj = null; }
+    const J = gameData.jobs[job];
+    if (!J || J.tier !== 2) return;
+    const col = Phaser.Display.Color.HexStringToColor(J.color).color;
+    v.jobAuraObj = this.add.ellipse(0, -1, 40, 14, col, 0.16).setStrokeStyle(1.5, col, 0.6).setBlendMode(Phaser.BlendModes.ADD);
+    v.root.addAt(v.jobAuraObj, 0);
+    this.tweens.add({ targets: v.jobAuraObj, scaleX: { from: 0.9, to: 1.1 }, scaleY: { from: 0.9, to: 1.1 }, alpha: { from: 0.5, to: 1 }, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+  }
+  // ตัวช่วยที่อัญเชิญ (เหยี่ยว/ภูตไฟ) ลอยข้างผู้ใช้จนหมดเวลา
+  summonShow({ id, kind, ms }) {
+    this.summons = this.summons || new Map();
+    const old = this.summons.get(id);
+    if (old) { old.s.destroy(); this.summons.delete(id); }
+    const key = kind === "fire" ? "spirit/sp_ember" : "pet/pet_canary";
+    if (!this.textures.exists(key)) return;
+    const s = this.add.sprite(0, 0, key, kind === "fire" ? 8 : 0).setScale(kind === "fire" ? 0.9 : 1.1);
+    if (kind === "hawk") s.setTint(0xb07a40);
+    else if (this.game.renderer.type === Phaser.WEBGL && s.preFX) s.preFX.addGlow(0xff7a30, 2, 0, false, 0.1, 10);
+    this.summons.set(id, { s, kind, until: this.time.now + ms, seed: Math.random() * 1000 });
+  }
+  updateSummons(time) {
+    if (!this.summons) return;
+    this.summons.forEach((o, id) => {
+      const v = this.views.get(id);
+      if (!v || time > o.until) { o.s.destroy(); this.summons.delete(id); return; }
+      const bob = Math.sin((time + o.seed) / 250) * 4;
+      o.s.setPosition(v.root.x - 26, v.root.y - 50 + bob).setDepth(v.root.y + 5);
+      if (o.kind === "fire") o.s.setFrame(8 + (Math.floor(time / 150) % 4)); else o.s.setFrame(Math.floor(time / 120) % 2);
+    });
+  }
+  summonShot({ id, kind, tgt }) {
+    const o = this.summons && this.summons.get(id), b = this.views.get(tgt);
+    if (!o || !b) return;
+    if (kind === "hawk") { // เหยี่ยวโฉบ: บินไปที่เป้าแล้วกลับ
+      const sx = o.s.x, sy = o.s.y;
+      this.tweens.add({ targets: o.s, x: b.root.x, y: b.root.y - 30, duration: 220, yoyo: true, ease: "Quad.easeIn", onYoyo: () => this.burst(b.root.x, b.root.y - 26, 0xd0a060, 16) });
+      return;
+    }
+    this.shotFrom({ x: o.s.x, y: o.s.y }, b, "fire");
   }
 
   levelUpFx(id, job) {
@@ -1424,6 +1489,7 @@ class WorldScene extends Phaser.Scene {
   update(time, dt) {
     if (this.petViews) this.updatePets(time);
     if (this.spiritViews) this.updateSpirits(time);
+    this.updateSummons(time);
     this.updateBossBar();
     this.updateTargetBar(time);
     const k = Math.min(1, (dt / 1000) * 14);

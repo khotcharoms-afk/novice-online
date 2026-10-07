@@ -83,7 +83,7 @@ const playerStats = (lv, st = baseStats(), job = "villager", wt = null) => {
     flee: Math.min(0.35, st.agi * 0.0035),            // โอกาสหลบ
     hitBonus: st.dex * 0.005,                          // ลดโอกาสตีพลาด
     crit: Math.min(0.4, 0.05 + st.dex * 0.003),        // โอกาสคริติคอล
-    healBonus: Math.round(st.int * (job === "healer" ? 4 : 2)), // ฮีลเพิ่ม
+    healBonus: Math.round(st.int * (baseJob(job) === "healer" ? 4 : 2)), // ฮีลเพิ่ม
     range: Wt.range,                                   // ระยะโจมตีปกติ (px)
   };
 };
@@ -298,6 +298,13 @@ const JOBS = {
     rec: { int: 0.45, vit: 0.3, dex: 0.15, agi: 0.1, str: 0 }, role: "ฮีล · บัฟ",
     desc: "ใช้คัมภีร์ลอยข้างตัว ฮีลเพื่อน ให้พรเพิ่มพลังทั้งปาร์ตี้ แสงพิพากษาแรงพิเศษกับอันเดด" },
 };
+// อาชีพขั้น 2 (server/jobs2.js): ใช้อาวุธ/ชุด/มือรอง/ค่าแนะนำเหมือนอาชีพขั้น 1 ที่เป็นฐาน
+const J2 = require("./jobs2");
+for (const [k, j] of Object.entries(J2.JOBS2)) {
+  const B = JOBS[j.base];
+  JOBS[k] = { offhand: B.offhand, armor: B.armor, weapons: B.weapons, shield: B.shield, rec: B.rec, ...j, tier: 2 };
+}
+const baseJob = (job) => (JOBS[job] && JOBS[job].base) || job; // อาชีพขั้น 1 ของอาชีพนี้
 const JOB_NAME = Object.fromEntries(Object.entries(JOBS).map(([k, j]) => [k, j.name]));
 const RECOMMEND = JOBS.villager.rec;
 const ARMOR_NAME = { heavy: "เกราะหนัก", light: "เกราะเบา", cloth: "ชุดผ้า" };
@@ -386,6 +393,7 @@ const SKILLS = {
   bless:      { name: "พรแห่งแสง", max: 5, req: ["heal", 5], sp: [20, 0], cooldown: 45000, target: "self", area: [220, 0], buff: "bless", auto: "buff", icon: "skill_bless", color: "#e0c050",
     bv: (L) => ({ atk: 1.05 + 0.03 * L, def: 1.05 + 0.03 * L, ms: 30000 + 10000 * L }), desc: (L) => `ทุกคนรอบตัว 7 ช่อง ATK/DEF +${5 + 3 * L}% นาน ${30 + 10 * L} วิ`, fx: { type: "ring", color: 0xffe28a } },
 };
+Object.assign(SKILLS, J2.SKILLS2);
 // ค่าของสกิลที่เลเวล L (แปลง [a, b] → ตัวเลข)
 const lvVal = (v, L) => (Array.isArray(v) ? v[0] + v[1] * L : v);
 function skillAt(key, L) {
@@ -393,7 +401,7 @@ function skillAt(key, L) {
   if (!sk) return null;
   L = Math.max(1, Math.min(sk.max, L || 1));
   const o = { ...sk, lv: L };
-  for (const f of ["sp", "mult", "area", "stun", "slow", "heal"]) if (sk[f] !== undefined) o[f] = lvVal(sk[f], L);
+  for (const f of ["sp", "mult", "area", "stun", "slow", "heal", "dist"]) if (sk[f] !== undefined) o[f] = lvVal(sk[f], L);
   if (o.sp !== undefined) o.sp = Math.round(o.sp);
   return o;
 }
@@ -406,6 +414,7 @@ const BUFFS = {
   swift: { name: "ฝีเท้าลม", ms: 10000, speed: 1.4, flee: 0.15 },
   bless: { name: "พรแห่งแสง", ms: 60000, atk: 1.15, def: 1.15 },
 };
+Object.assign(BUFFS, J2.BUFFS2);
 // ต้นไม้สกิล: แต่ละแท็บ = รายการแถว (I, II, III) ของสกิล
 const SKILL_TREE = {
   villager: [["basic", "firstaid"]],
@@ -415,10 +424,13 @@ const SKILL_TREE = {
   mage: [["staffmastery", "meditation", "firebolt"], ["frostnova"], ["meteor"]],
   healer: [["faith", "heal", "holylight"], ["bless"]],
 };
-const treeKeys = (job) => [...SKILL_TREE.villager.flat(), ...(job !== "villager" && SKILL_TREE[job] ? SKILL_TREE[job].flat() : [])];
+Object.assign(SKILL_TREE, J2.TREE2);
+const treeKeys = (job) => [...SKILL_TREE.villager.flat(), ...(JOBS[job] && JOBS[job].base ? SKILL_TREE[JOBS[job].base].flat() : []),
+  ...(job !== "villager" && SKILL_TREE[job] ? SKILL_TREE[job].flat() : [])];
 // สกิลที่กดใช้ได้ (ตามลำดับช่องในแถบสกิล) — เฉพาะที่เรียนแล้ว
 const JOB_SKILLS = Object.fromEntries(Object.keys(SKILL_TREE).map((j) => [j, treeKeys(j).filter((k) => !SKILLS[k].passive)]));
-const skillPointsAt = (lv) => Math.max(0, lv - 1); // ได้ 1 แต้มต่อเลเวล
+const JOB2_BONUS_SP = 10; // เลื่อนขั้น 2 ได้แต้มสกิลโบนัส (Lv.50 แต้มเดิมมักใช้หมดแล้ว)
+const skillPointsAt = (lv, job) => Math.max(0, lv - 1) + (job && JOBS[job] && JOBS[job].tier === 2 ? JOB2_BONUS_SP : 0); // ได้ 1 แต้มต่อเลเวล
 const innateSkills = () => Object.fromEntries(Object.entries(SKILLS).filter(([, s]) => s.innate).map(([k, s]) => [k, s.innate]));
 const skillSpent = (sk) => Object.entries(sk || {}).reduce((t, [k, L]) => t + Math.max(0, L - ((SKILLS[k] && SKILLS[k].innate) || 0)), 0);
 // เรียนสกิลนี้ขั้นถัดไปได้ไหม → คืนข้อความเหตุผล (null = ได้)
@@ -439,7 +451,7 @@ function sanitizeSkills(raw, job, lv) {
     if (k === "doublehit" && v <= 1) continue; // ฟันซ้ำ Lv1 เดิมเคยได้ฟรีตอนเป็นชาวบ้าน → ไม่นับ
     if (v > 0) out[k] = Math.max(out[k] || 0, Math.min(SKILLS[k].max, v));
   }
-  return skillSpent(out) > skillPointsAt(lv) ? innateSkills() : out;
+  return skillSpent(out) > skillPointsAt(lv, job) ? innateSkills() : out;
 }
 // ข้อมูลสกิลสำหรับ client (ฟังก์ชันส่งผ่านเครือข่ายไม่ได้ → คำนวณคำอธิบาย/SP ทุกเลเวลไว้ให้)
 const skillsForClient = () => Object.fromEntries(Object.entries(SKILLS).map(([k, s]) => {
@@ -479,6 +491,6 @@ module.exports = { WORLD_BOSSES, MINI_BOSSES,
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, defReduce, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
-  JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS,
+  JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS, baseJob, JOB2_LEVEL: J2.JOB2_LEVEL, JOB2_QUESTS: J2.JOB2_QUESTS,
   SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus,
 };

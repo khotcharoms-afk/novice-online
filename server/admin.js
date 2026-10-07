@@ -112,6 +112,13 @@ const ACTIONS = {
     c.job = a.job; c.quest = null; c.stats = D.baseStats();
     return `เปลี่ยนอาชีพเป็น${D.JOBS[a.job].name} (คืนแต้มสเตตัสทั้งหมด)`;
   },
+  // ตั้งเควสอาชีพ (ช่วยผู้เล่นที่ติดบั๊ก) · kills = จำนวนที่ปราบแล้ว
+  quest(c, a) {
+    if (!a.job) { c.quest = null; return "ล้างเควสอาชีพ"; }
+    if (!D.JOB_QUESTS[a.job] && !D.JOB2_QUESTS[a.job]) fail("ไม่รู้จักเควสอาชีพนี้");
+    c.quest = { job: a.job, kills: Math.max(0, Math.floor(Number(a.kills) || 0)) };
+    return `ตั้งเควส${D.JOBS[a.job].name} (ปราบแล้ว ${c.quest.kills})`;
+  },
   town(c) { c.x = null; c.y = null; c.map = require("./maps").START_MAP; return "ส่งกลับเมือง"; },
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
   warp(c, a) {

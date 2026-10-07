@@ -186,7 +186,7 @@ function wearError(job, it) {
 }
 // อาชีพที่ใช้ไอเทมนี้ได้ (ไม่นับชาวบ้าน) — ใช้แสดงในการ์ดไอเทม
 function jobsFor(it) {
-  return Object.keys(D.JOBS).filter((j) => j !== "villager" && !wearError(j, it));
+  return Object.keys(D.JOBS).filter((j) => j !== "villager" && !D.JOBS[j].tier && !wearError(j, it)); // อาชีพขั้น 2 ใส่ได้ตามขั้น 1
 }
 const weaponType = (b) => { const g = b.equip.weapon; const it = g && I.ITEMS[g.id]; return (it && it.wt) || null; };
 

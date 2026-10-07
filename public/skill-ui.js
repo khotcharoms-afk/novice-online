@@ -31,10 +31,12 @@ function renderSkills() {
   if (!me) return;
   const J = gameData.jobs, S = gameData.skills;
   $("skPoints").textContent = mySkillData.points || 0;
-  const tabs = ["villager", ...(me.job !== "villager" ? [me.job] : [])];
+  const base = J[me.job] && J[me.job].base;
+  const tabs = ["villager", ...(base ? [base] : []), ...(me.job !== "villager" ? [me.job] : [])];
+  if (!tabs.includes(skillTab)) skillTab = tabs[tabs.length - 1];
   $("skTabs").innerHTML = tabs.map((j) => `<button type="button" class="sk-tab${j === skillTab ? " sel" : ""}" data-j="${j}" style="--jc:${J[j].color}">
     <b>${J[j].en}</b><small>${J[j].name}</small></button>`).join("") +
-    (me.job === "villager" ? `<span class="sk-lockjob">เปลี่ยนอาชีพที่ Lv.${gameData.jobChangeLevel} เพื่อเปิดสกิลอาชีพ</span>` : "");
+    (me.job === "villager" ? `<span class="sk-lockjob">เปลี่ยนอาชีพที่ Lv.${gameData.jobChangeLevel} เพื่อเปิดสกิลอาชีพ</span>` : !base ? `<span class="sk-lockjob">อาชีพขั้น 2 เปิดที่ Lv.${gameData.job2Level || 50}</span>` : "");
   $("skTabs").querySelectorAll("button").forEach((b) => (b.onclick = () => { skillTab = b.dataset.j; renderSkills(); }));
   const rows = gameData.skillTree[skillTab] || [];
   $("skBody").innerHTML = rows.map((row, ri) => `<div class="sk-row"><div class="sk-tier">${ROMAN[ri]}</div><div class="sk-cells">` +

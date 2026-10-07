@@ -794,3 +794,9 @@ html, body { overscroll-behavior: none; }
 .ap-h { margin: 10px 0 4px; font-size: 13px; font-weight: 500; color: #c8a6ff; }
 .ap-skills { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; } .ap-skills label { display: flex; align-items: center; gap: 4px; font-size: 12.5px; } .ap-skills img { width: 20px; height: 20px; image-rendering: pixelated; }
 #autoPanel { max-height: calc(100vh - 150px); overflow-y: auto; }
+
+/* อาชีพขั้น 2 */
+.job2-from { align-self: center; font-size: 12px; color: #c9b98a; padding: 0 6px; white-space: nowrap; }
+.job-skills .job-skic { display: inline-block; vertical-align: middle; margin-right: 4px; }
+.job-skills .job-skic .sk-ic { width: 22px; height: 22px; }
+.job-skills .job-skic .sk-ic img { width: 18px; height: 18px; }

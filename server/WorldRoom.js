@@ -46,6 +46,7 @@ defineTypes(Player, {
   gear: "string", // ของที่สวมแล้วเห็นบนตัว (คั่นด้วย ,)
   glow: "string", // แสงตีบวก +7 ขึ้นไป เช่น "weapon:10,armor:7"
   skillPts: "uint16", // แต้มสกิลที่ยังไม่ได้ใช้
+  stealth: "boolean", // ล่องหนอยู่ (นักฆ่าเงา) — คนอื่นเห็นจาง ๆ
 });
 class Drop extends Schema {}
 defineTypes(Drop, { item: "string", n: "uint16", x: "number", y: "number", r: "uint8" }); // r = ระดับความหายาก (อุปกรณ์)
@@ -288,7 +289,7 @@ class WorldRoom extends Room {
         statInfo: D.STAT_INFO, special: I.SPECIAL, specialMinRarity: I.SPECIAL_MIN_RARITY, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, crystals: this.crystals, online: online.size,
-        jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
+        jobs: D.JOBS, jobQuests: D.JOB_QUESTS, job2Quests: D.JOB2_QUESTS, job2Level: D.JOB2_LEVEL, miniBosses: Object.fromEntries(Object.entries(D.MINI_BOSSES).map(([k, v]) => [k, { name: v.name, level: v.level }])), weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
         spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritStages: SP.STAGE_NAME, spiritBreak: SP.BREAK, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
         mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
@@ -478,7 +479,7 @@ class WorldRoom extends Room {
     p.name = c.name;
     p.look = D.sanitizeLook(c.look);
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
-    p.quest = c.quest && D.JOB_QUESTS[c.quest.job] ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
+    p.quest = c.quest && (D.JOB_QUESTS[c.quest.job] || D.JOB2_QUESTS[c.quest.job]) ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = WHOLE_MAP;
     this.applyCharData(p, c);
@@ -528,7 +529,7 @@ class WorldRoom extends Room {
     this.syncSkillPts(p);
     this.applyStats(p, true);
   }
-  syncSkillPts(p) { p.skillPts = Math.max(0, D.skillPointsAt(p.level) - D.skillSpent(p.skills)); }
+  syncSkillPts(p) { p.skillPts = Math.max(0, D.skillPointsAt(p.level, p.job) - D.skillSpent(p.skills)); }
   sendSkills(pid) {
     const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
     if (p && cl) cl.send("skills", { skills: p.skills, points: p.skillPts });
@@ -578,7 +579,13 @@ class WorldRoom extends Room {
       const cl = room.clients.find((c) => c.sessionId === sessionId);
       if (cl) { cl.send("quest", null); cl.send("jobChanged", { job: p.job, reward: null, stripped: [] }); }
     }
+    if (JSON.stringify(data.quest || null) !== JSON.stringify(p.quest || null)) {
+      p.quest = data.quest || null;
+      const cl = room.clients.find((c) => c.sessionId === sessionId);
+      if (cl) cl.send("quest", p.quest);
+    }
     room.applyCharData(p, data);
+    room.sendSkills(sessionId);
     p.gear = Bag.gearString(p.bag);
     if (!data.heal && Number.isFinite(data.hp)) { p.hp = Math.max(1, Math.min(p.maxHp, data.hp)); p.sp = Math.max(0, Math.min(p.maxSp, data.sp)); }
     if (data.warpTo) {
@@ -935,7 +942,7 @@ class WorldRoom extends Room {
     // คุณสมบัติชนิดอาวุธ
     for (const [k, v] of Object.entries((D.WEAPON_TYPES[p.wt || "fist"] || {}).trait || {})) sx[k] = Math.min((I.SPECIAL[k] && I.SPECIAL[k].cap) || 999, (sx[k] || 0) + v);
     s.maxHp = Math.round(s.maxHp * (1 + pb.hpPct / 100 + X("hpPct"))); s.maxSp = Math.round(s.maxSp * (1 + pb.spPct / 100 + X("spPct")));
-    s.atk = Math.round(s.atk * (1 + X("atkPct"))); s.crit = Math.min(0.6, s.crit + X("critPct"));
+    s.atk = Math.round(s.atk * (1 + X("atkPct") + (pb.atkPct || 0) / 100)); s.crit = Math.min(0.6, s.crit + X("critPct"));
     s.flee = Math.min(0.6, s.flee + X("flee")); s.atkDelay = Math.round(s.atkDelay / (1 + X("aspd")));
     p.pb = pb; p.sx = sx;
     p.gearBonus = gb;
@@ -1056,6 +1063,7 @@ class WorldRoom extends Room {
     this.state.monsters.forEach((m, id) => this.updateMob(m, this.mr.get(id), id, dt, t));
     this.state.pets.forEach((pet, id) => this.updatePet(pet, id, dt, t));
     this.state.spirits.forEach((sp, id) => this.updateSpirit(sp, id, dt, t));
+    this.state.players.forEach((p, id) => { const r = this.pr.get(id); if (r && r.summon) this.updateSummon(id, p, r, t); });
   }
 
   // ================= ภูติ =================
@@ -1353,7 +1361,7 @@ class WorldRoom extends Room {
           this.clock.setTimeout(() => { if (!p.dead) this.hitMob(id, p, tid, 1); }, release + Math.min(450, 60 + d * 1.4));
         } else {
           const res = this.hitMob(id, p, r.target, 1);
-          if (p.job === "slayer" && res && !res.miss) r.combo = Math.min(5, (r.combo || 0) + 1);
+          if (D.baseJob(p.job) === "slayer" && res && !res.miss) r.combo = Math.min(5, (r.combo || 0) + 1);
         }
       }
       return;
@@ -1443,13 +1451,13 @@ class WorldRoom extends Room {
     // มอนดุ: มองหาผู้เล่นใกล้ ๆ
     if (!r.target && r.def.aggressive && !r.returning) {
       let best = null, bd = AGGRO_RADIUS;
-      this.state.players.forEach((p, pid) => { if (!p.dead && !this.inSafe(p)) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
+      this.state.players.forEach((p, pid) => { if (!p.dead && !p.stealth && !this.inSafe(p)) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
       if (best) r.target = best;
     }
 
     if (r.target) {
       const p = this.state.players.get(r.target);
-      if (!p || p.dead || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1) || this.inSafe(p)) { r.target = null; r.returning = true; r.dash = null; }
+      if (!p || p.dead || p.stealth || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1) || this.inSafe(p)) { r.target = null; r.returning = true; r.dash = null; }
       else {
         const B = r.def, d = dist(m, p);
         // หนี: เลือดต่ำ → วิ่งหนี 3 วิ (ครั้งเดียวต่อชีวิต) แล้วกลับมาสู้
@@ -1561,10 +1569,10 @@ class WorldRoom extends Room {
     const B = r.boss;
     // หาเป้าหมาย: คนที่ใกล้ที่สุดในรัศมีกว้าง
     let p = r.target && this.state.players.get(r.target);
-    if (!p || p.dead || dist(m, p) > 600 || this.inSafe(p)) {
+    if (!p || p.dead || p.stealth || dist(m, p) > 600 || this.inSafe(p)) {
       r.target = null; p = null;
       let bd = 420;
-      this.state.players.forEach((pp, pid) => { if (!pp.dead && !this.inSafe(pp)) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
+      this.state.players.forEach((pp, pid) => { if (!pp.dead && !pp.stealth && !this.inSafe(pp)) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
     }
     // ทุบพื้น: เตือนเป็นวงก่อน แล้วค่อยลงดาเมจทุกคนในวง
     if (r.cast) {
@@ -1662,14 +1670,19 @@ class WorldRoom extends Room {
 
   // ตัวคูณจากบัฟที่ยังไม่หมดเวลา
   mods(r) {
-    const o = { atk: 1, def: 1, taken: 1, aspd: 1, speed: 1, flee: 0 };
+    // นอกจากตัวคูณพื้นฐาน: crit/critDmg (บวก) · lifesteal (%) · reflect/mshield/poison/regen (สัดส่วน) · stealth/immune (มี/ไม่มี)
+    const o = { atk: 1, def: 1, taken: 1, aspd: 1, speed: 1, flee: 0, crit: 0, critDmg: 0, lifesteal: 0, reflect: 0, mshield: 0, poison: 0, regen: 0, stealth: false, immune: false };
     if (!r || !r.buffs) return o;
     const t = now();
     for (const [k, bf] of Object.entries(r.buffs)) {
       if (bf.until <= t) { delete r.buffs[k]; continue; }
       const b = { ...D.BUFFS[k], ...(bf.v || {}) };
-      for (const f of ["atk", "def", "taken", "aspd", "speed"]) if (b[f]) o[f] *= b[f];
+      for (const f of ["atk", "def", "aspd", "speed"]) if (b[f]) o[f] *= b[f];
+      if (b.taken !== undefined) o.taken *= b.taken;
       if (b.flee) o.flee += b.flee;
+      for (const f of ["crit", "critDmg", "lifesteal", "reflect", "mshield", "poison", "regen"]) if (b[f]) o[f] += b[f];
+      if (b.stealth) o.stealth = true;
+      if (b.immune) o.immune = true;
     }
     return o;
   }
@@ -1691,19 +1704,26 @@ class WorldRoom extends Room {
       if (pr && pr.target === mid) pr.target = null;
       return null;
     }
-    const sx = p.sx || {};
+    const sx = p.sx || {}, md = this.mods(pr), t0 = now();
     if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
-    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100, ignoreDef: (sx.ignoreDef || 0) / 100 },
+    if (r.doomUntil > t0) mult *= 1 + r.doomPct;                 // สาปเสื่อม: มอนโดนแรงขึ้น
+    let forceCrit = !!opts.crit;
+    if (md.stealth && !opts.spirit) { forceCrit = true; if (opts.stealthMul) mult *= opts.stealthMul; this.breakStealth(pid); } // โจมตีจากเงา
+    const res = this.calcDamage({ atk: p.atk * md.atk, lv: p.level, crit: forceCrit ? 1 : Math.min(0.9, p.crit + md.crit), hitBonus: p.hitBonus + (forceCrit ? 1 : 0),
+      critDmg: (sx.critDmg || 0) / 100 + md.critDmg, ignoreDef: Math.min(1, (sx.ignoreDef || 0) / 100 + (opts.ignore || 0)) },
       { def: r.stats.def, lv: m.level }, mult);
     this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss, ...(opts.spirit ? { sp: 1 } : {}) });
     if (res.miss) return res;
     m.hp = Math.max(0, m.hp - res.dmg);
     r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + res.dmg);
-    // ดูดเลือด (ดาเมจจากภูติไม่นับ)
-    if (sx.lifesteal && !opts.spirit && !p.dead && p.hp < p.maxHp) {
-      const hl = Math.min(p.maxHp - p.hp, Math.floor((res.dmg * sx.lifesteal) / 100));
+    // ดูดเลือด (ดาเมจจากภูติไม่นับ) · สกิลดูดเลือด (drain) · บัฟโลหิตเดือด
+    const ls = (opts.spirit ? 0 : (sx.lifesteal || 0) + md.lifesteal) / 100 + (opts.drain || 0);
+    if (ls > 0 && !p.dead && p.hp < p.maxHp) {
+      const hl = Math.min(p.maxHp - p.hp, Math.floor(res.dmg * ls));
       if (hl > 0) { p.hp += hl; if (hl >= 5) this.broadcast("heal", { id: pid, amount: hl }); }
     }
+    // อาบยาพิษ: ทุกการโจมตีใส่พิษ (ไม่ซ้อน — ต่อเวลา)
+    if (md.poison && !opts.spirit && !opts.dot) { r.dots = r.dots || {}; r.dots[pid] = { dmg: Math.max(1, Math.round(p.atk * md.poison)), until: t0 + 5000 }; }
     if (!r.target) { r.target = pid; r.returning = false; }
     if (opts.stun) r.stunUntil = now() + opts.stun;
     if (opts.slow) r.slowUntil = now() + opts.slow;
@@ -1745,7 +1765,13 @@ class WorldRoom extends Room {
     });
     // เควสเปลี่ยนอาชีพ: นับตัวที่ฆ่า (ทุกคนที่ช่วยตี + เพื่อนปาร์ตี้ที่อยู่ใกล้)
     credit.forEach((pid) => {
-      const pp = this.state.players.get(pid), q = pp && pp.quest, Q = q && D.JOB_QUESTS[q.job];
+      const pp = this.state.players.get(pid), q = pp && pp.quest, Q = q && D.JOB_QUESTS[q.job], Q2 = q && D.JOB2_QUESTS[q.job];
+      if (Q2 && r.rank === 2 && this.mapId === Q2.mini && q.kills < 1) { // บททดสอบขั้น 2: ปราบมินิบอส
+        q.kills = 1;
+        const cl = this.clients.find((c) => c.sessionId === pid);
+        if (cl) { cl.send("quest", q); cl.send("toast", `บททดสอบ: ปราบ${m.name}สำเร็จ!`); }
+        return;
+      }
       if (!Q || Q.kill[0] !== m.kind || q.kills >= Q.kill[1]) return;
       q.kills++;
       const cl = this.clients.find((c) => c.sessionId === pid);
@@ -1811,15 +1837,27 @@ class WorldRoom extends Room {
     if (pr.safeUntil && now() < pr.safeUntil) return; // เพิ่งเกิดที่คริสตัล
     if (this.inSafe(p)) return;                        // อยู่ในเขตคริสตัล
     const md = this.mods(pr);
+    if (r.weakUntil > now()) mult *= 1 - r.weakPct;               // คำสาปอ่อนแรง: มอนตีเบาลง
     const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: mult > 1 ? 0 : p.flee + md.flee }, mult);
+    if (!res.miss && md.taken === 0) { this.broadcast("hit", { tgt: pid, src: mid, dmg: 0, miss: true }); return; } // เกราะศรัทธา
     if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
+    if (!res.miss && md.reflect && !m.dead) { // เกราะหนาม: สะท้อนดาเมจ
+      const rd = Math.max(1, Math.round(res.dmg * md.reflect));
+      m.hp = Math.max(0, m.hp - rd); r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + rd);
+      this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: rd });
+      if (m.hp <= 0) { this.killMob(mid, m, r); }
+    }
+    if (!res.miss && md.mshield && p.sp > 0) { // โล่มานา: ดาเมจส่วนหนึ่งไปหัก SP
+      const toSp = Math.min(p.sp, Math.round(res.dmg * md.mshield));
+      p.sp -= toSp; res.dmg = Math.max(0, res.dmg - toSp);
+    }
     if (!res.miss && p.sx && p.sx.dmgReduce) res.dmg = Math.max(1, Math.round(res.dmg * (1 - p.sx.dmgReduce / 100)));
     this.broadcast("hit", { tgt: pid, src: mid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return;
     p.hp = Math.max(0, p.hp - res.dmg);
     pr.lastHurt = now();
     const PZ = r.def && r.def.poison;
-    if (PZ && p.hp > 0 && !pr.poison) {
+    if (PZ && p.hp > 0 && !pr.poison && !md.immune) {
       pr.poison = { until: now() + PZ.ms, dmg: Math.max(1, Math.round(r.stats.atk * PZ.pct / 100)) };
       const cl = this.clients.find((c) => c.sessionId === pid);
       if (cl) cl.send("toast", `☠ ติดพิษจาก${m.name}!`);
@@ -2201,9 +2239,12 @@ class WorldRoom extends Room {
     if (!L) return;
     const sk = D.skillAt(key, L), bv = sk.bv ? sk.bv(L) : null;
     if (p.sp < sk.sp || now() < (r.cds[key] || 0)) return;
+    if (sk.hpCost && p.hp <= p.maxHp * sk.hpCost + 1) return;
     const mob = tid && this.state.monsters.get(tid);
     if (sk.target === "mob" && (!mob || mob.dead)) return;
+    if (sk.target === "mob" && this.inSafe(p)) return;
     p.sp -= sk.sp;
+    if (sk.hpCost) p.hp = Math.max(1, p.hp - Math.round(p.maxHp * sk.hpCost));
     const cd = Math.round(sk.cooldown * (1 - ((p.sx && p.sx.cdr) || 0) / 100));
     r.cds[key] = now() + cd;
     r.lastAct = now();
@@ -2219,6 +2260,7 @@ class WorldRoom extends Room {
       who.hp += amt;
       this.state.players.forEach((pp, sid) => { if (pp === who) this.broadcast("heal", { id: sid, amount: amt }); });
     };
+    if (sk.kind) { this.castSkill2(pid, p, r, key, sk, bv, L, mob, tid, fx, heal); r.atkReady = Math.max(r.atkReady, now() + Math.round(p.atkDelay * 0.6)); return; }
     switch (key) {
       case "firstaid":
         this.broadcast("cast", fx);
@@ -2281,6 +2323,149 @@ class WorldRoom extends Room {
     r.atkReady = Math.max(r.atkReady, now() + Math.round(p.atkDelay * 0.6));
   }
 
+  // ================= สกิลอาชีพขั้น 2 (กลไกตาม kind ใน server/jobs2.js) =================
+  breakStealth(pid) {
+    const r = this.pr.get(pid), p = this.state.players.get(pid);
+    if (r && r.buffs && r.buffs.stealth) { delete r.buffs.stealth; if (p) p.stealth = false; const c = this.clients.find((x) => x.sessionId === pid); if (c) c.send("buff", { key: "stealth", ms: 0 }); }
+  }
+  // ย้ายผู้เล่นไปจุดที่ยืนได้ใกล้ (x,y) ที่สุดตามแนวจาก p
+  moveAlong(p, x, y) {
+    const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy) || 1;
+    for (let k = 1; k >= 0; k -= 0.1) { const nx = p.x + dx * k, ny = p.y + dy * k; if (this.canStand(nx, ny) && this.lineClear(p, { x: nx, y: ny })) { p.x = nx; p.y = ny; return true; } }
+    return false;
+  }
+  castSkill2(pid, p, r, key, sk, bv, L, mob, tid, fx, heal) {
+    const T = () => !p.dead && this.state.players.get(pid);
+    const opts = { undead: sk.undead, stun: sk.stun, slow: sk.slow, crit: sk.crit, ignore: sk.ignore, drain: sk.drain, stealthMul: sk.stealthMul };
+    const allies = (rad) => { const out = []; this.state.players.forEach((pp, sid) => { if (!pp.dead && dist(pp, p) <= rad) out.push(sid); }); return out; };
+    const repeat = (n, every, fn) => { for (let i = 0; i < n; i++) this.clock.setTimeout(() => { if (T()) fn(i); }, i * every); };
+    switch (sk.kind) {
+      case "hit": {
+        this.broadcast("skillfx", fx);
+        repeat(sk.hits || 1, sk.every || 0, () => {
+          const res = this.hitMob(pid, p, tid, sk.mult, opts);
+          if (sk.splash && res && !res.miss && mob) for (const mid of this.mobsNear(mob.x, mob.y, sk.area)) if (mid !== tid) this.hitMob(pid, p, mid, sk.mult * sk.splash);
+          if (sk.selfHeal && res && !res.miss) heal(p, Math.round(p.maxHp * sk.selfHeal));
+          if (sk.spGain && res && !res.miss) p.sp = Math.min(p.maxSp, p.sp + sk.spGain);
+        });
+        break;
+      }
+      case "aoeTarget": {
+        const cx = mob.x, cy = mob.y;
+        this.broadcast("skillfx", fx);
+        this.clock.setTimeout(() => repeat(sk.hits || 1, sk.every || 0, () => {
+          if (sk.pull) this.mobsNear(cx, cy, sk.area).forEach((mid) => { const m = this.state.monsters.get(mid), mr = this.mr.get(mid); if (!m || mr.boss) return; const nx = m.x + (cx - m.x) * 0.45, ny = m.y + (cy - m.y) * 0.45; if (this.canStand(nx, ny)) { m.x = nx; m.y = ny; } });
+          for (const mid of this.mobsNear(cx, cy, sk.area)) this.hitMob(pid, p, mid, sk.mult, opts);
+          if (sk.hits > 1) this.broadcast("skillfx", { ...fx, again: true });
+        }), sk.delay || 0);
+        break;
+      }
+      case "aoeSelf":
+        this.broadcast("skillfx", { ...fx, x: p.x, y: p.y, self: true });
+        repeat(sk.hits || 1, sk.every || 0, () => { for (const mid of this.mobsNear(p.x, p.y, sk.area)) this.hitMob(pid, p, mid, sk.mult, opts); });
+        break;
+      case "chain": {
+        const tgts = [tid], n = sk.chain + Math.floor(L / 4);
+        let cur = mob;
+        while (tgts.length < n) {
+          let best = null, bd = 170;
+          this.state.monsters.forEach((m, mid) => { if (m.dead || tgts.includes(mid)) return; const d = dist(m, cur); if (d < bd) { bd = d; best = mid; } });
+          if (!best) break;
+          tgts.push(best); cur = this.state.monsters.get(best);
+        }
+        fx.tgts = tgts;
+        this.broadcast("skillfx", fx);
+        tgts.forEach((mid, i) => this.clock.setTimeout(() => { if (T()) this.hitMob(pid, p, mid, sk.mult * (i ? 0.85 : 1), opts); }, 120 + i * 80));
+        break;
+      }
+      case "leap": case "dash": {
+        const a = Math.atan2(mob.y - p.y, mob.x - p.x), off = sk.kind === "dash" ? 40 : -26;
+        this.moveAlong(p, mob.x + Math.cos(a) * off, mob.y + Math.sin(a) * off);
+        r.moveTarget = null; r.nav = null; r.target = tid;
+        fx.x = mob.x; fx.y = mob.y;
+        this.broadcast("skillfx", fx);
+        this.clock.setTimeout(() => { if (T()) for (const mid of this.mobsNear(mob.x, mob.y, sk.area)) this.hitMob(pid, p, mid, sk.mult, opts); }, 150);
+        break;
+      }
+      case "blink": {
+        const tgt = r.target && this.state.monsters.get(r.target);
+        const dirV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.dir] || [0, 1];
+        // มีมอนไล่อยู่ → วาร์ปหนีออกจากมอน · ไม่มี → วาร์ปไปทางที่หัน
+        const away = tgt ? Math.atan2(p.y - tgt.y, p.x - tgt.x) : Math.atan2(dirV[1], dirV[0]);
+        fx.x = p.x; fx.y = p.y;
+        this.moveAlong(p, p.x + Math.cos(away) * sk.dist, p.y + Math.sin(away) * sk.dist);
+        r.moveTarget = null; r.nav = null; r.target = null;
+        this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
+        this.broadcast("cast", fx);
+        break;
+      }
+      case "buff":
+        this.broadcast("cast", fx);
+        this.addBuff(pid, sk.buff, bv);
+        if (sk.buff === "stealth") { p.stealth = true; this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } }); r.target = null; }
+        break;
+      case "partyBuff":
+        this.broadcast("cast", fx);
+        for (const sid of allies(sk.area)) { this.addBuff(sid, sk.buff, bv); if (bv && bv.immune) { const rr = this.pr.get(sid); if (rr) rr.poison = null; } }
+        break;
+      case "taunt":
+        this.broadcast("cast", fx);
+        for (const mid of this.mobsNear(p.x, p.y, sk.area)) { const mr = this.mr.get(mid); if (mr.boss) continue; mr.target = pid; mr.returning = false; mr.stunUntil = now() + sk.stun; }
+        break;
+      case "debuff": {
+        const c = sk.target === "mob" ? mob : p, dv = sk.dv(L);
+        this.broadcast(sk.target === "mob" ? "skillfx" : "cast", fx);
+        for (const mid of this.mobsNear(c.x, c.y, sk.area)) {
+          const mr = this.mr.get(mid);
+          if (sk.debuff === "weak") { mr.weakUntil = now() + dv.ms; mr.weakPct = dv.pct; }
+          else { mr.doomUntil = now() + dv.ms; mr.doomPct = dv.pct; }
+          if (!mr.target) { mr.target = pid; mr.returning = false; }
+        }
+        break;
+      }
+      case "summon":
+        this.broadcast("cast", fx);
+        r.summon = { ...sk.summon, mult: sk.mult, until: now() + sk.summon.ms, next: now() + 600 };
+        this.broadcast("summon", { id: pid, kind: sk.summon.kind, ms: sk.summon.ms });
+        break;
+      case "massHeal":
+        this.broadcast("cast", fx);
+        for (const sid of allies(sk.area)) { const pp = this.state.players.get(sid); heal(pp, Math.round(pp.maxHp * sk.heal + p.int * 3)); }
+        break;
+      case "revive": {
+        let best = null, bd = sk.area + 1;
+        this.state.players.forEach((pp, sid) => { if (pp.dead && sid !== pid && !pp.warp) { const d = dist(pp, p); if (d < bd) { bd = d; best = sid; } } });
+        if (!best) { p.sp += sk.sp; r.cds[key] = 0; const c = this.clients.find((x) => x.sessionId === pid); if (c) { c.send("toast", "ไม่มีใครล้มอยู่ใกล้ ๆ"); c.send("cd", { skill: key, until: 0 }); } return; }
+        const pp = this.state.players.get(best), rr = this.pr.get(best);
+        pp.dead = false; pp.hp = Math.max(1, Math.round(pp.maxHp * sk.heal)); rr.respawnPick = null; rr.safeUntil = now() + 2000;
+        const c = this.clients.find((x) => x.sessionId === best); if (c) { c.send("respawned", { where: "revive" }); c.send("toast", `✨ ${p.name} ชุบชีวิตคุณ!`); }
+        fx.tgtPlayer = best; fx.x = pp.x; fx.y = pp.y;
+        this.broadcast("cast", fx);
+        this.broadcast("spawnFx", { id: best, x: pp.x, y: pp.y });
+        break;
+      }
+    }
+  }
+  // ตัวช่วยที่อัญเชิญ (เหยี่ยว / ภูตไฟ): ตีเป้าที่เราสู้อยู่ หรือมอนที่ตีเราอยู่
+  updateSummon(pid, p, r, t) {
+    const S = r.summon;
+    if (!S) return;
+    if (t > S.until || p.dead) { r.summon = null; return; }
+    if (t < S.next) return;
+    const okMob = (mid) => { const m = this.state.monsters.get(mid); return m && !m.dead && dist(p, m) <= S.range; };
+    let tgt = r.target && okMob(r.target) ? r.target : null;
+    if (!tgt) this.mr.forEach((mr, mid) => { if (!tgt && mr.target === pid && okMob(mid)) tgt = mid; });
+    if (!tgt) return;
+    S.next = t + S.every;
+    this.broadcast("summonFx", { id: pid, kind: S.kind, tgt });
+    const m0 = this.state.monsters.get(tgt);
+    this.clock.setTimeout(() => {
+      if (p.dead) return;
+      this.hitMob(pid, p, tgt, S.mult, { spirit: true });
+      if (S.splash && m0) for (const mid of this.mobsNear(m0.x, m0.y, S.splash)) if (mid !== tgt) this.hitMob(pid, p, mid, S.mult * 0.5, { spirit: true });
+    }, 260);
+  }
+
   // ================= เปลี่ยนอาชีพ =================
   // m.act: "start" (รับเควส m.job) · "cancel" · "finish" (ส่งเควส → เปลี่ยนอาชีพ)
   jobQuest(client, m) {
@@ -2288,8 +2473,8 @@ class WorldRoom extends Room {
     if (!p || p.dead) return;
     if (!this.nearNpc(p, "jobmaster")) return client.send("toast", "เดินเข้าใกล้ครูฝึกอาชีพก่อน");
     const act = String(m.act || "");
-    if (p.job !== "villager") return client.send("toast", `คุณเป็น${p.jobName}แล้ว`);
     if (act === "cancel") { p.quest = null; client.send("quest", null); this.saveSoon(pid); return; }
+    if (p.job !== "villager") return this.jobQuest2(client, p, act, m);
     if (p.level < D.JOB_CHANGE_LEVEL) return client.send("toast", `ต้องเลเวล ${D.JOB_CHANGE_LEVEL} ขึ้นไป`);
     if (act === "start") {
       const job = String(m.job);
@@ -2333,6 +2518,47 @@ class WorldRoom extends Room {
     this.save(pid);
   }
 
+  // อาชีพขั้น 2: อาชีพขั้น 1 ที่ Lv.50 ขึ้นไป เลือกได้ 2 ทาง · ปราบมินิบอส + นำของมา + ค่าพิธี
+  jobQuest2(client, p, act, m) {
+    const pid = client.sessionId, J = D.JOBS[p.job];
+    if (J.tier === 2) return client.send("toast", `คุณเป็น${p.jobName}แล้ว (อาชีพขั้นสุดท้าย)`);
+    if (p.level < D.JOB2_LEVEL) return client.send("toast", `ต้องเลเวล ${D.JOB2_LEVEL} ขึ้นไป`);
+    if (act === "start") {
+      const job = String(m.job), Q = D.JOB2_QUESTS[job];
+      if (!Q || D.JOBS[job].base !== p.job) return;
+      p.quest = { job, kills: 0 };
+      client.send("quest", p.quest);
+      client.send("toast", `รับบททดสอบ${D.JOBS[job].name}แล้ว`);
+      this.saveSoon(pid);
+      return;
+    }
+    if (act !== "finish" || !p.quest || !D.JOB2_QUESTS[p.quest.job]) return;
+    const Q = D.JOB2_QUESTS[p.quest.job], b = p.bag;
+    if (p.quest.kills < 1) return client.send("toast", `ยังไม่ได้ปราบ${D.MINI_BOSSES[Q.mini].name}`);
+    if (Bag.countOf(b, Q.item[0]) < Q.item[1]) return client.send("toast", `${I.ITEMS[Q.item[0]].name} ยังไม่ครบ (${Bag.countOf(b, Q.item[0])}/${Q.item[1]})`);
+    if (b.gold < Q.gold) return client.send("toast", `gold ไม่พอ (ค่าพิธี ${Q.gold.toLocaleString()})`);
+    let need = Q.item[1];
+    for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) { const s = b.inv[i]; if (s && s.id === Q.item[0]) { const k = Math.min(need, s.n); Bag.removeAt(b, i, k); need -= k; } }
+    b.gold -= Q.gold;
+    const job = p.quest.job;
+    p.job = job; p.jobName = D.JOBS[job].name; p.quest = null;
+    const st = D.baseStats();
+    for (const k of D.STAT_KEYS) p[k] = st[k];
+    p.statPoints = D.totalPoints(p.level);
+    p.skills = D.sanitizeSkills(p.skills, job, p.level); this.syncSkillPts(p); // สกิลขั้น 1 ยังอยู่ครบ
+    const r = this.pr.get(pid); r.cds = {}; r.buffs = {}; r.combo = 0;
+    p.gear = Bag.gearString(b);
+    this.setAuto(pid, false);
+    this.applyStats(p, true);
+    this.sendInv(pid);
+    client.send("quest", null);
+    client.send("jobChanged", { job, stripped: [] });
+    this.sendSkills(pid);
+    this.broadcast("lvup", { id: pid, level: p.level, job: true });
+    rooms.forEach((rm) => rm.broadcast("system", `🌟 ${p.name} เลื่อนขั้นเป็น${p.jobName}แล้ว!`));
+    this.save(pid);
+  }
+
   // เกิดใหม่หลังตาย: where = "crystal" (คริสตัลใกล้จุดตายที่สุด · HP/SP 50%) หรือ "town" (กลับเมือง · HP เต็ม)
   respawnAt(id, p, r, where) {
     r.respawnPick = null;
@@ -2354,9 +2580,27 @@ class WorldRoom extends Room {
 
   regen() {
     const t = now();
+    // พิษบนมอน (อาบยาพิษ)
+    this.mr.forEach((r, mid) => {
+      if (!r.dots) return;
+      const m = this.state.monsters.get(mid);
+      for (const [pid, d] of Object.entries(r.dots)) {
+        if (!m || m.dead || d.until < t) { delete r.dots[pid]; continue; }
+        const dmg = Math.min(m.hp, d.dmg);
+        m.hp -= dmg; r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + dmg);
+        this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg, poison: true });
+        if (m.hp <= 0) { this.killMob(mid, m, r); break; }
+      }
+    });
     this.state.players.forEach((p, id) => {
       const r = this.pr.get(id);
       if (!r || p.dead) return;
+      const md = this.mods(r);
+      if (md.regen && p.hp < p.maxHp) { const a = Math.min(p.maxHp - p.hp, Math.round(p.maxHp * md.regen)); p.hp += a; if (a >= 5) this.broadcast("heal", { id, amount: a }); }
+      if (p.stealth !== md.stealth) p.stealth = md.stealth;
+      // คลั่งเลือด (ติดตัว): HP ต่ำกว่า 50% → บัฟ
+      const fz = (p.skills || {}).frenzy;
+      if (fz && p.hp < p.maxHp * 0.5) r.buffs.frenzy = { until: t + 1500, v: D.SKILLS.frenzy.frenzy(fz) };
       // พิษจากมอน: เสียเลือดทุกวินาที (ไม่ทำให้ตาย)
       if (r.poison) {
         if (t > r.poison.until) r.poison = null;
