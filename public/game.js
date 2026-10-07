@@ -901,7 +901,15 @@ class WorldScene extends Phaser.Scene {
     if (!el) return;
     el.hidden = false;
     const pct = Math.max(0, (b.e.hp * 100) / b.e.maxHp);
-    $("bossName").textContent = `👑 ${b.e.name}  Lv.${b.e.level}`;
+    // ทิศ + ระยะจากตัวเราไปหาบอส
+    const me = this.views.get(room.sessionId);
+    let where = "";
+    if (me) {
+      const dx = b.root.x - me.root.x, dy = b.root.y - me.root.y, tiles = Math.round(Math.hypot(dx, dy) / T);
+      const ar = ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"][((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
+      where = tiles > 6 ? `  ·  ${ar} ${tiles} ช่อง` : "  ·  อยู่ตรงนี้!";
+    }
+    $("bossName").textContent = `👑 ${b.e.name}  Lv.${b.e.level}${where}`;
     $("bossHpTxt").textContent = `${b.e.hp.toLocaleString()} / ${b.e.maxHp.toLocaleString()} (${pct.toFixed(1)}%)`;
     $("bossFill").style.width = pct + "%";
   }
@@ -1511,7 +1519,7 @@ function buildMinimap(map) {
       y: ((e.clientY - r.top) / r.height) * map.height * T,
     });
   };
-  if (!window._miniTimer) window._miniTimer = setInterval(drawMinimap, 150);
+  if (!window._miniTimer) window._miniTimer = setInterval(drawMinimap, 100);
 }
 function drawMinimap() {
   if (!scene || !scene.map) return;
@@ -1528,6 +1536,17 @@ function drawMinimap() {
     ctx.beginPath();
     ctx.arc(v.root.x * sx, v.root.y * sy, v.isMe ? 3 : v.isMob ? 1.4 : 2.2, 0, Math.PI * 2);
     ctx.fill();
+  });
+  // World Boss: หัวกะโหลกในวงแดงกะพริบ (วาดทับทุกอย่าง จะได้เห็นชัด)
+  scene.views.forEach((v) => {
+    if (!v.isMob || !v.e.boss || v.dead) return;
+    const x = v.root.x * sx, y = v.root.y * sy, k = (Date.now() % 1000) / 1000;
+    ctx.strokeStyle = `rgba(255,70,50,${1 - k})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 7 + k * 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#b81f1f"; ctx.strokeStyle = "#ffd36b"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 7.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
+    ctx.fillText("☠", x, y + 0.5);
   });
 }
 
