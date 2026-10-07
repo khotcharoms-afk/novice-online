@@ -694,12 +694,16 @@ class WorldRoom extends Room {
     if (p.dead || t < (r.spReady || 0)) return;
     const k = S.skill, P = SP.power(s);
     if (S.role === "heal") {
-      const hurt = p.hp < (p.maxHp * k.below) / 100 || (k.cleanse && r.poison);
+      const hpLow = p.hp < (p.maxHp * k.below) / 100, spLow = k.spPct && p.sp < (p.maxSp * k.below) / 100;
+      const hurt = hpLow || spLow || (k.cleanse && r.poison);
       if (!hurt) return;
       r.spReady = t + k.every;
       const amt = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * k.healPct * P) / 100));
       if (amt > 0) { p.hp += amt; this.broadcast("heal", { id: pid, amount: amt }); }
-      if (k.spPct) p.sp = Math.min(p.maxSp, p.sp + Math.round((p.maxSp * k.spPct * P) / 100));
+      if (k.spPct) {
+        const sp = Math.min(p.maxSp - p.sp, Math.max(1, Math.round((p.maxSp * k.spPct * P) / 100)));
+        if (sp > 0) { p.sp += sp; const cl = this.clients.find((c) => c.sessionId === pid); if (cl) cl.send("spHeal", sp); }
+      }
       if (k.cleanse) r.poison = null;
       this.broadcast("spiritFx", { id: pid, kind: s.id, heal: true });
       return;

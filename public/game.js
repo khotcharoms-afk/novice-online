@@ -527,6 +527,10 @@ class WorldScene extends Phaser.Scene {
       const v = this.views.get(id);
       if (v) this.floatText(v.root.x, v.root.y - 72, "+" + amount, "#7dff9a", 15);
     });
+    room.onMessage("spHeal", (n) => {
+      const v = this.views.get(room.sessionId);
+      if (v) this.floatText(v.root.x + 14, v.root.y - 60, "+" + n + " SP", "#7fb4ff", 13);
+    });
     room.onMessage("exp", (n) => {
       const v = this.views.get(room.sessionId);
       if (v) this.floatText(v.root.x, v.root.y - 88, `+${n} EXP`, "#c9a6ff", 12, 1100);

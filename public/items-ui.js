@@ -299,7 +299,7 @@ function spiritCardHtml(g, it) {
   const role = it.spirit.role === "heal" ? "สายรักษา" : "สายโจมตี";
   const eff = [];
   if (si.dmg) eff.push(`ดาเมจ ${si.dmg}% ของพลังโจมตีเรา${k.chain ? ` · กระโดดได้ ${k.chain} ตัว` : ""}${k.slow ? ` · ทำให้ช้า ${k.slow / 1000} วิ` : ""}${si.drain ? ` · ดูดเป็น HP ${si.drain}%` : ""}`);
-  if (si.heal) eff.push(`ฟื้น HP ${si.heal}%${si.sp ? ` + SP ${si.sp}%` : ""} เมื่อ HP ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
+  if (si.heal) eff.push(`ฟื้น HP ${si.heal}%${si.sp ? ` + SP ${si.sp}%` : ""} เมื่อ HP${k.spPct ? " หรือ SP" : ""} ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
   return `<div class="spirit-box"><div class="meta">${role} · Lv.${g.lv}/${max}</div>
     <div class="sp-exp"><i style="width:${pct}%"></i><b>${si.need ? `EXP ${g.ex.toLocaleString()}/${si.need.toLocaleString()}` : "เลเวลสูงสุด"}</b></div>
     <div class="sp-skill"><b>${k.name}</b> <small>ทุก ${k.every / 1000} วิ</small><br>${eff.join("<br>")}</div>
