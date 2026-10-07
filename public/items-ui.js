@@ -13,6 +13,14 @@ const itemOf = (id) => gameData && gameData.items[id];
 // ระดับความหายาก / ชื่อพร้อม +ตีบวก
 const isGear = (g) => !!(g && itemOf(g.id) && itemOf(g.id).type === "equip");
 const rarOf = (g) => (isGear(g) && gameData.rarity ? gameData.rarity[g.r || 0] : null);
+// ไอคอนของตีบวก +7 ขึ้นไปเรืองแสง (สีเดียวกับแสงบนตัวละคร)
+const refineGlow = (g) => {
+  const up = (g && g.up) || 0;
+  if (up < 7) return "";
+  const it = itemOf(g.id), c = (it && it.glowColor) || { 7: "#7fe0ff", 8: "#4f8fff", 9: "#b45cff", 10: "#ff5a28" }[Math.min(10, up)];
+  const r = up >= 10 ? 4 : up - 5;
+  return ` style="filter:drop-shadow(0 0 ${r}px ${c}) drop-shadow(0 0 ${Math.ceil(r / 2)}px ${c})"`;
+};
 const gearName = (g) => (g && g.up ? `+${g.up} ` : "") + (itemOf(g && g.id)?.name || (g && g.id) || "");
 // สีกรอบไอเทม: อุปกรณ์ = สีตามระดับ (ทุกระดับ) · ของที่มีกำหนดสี (หินตีบวก) = สีของมัน
 const frameOf = (s) => { if (!s) return null; const r = rarOf(s); if (r) return r.color; const it = itemOf(s.id); return (it && it.frame) || null; };
@@ -88,7 +96,7 @@ function renderInv() {
     const s = INV.inv[i];
     b.draggable = !!s;
     if (s) used++;
-    b.innerHTML = s ? `<img src="${ICON(s.id)}" alt="">${s.up ? `<span class="up">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
+    b.innerHTML = s ? `<img src="${ICON(s.id)}" alt=""${refineGlow(s)}>${s.up ? `<span class="up">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
     applyFrame(b, s);
     b.classList.toggle("nowear", !!(s && wearErr(s.id)));
     b.setAttribute("aria-label", s ? `${itemOf(s.id)?.name || s.id} ×${s.n}` : "ช่องว่าง");
@@ -124,7 +132,7 @@ function renderPaperDoll() {
       b.type = "button";
       b.className = "eq-slot" + (id ? " filled" : "");
       if (id) applyFrame(b, g);
-      b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${nameHtml(g)}</span>` : `<span>${gameData.slotName[slot]}</span>`;
+      b.innerHTML = id ? `<img src="${ICON(id)}" alt=""${refineGlow(g)}><span>${nameHtml(g)}</span>` : `<span>${gameData.slotName[slot]}</span>`;
       b.onclick = (e) => { if (id) openCard(g, { where: "eq", slot }, e); };
       b.ondblclick = () => id && room.send("unequip", { slot });
       if (id) makeDraggable(b, { from: "eq", slot });
@@ -363,7 +371,7 @@ function renderSmith() {
     b.className = "smith-item" + (same(x.key, smithSel) ? " sel" : "");
     applyFrame(b, x.g);
     b.title = gearName(x.g) + (x.eq ? " (สวมอยู่)" : "");
-    b.innerHTML = `<img src="${ICON(x.g.id)}" alt="">${x.g.up ? `<span class="up">+${x.g.up}</span>` : ""}${x.eq ? '<span class="eqm">สวม</span>' : ""}`;
+    b.innerHTML = `<img src="${ICON(x.g.id)}" alt=""${refineGlow(x.g)}>${x.g.up ? `<span class="up">+${x.g.up}</span>` : ""}${x.eq ? '<span class="eqm">สวม</span>' : ""}`;
     b.onclick = () => { smithSel = x.key; renderSmith(); };
     $("smithList").appendChild(b);
   }

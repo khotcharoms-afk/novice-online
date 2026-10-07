@@ -106,6 +106,11 @@ const idOf = (g) => (typeof g === "string" ? g : g && g.id);
 const gearString = (b) => DRAW_ORDER.filter((s) => I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
   .map((s) => `${s}:${idOf(b.equip[s])}`).join(",");
 
+// แสงตีบวก: ช่องที่เห็นบนตัวและตีบวก +7 ขึ้นไป → "weapon:10,armor:7"
+const glowString = (b) => ["weapon", "offhand", "armor", "head"]
+  .filter((s) => b.equip[s] && typeof b.equip[s] === "object" && (b.equip[s].up || 0) >= 7 && I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
+  .map((s) => `${s}:${b.equip[s].up}`).join(",");
+
 // อาชีพนี้ใส่ไอเทมนี้ได้ไหม → คืนข้อความเหตุผลถ้าใส่ไม่ได้ (null = ใส่ได้)
 //  อาวุธ/โล่: ล็อกตามอาชีพ (ชาวบ้านใช้ได้ทุกชนิดที่ Lv ต่ำกว่า 20)
 //  เกราะ (หนัก/เบา/ผ้า): ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ · Lv20 ขึ้นไปต้องตรงประเภทของอาชีพ
@@ -246,5 +251,5 @@ function moveSlot(b, from, to) {
   b.inv[from] = c; b.inv[to] = a;
 }
 
-module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
+module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString, glowString,
   equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial, activeSets };

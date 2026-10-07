@@ -751,9 +751,11 @@ class WorldScene extends Phaser.Scene {
         v.gear = e.gear || ""; v.job = e.job;
         v.key = this.lazySheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
         this.prefetchAtk(v.gear);
+        v.glowStr = null;
         v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
         if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
       }
+      if ((e.glow || "") !== v.glowStr) this.buildGlow(v, e);
       v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
       if (v.isMe && e.job !== v.lastJob) { v.lastJob = e.job; if (gameData) { buildSkillBar(); if (typeof renderQuestTrack === "function") renderQuestTrack(); } }
       v.label.setText(`${e.name}  Lv.${lv}`);
@@ -905,13 +907,73 @@ class WorldScene extends Phaser.Scene {
     } });
   }
   // วงระเบิดสั้น ๆ
+  // ---------- แสงตีบวก (+7 ขึ้นไป) ----------
+  // +7 จางสุด → +10 แรงสุด · +10 = ตัวเรืองแสง + วงแสงที่พื้น + ประกายลอย · สี = สีธีมของไอเทม (ของทั่วไปไล่ฟ้า → ม่วง → ทอง)
+  buildGlow(v, e) {
+    v.glowStr = e.glow || "";
+    for (const g of v.glows || []) { this.tweens.killTweensOf(g); g.destroy(); }
+    v.glows = [];
+    if (v.groundGlow) { this.tweens.killTweensOf(v.groundGlow); v.groundGlow.destroy(); v.groundGlow = null; }
+    const webgl = this.game.renderer.type === Phaser.WEBGL;
+    if (webgl) { if (v.bodyGlow) { this.tweens.killTweensOf(v.bodyGlow); v.bodyGlow = null; } v.sprite.preFX && v.sprite.preFX.clear(); for (const w of [v.wfg, v.wbg]) w.preFX && w.preFX.clear(); }
+    v.r10 = null;
+    if (!v.glowStr) return;
+    if (!gameData) { v.glowStr = null; return; } // ยังไม่ได้ข้อมูลไอเทม → ลองใหม่รอบหน้า
+    const sex = String(e.look || "m").split("|")[0];
+    const gearMap = Object.fromEntries((v.gear || "").split(",").filter(Boolean).map((x) => x.split(":")));
+    const DEF = { 7: "#7fe0ff", 8: "#4f8fff", 9: "#b45cff", 10: "#ff5a28" };
+    let top = 0, topCol = null, retry = false;
+    for (const [slot, upS] of v.glowStr.split(",").map((x) => x.split(":"))) {
+      const up = Number(upS), id = gearMap[slot], it = id && gameData.items[id];
+      if (!it) continue;
+      const hex = it.glowColor || DEF[Math.min(10, up)], col = Phaser.Display.Color.HexStringToColor(hex).color;
+      if (up > top) { top = up; topCol = hex; }
+      const str = { 7: 2.5, 8: 3.5, 9: 5, 10: 8 }[Math.min(10, up)];
+      for (const [suf, behind] of [["", false], ["_back", true]]) {
+        const key = this.textures.exists(`equip/${id}${suf}_${sex}`) ? `equip/${id}${suf}_${sex}` : `equip/${id}${suf}`;
+        if (!this.textures.exists(key)) { if (!suf && (MANIFEST.equipLazy || []).some((k) => key.endsWith(k))) retry = true; continue; }
+        this.ensureFrames(key);
+        const g = this.add.sprite(0, 0, key, v.sprite.frame.name).setOrigin(0.5, 0.97);
+        v.root.addAt(g, v.root.getIndex(v.sprite) + (behind ? 0 : 1));
+        if (webgl && g.preFX) {
+          const fx = g.preFX.addGlow(col, str, 0, true, 0.1, 16);
+          this.tweens.add({ targets: fx, outerStrength: { from: str * 0.55, to: str * 1.15 }, duration: up >= 10 ? 650 : 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        } else {
+          g.setTintFill(col).setBlendMode(Phaser.BlendModes.ADD).setScale(1.04);
+          this.tweens.add({ targets: g, alpha: { from: 0.15 + up * 0.02, to: 0.35 + up * 0.04 }, duration: 800, yoyo: true, repeat: -1 });
+        }
+        v.glows.push(g);
+      }
+      if (slot === "weapon" && webgl) for (const w of [v.wfg, v.wbg]) if (w.preFX) w.preFX.addGlow(col, str, 0, false, 0.1, 14); // ท่าฟันก็เรืองแสง
+    }
+    if (retry) v.glowStr = null; // ภาพอุปกรณ์ยังโหลดไม่เสร็จ → สร้างใหม่ตอนโหลดเสร็จ
+    if (top >= 10) { // +10: ตัวเรืองแสง + วงแสงใต้เท้า + ประกายลอย
+      v.r10 = topCol;
+      const col = Phaser.Display.Color.HexStringToColor(topCol).color;
+      if (webgl && v.sprite.preFX) {
+        v.bodyGlow = v.sprite.preFX.addGlow(col, 1.5, 0, false, 0.1, 10);
+        this.tweens.add({ targets: v.bodyGlow, outerStrength: { from: 0.8, to: 2.6 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      }
+      v.groundGlow = this.add.ellipse(0, -1, 46, 16, col, 0.35).setBlendMode(Phaser.BlendModes.ADD);
+      v.root.addAt(v.groundGlow, 0);
+      this.tweens.add({ targets: v.groundGlow, scaleX: { from: 0.85, to: 1.15 }, scaleY: { from: 0.85, to: 1.15 }, alpha: { from: 0.2, to: 0.5 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    }
+  }
+  ensureFrames(key) { // ภาพชิ้นอุปกรณ์ → แบ่งเฟรม 64px แบบเดียวกับภาพตัวละคร
+    const tex = this.textures.get(key);
+    if (tex.has(0)) return;
+    const img = tex.getSourceImage(), rows = Math.floor(img.height / 64);
+    for (let i = 0; i < COLS * rows; i++) tex.add(i, 0, (i % COLS) * 64, Math.floor(i / COLS) * 64, 64, 64);
+  }
+
   // ออร่าอาวุธเลเวลสูง: ประกายแสงลอยขึ้นรอบตัวคนที่ถืออยู่
   weaponAura(v, time) {
     if (!gameData || time < (v.auraNext || 0)) return;
     const m = /(?:^|,)weapon:([^,]+)/.exec(v.gear || ""), it = m && gameData.items[m[1]];
-    if (!it || !it.aura) return;
-    v.auraNext = time + 140 + Math.random() * 120;
-    const col = Phaser.Display.Color.HexStringToColor(it.aura).color;
+    const hex = v.r10 || (it && it.aura);
+    if (!hex) return;
+    v.auraNext = time + (v.r10 ? 90 : 140) + Math.random() * 120;
+    const col = Phaser.Display.Color.HexStringToColor(hex).color;
     const x = v.root.x + (Math.random() - 0.5) * 30, y = v.root.y - 6 - Math.random() * 40;
     const sz = 1 + Math.random() * 1.6;
     const p = this.add.circle(x, y, sz, col, 0.95).setDepth(v.root.depth + 2).setBlendMode(Phaser.BlendModes.ADD);
@@ -1099,7 +1161,8 @@ class WorldScene extends Phaser.Scene {
         if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
         return;
       }
-      if (!v.isMob) this.weaponAura(v, time);
+      if (!v.isMob && gameData && (v.e.glow || "") !== v.glowStr && !(this.lazyPending && this.lazyPending.size) && time >= (v.glowRetry || 0)) { v.glowRetry = time + 500; this.buildGlow(v, v.e); }
+      if (!v.isMob) { this.weaponAura(v, time); if (v.glows && v.glows.length) for (const g of v.glows) if (g.frame.name !== v.sprite.frame.name && g.texture.has(v.sprite.frame.name)) g.setFrame(v.sprite.frame.name); }
       if (time < v.busyUntil) return;
       if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);
       if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);

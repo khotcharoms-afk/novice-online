@@ -38,6 +38,7 @@ defineTypes(Player, {
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
   str: "uint16", agi: "uint16", vit: "uint16", int: "uint16", dex: "uint16", statPoints: "uint16",
   gear: "string", // ของที่สวมแล้วเห็นบนตัว (คั่นด้วย ,)
+  glow: "string", // แสงตีบวก +7 ขึ้นไป เช่น "weapon:10,armor:7"
   skillPts: "uint16", // แต้มสกิลที่ยังไม่ได้ใช้
 });
 class Drop extends Schema {}
@@ -510,6 +511,7 @@ class WorldRoom extends Room {
 
   applyStats(p, refill) {
     const bag = p.bag || Bag.emptyBag();
+    const gl = Bag.glowString(bag); if (p.glow !== gl) p.glow = gl;
     const gb = Bag.gearBonus(bag, p.job);
     const eff = Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k] + (gb[k] || 0)]));
     const wt = Bag.weaponType(bag);
