@@ -138,14 +138,17 @@ const loadImg = (path) => {
 };
 // ชั้นภาพตัวละคร: ชั้นหลังตัว (ผ้าคลุม/อาวุธ) → ตัว → ชุด → ของสวม → ผม → หมวก/อาวุธ/โล่
 const AFTER_HAIR = new Set(["head", "weapon", "offhand"]);
+// ดาบใหญ่: ในเมือง (เขตปลอดภัย) แบกบนหลัง · นอกเมืองถือในมือ (ภาพ <id>_held / _heldb)
+let SAFE_ZONE = true;
+const heldId = (id, suf = "") => (!SAFE_ZONE && (MANIFEST.equipLazy || []).includes(`${id}_held`) ? `${id}_held${suf === "_back" ? "b" : ""}` : `${id}${suf}`);
 const layersFor = (lk, job = "villager", gear = "") => {
   const [sex, skin, hair, color] = lk.split("|");
   const has = (k) => MANIFEST.equip.includes(k) || (MANIFEST.equipLazy || []).includes(k);
   const pick = (base) => (has(`${base}_${sex}`) ? `equip/${base}_${sex}` : has(base) ? `equip/${base}` : null);
   const items = gear ? gear.split(",").map((x) => x.split(":")) : [];
-  const back = items.map(([, id]) => pick(`${id}_back`)).filter(Boolean);
+  const back = items.map(([s, id]) => pick(s === "weapon" ? heldId(id, "_back") : `${id}_back`)).filter(Boolean);
   const pre = items.filter(([s]) => !AFTER_HAIR.has(s)).map(([, id]) => pick(id)).filter(Boolean);
-  const post = items.filter(([s]) => AFTER_HAIR.has(s)).map(([, id]) => pick(id)).filter(Boolean);
+  const post = items.filter(([s]) => AFTER_HAIR.has(s)).map(([s, id]) => pick(s === "weapon" ? heldId(id) : id)).filter(Boolean);
   return [...back, `look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, ...pre, `look/hair_${hair}_${color}`, ...post];
 };
 // วาดตัวละครลง canvas (frame 0 = ยืน, 1–8 = เดิน; row 0–3 = ขึ้น/ซ้าย/ลง/ขวา)
@@ -362,7 +365,9 @@ class WorldScene extends Phaser.Scene {
   constructor() { super("world"); }
 
   preload() {
-    const season = (WORLD && WORLD.maps.find((m) => m.id === room.mapId) || {}).season || "summer";
+    const mapInfo = (WORLD && WORLD.maps.find((m) => m.id === room.mapId)) || {};
+    const season = mapInfo.season || "summer";
+    SAFE_ZONE = !mapInfo.type || mapInfo.type === "town";
     this.tKey = "terrain_" + season; this.oKey = "obj_" + season;
     this.load.on("progress", (v) => setTravelProgress(35 + v * 45, "โหลดภาพแผนที่…"));
     this.load.image(this.tKey, `/assets/terrain_${season}.png`);
@@ -707,7 +712,7 @@ class WorldScene extends Phaser.Scene {
   createView(e, id, isMob) {
     const isMe = id === room.sessionId;
     const mobSprite = e.sprite || e.kind;
-    const key = isMob ? (e.tint && e.tint !== 0xffffff ? this.buildSheet(`mob_${mobSprite}_${e.tint}`, ["mobsrc_" + mobSprite], e.tint) : "mob_" + mobSprite) : this.lazySheet(`pl_${e.job}_${e.look}_${e.gear || ""}`, layersFor(e.look, e.job, e.gear));
+    const key = isMob ? (e.tint && e.tint !== 0xffffff ? this.buildSheet(`mob_${mobSprite}_${e.tint}`, ["mobsrc_" + mobSprite], e.tint) : "mob_" + mobSprite) : this.lazySheet(`pl_${e.job}_${e.look}_${e.gear || ""}_${SAFE_ZONE ? "s" : "f"}`, layersFor(e.look, e.job, e.gear));
     if (!isMob) this.prefetchAtk(e.gear);
     const root = this.add.container(e.x, e.y);
     const shadow = this.add.ellipse(0, -1, 26, 9, 0x000000, 0.28);
@@ -757,7 +762,7 @@ class WorldScene extends Phaser.Scene {
     } else {
       if ((e.gear || "") !== v.gear || e.job !== v.job) { // เปลี่ยนอุปกรณ์/อาชีพ → ประกอบภาพตัวละครใหม่
         v.gear = e.gear || ""; v.job = e.job;
-        v.key = this.lazySheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
+        v.key = this.lazySheet(`pl_${e.job}_${e.look}_${v.gear}_${SAFE_ZONE ? "s" : "f"}`, layersFor(e.look, e.job, v.gear));
         this.prefetchAtk(v.gear);
         v.glowStr = null;
         v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
@@ -947,7 +952,8 @@ class WorldScene extends Phaser.Scene {
       if (up > top) { top = up; topCol = hex; }
       const str = { 7: 2.5, 8: 3.5, 9: 5, 10: 8 }[Math.min(10, up)];
       for (const [suf, behind] of [["", false], ["_back", true]]) {
-        const key = this.textures.exists(`equip/${id}${suf}_${sex}`) ? `equip/${id}${suf}_${sex}` : `equip/${id}${suf}`;
+        const fid = slot === "weapon" ? heldId(id, suf) : `${id}${suf}`;
+        const key = this.textures.exists(`equip/${fid}_${sex}`) ? `equip/${fid}_${sex}` : `equip/${fid}`;
         if (!this.textures.exists(key)) { if (!suf && (MANIFEST.equipLazy || []).some((k) => key.endsWith(k))) retry = true; continue; }
         this.ensureFrames(key);
         const g = this.add.sprite(0, 0, key, v.sprite.frame.name).setOrigin(0.5, 0.97);
