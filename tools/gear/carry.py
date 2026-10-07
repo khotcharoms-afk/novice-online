@@ -83,13 +83,13 @@ def carry(iid):
         for col in range(9 if row < 4 else 7):
             dy = bob[row][col]
             if dname == "down":   # หันหน้า: ดาบอยู่หลังตัว เห็นด้ามเหนือไหล่ขวา (ซ้ายจอ) ปลายใบโผล่ล่างขวา
-                img = diag_mir; place(nb, img, row, col, 9, 8 + dy)
+                img = diag_mir; place(nb, img, row, col, 11, 15 + dy)
             elif dname == "up":   # หันหลัง: เห็นดาบพาดหลังเต็ม ๆ
-                img = diag_dn; place(nf, img, row, col, 55 - img.width, 8 + dy)
+                img = diag_dn; place(nf, img, row, col, 52 - img.width, 17 + dy)
             elif dname == "left": # หันซ้าย: หลังอยู่ทางขวาจอ
-                img = steep; place(nb, img, row, col, 37, 6 + dy)
+                img = steep; place(nb, img, row, col, 36, 13 + dy)
             else:                 # หันขวา: หลังอยู่ทางซ้ายจอ
-                img = steep_mir; place(nb, img, row, col, 27 - img.width, 6 + dy)
+                img = steep_mir; place(nb, img, row, col, 28 - img.width, 13 + dy)
     nf.save(src_f); nb.save(src_b)
     return W.size
 
