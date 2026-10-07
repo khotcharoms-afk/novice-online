@@ -107,7 +107,7 @@ const ITEMS = {
   pet_sparrow:  { name: "นกกระจอกน้อย", type: "pet", lv: 1, price: 300, pet: { range: 160, speed: 210 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 5 ช่อง" },
   pet_canary:   { name: "นกขมิ้นน้อย", type: "pet", lv: 6, price: 1500, pet: { range: 256, speed: 250 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 8 ช่อง บินเร็วขึ้น" },
   pet_bluebird: { name: "นกฟ้าน้อย", type: "pet", lv: 12, price: 4000, pet: { range: 384, speed: 300 }, desc: "เก็บของที่ดรอปรอบตัวในระยะ 12 ช่อง บินเร็วมาก" },
-  // ---------- คริสตัลตีบวก (ใช้ที่ลุงเหล็กกล้า) · frame = สีกรอบในกระเป๋า ----------
+  // ---------- คริสตัลตีบวก (ใช้ที่ดัวร์กัน) · frame = สีกรอบในกระเป๋า ----------
   stone_1: { name: "คริสตัลตีบวกขั้นต้น", type: "material", price: 30, frame: "#cfd3dd", desc: "ใช้ตีบวก +1 ถึง +4" },
   stone_2: { name: "คริสตัลตีบวกขั้นกลาง", type: "material", sell: 60, frame: "#6fb6ff", desc: "ใช้ตีบวก +5 ถึง +7" },
   stone_3: { name: "คริสตัลตีบวกขั้นสูง", type: "material", sell: 200, frame: "#c38bff", desc: "ใช้ตีบวก +8 ถึง +10" },
@@ -131,12 +131,12 @@ const ITEMS = {
 
 // ร้านค้าในเมือง: แต่ละ NPC ขายของคนละหมวด (ทุกร้านรับซื้อของคืนได้)
 const SHOPS = {
-  shop_potion: { name: "ป้าบัวขาว", title: "ร้านยา", items: ["potion_s", "potion_m", "potion_sp"] },
-  shop_weapon: { name: "พี่ศรเพชร", title: "ร้านอาวุธ", items: ["mace", "dagger", "saber", "greatsword", "bow_hunter", "staff_oak", "book_light", "kite", "shield_knight"] },
-  shop_armor: { name: "ลุงหนักแน่น", title: "ร้านชุดเกราะ", items: ["bandana", "hood", "leather", "gloves", "boots", "cape", "chain", "mailcoif", "bracers", "ironboots",
+  shop_potion: { name: "มิเรล", title: "ร้านยา", items: ["potion_s", "potion_m", "potion_sp"] },
+  shop_weapon: { name: "การ์เร็ธ", title: "ร้านอาวุธ", items: ["mace", "dagger", "saber", "greatsword", "bow_hunter", "staff_oak", "book_light", "kite", "shield_knight"] },
+  shop_armor: { name: "บรอนแดน", title: "ร้านชุดเกราะ", items: ["bandana", "hood", "leather", "gloves", "boots", "cape", "chain", "mailcoif", "bracers", "ironboots",
     "ranger_cap", "ranger_vest", "ranger_gloves", "ranger_boots", "mage_hat", "mage_robe", "mage_gloves", "mage_shoes",
     "priest_hood", "priest_robe", "priest_gloves", "priest_shoes"] },
-  merchant: { name: "ลุงสมปอง", title: "ร้านของจิปาถะ", items: ["ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"] },
+  merchant: { name: "ทอบบี้", title: "ร้านของจิปาถะ", items: ["ring_copper", "stone_1", "pet_sparrow", "pet_canary", "pet_bluebird"] },
 };
 // รายการของทุกร้านรวมกัน (ใช้ตรวจของที่ขายในร้าน / ราคาของ)
 const SHOP = [...new Set(Object.values(SHOPS).flatMap((x) => x.items))];

@@ -101,7 +101,7 @@ function renderQuestTrack() {
   el.innerHTML = `<b style="color:${J.color}">บททดสอบ${J.name}</b>
     <div${ok(myQuest.kills, Q.kill[1])}>${gameData.mobs[Q.kill[0]].name} ${Math.min(myQuest.kills, Q.kill[1])}/${Q.kill[1]}</div>
     <div${ok(have, Q.item[1])}>${itemOf(Q.item[0]).name} ${Math.min(have, Q.item[1])}/${Q.item[1]}</div>
-    ${myQuest.kills >= Q.kill[1] && have >= Q.item[1] ? `<div class="ok">✔ กลับไปหาปู่ธาราจารย์ที่เมือง</div>` : ""}`;
+    ${myQuest.kills >= Q.kill[1] && have >= Q.item[1] ? `<div class="ok">✔ กลับไปหาอัลดริคที่เมือง</div>` : ""}`;
 }
 function onJobChanged(d) {
   myQuest = null;

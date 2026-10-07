@@ -141,7 +141,7 @@ function renderPaperDoll() {
     b.type = "button";
     b.className = "eq-slot" + (id ? " filled" : "");
     b.innerHTML = id ? `<img src="${ICON(id)}" alt=""><span>${it ? it.name : id}</span>` : `<span>สัตว์เลี้ยง</span>`;
-    b.title = id ? "สัตว์เลี้ยงกำลังช่วยเก็บของ" : "ซื้อสัตว์เลี้ยงที่ร้านลุงสมปอง แล้วดับเบิลคลิกเพื่อเรียกออกมา";
+    b.title = id ? "สัตว์เลี้ยงกำลังช่วยเก็บของ" : "ซื้อสัตว์เลี้ยงที่ร้านทอบบี้ แล้วดับเบิลคลิกเพื่อเรียกออกมา";
     b.onclick = (e) => { if (id) openCard({ id }, { where: "pet" }, e); };
     b.ondblclick = () => id && room.send("petOff");
     makeDrop(b, (d) => d.from === "inv" && itemOf(INV.inv[d.idx]?.id)?.type === "pet", (d) => room.send("useItem", { idx: d.idx }));
@@ -320,7 +320,7 @@ function setupItemsUI() {
   renderInv(); renderPaperDoll(); renderItemBar();
 }
 
-// ---------- ตีบวก (ลุงเหล็กกล้า) ----------
+// ---------- ตีบวก (ดัวร์กัน) ----------
 let smithSel = null; // { idx } หรือ { slot }
 const smithGear = () => (!smithSel ? null : smithSel.slot ? INV.equip[smithSel.slot] : INV.inv[smithSel.idx]);
 function openSmith() { closeShop(); $("smithPanel").hidden = false; toggleInv(true); renderSmith(); }

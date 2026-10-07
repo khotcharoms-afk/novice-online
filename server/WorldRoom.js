@@ -85,7 +85,7 @@ function worldInfo() {
     exits: Object.values(m.exits),
     mobs: [...new Set(m.spawns.map(([k]) => k))].map((k) => ({ kind: k, name: D.MONSTERS[k].name, level: D.MONSTERS[k].level,
       aggressive: D.MONSTERS[k].aggressive, drops: (I.DROPS[k] || []).map(([id]) => id) })),
-    services: m.type === "town" ? ["ร้านยา (ป้าบัวขาว)", "ร้านอาวุธ (พี่ศรเพชร)", "ร้านชุดเกราะ (ลุงหนักแน่น)", "ของจิปาถะ · คริสตัล · สัตว์เลี้ยง (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)", "เปลี่ยนอาชีพ (ปู่ธาราจารย์)"] : [],
+    services: m.type === "town" ? ["ร้านยา (มิเรล)", "ร้านอาวุธ (การ์เร็ธ)", "ร้านชุดเกราะ (บรอนแดน)", "ของจิปาถะ · คริสตัล · สัตว์เลี้ยง (ทอบบี้)", "ตีบวก + รวมคริสตัล (ดัวร์กัน)", "เปลี่ยนอาชีพ (อัลดริค)"] : [],
   })) };
   return worldCache;
 }
@@ -127,12 +127,12 @@ class WorldRoom extends Room {
     this.map = getMap(this.mapId);
     const cx = (this.map.width / 2) * this.map.tile, cy = (this.map.height / 2) * this.map.tile;
     this.npcs = this.def.type !== "town" ? [] : [
-      { id: "shop_weapon", name: "พี่ศรเพชร (ร้านอาวุธ)", sprite: "npc_weapon", x: cx - 256, y: cy - 110 },
-      { id: "merchant", name: "ลุงสมปอง (ของจิปาถะ)", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
-      { id: "shop_armor", name: "ลุงหนักแน่น (ร้านชุดเกราะ)", sprite: "npc_armor", x: cx + 256, y: cy + 110 },
-      { id: "shop_potion", name: "ป้าบัวขาว (ร้านยา)", sprite: "npc_potion", x: cx - 256, y: cy + 110 },
-      { id: "smith", name: "ลุงเหล็กกล้า (ตีบวก)", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
-      { id: "jobmaster", name: "ปู่ธาราจารย์ (ครูฝึกอาชีพ)", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
+      { id: "shop_weapon", name: "การ์เร็ธ · ร้านอาวุธ", sprite: "npc_weapon", x: cx - 256, y: cy - 110 },
+      { id: "merchant", name: "ทอบบี้ · ของจิปาถะ", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
+      { id: "shop_armor", name: "บรอนแดน · ร้านชุดเกราะ", sprite: "npc_armor", x: cx + 256, y: cy + 110 },
+      { id: "shop_potion", name: "มิเรล · ร้านยา", sprite: "npc_potion", x: cx - 256, y: cy + 110 },
+      { id: "smith", name: "ดัวร์กัน · ช่างตีบวก", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
+      { id: "jobmaster", name: "อัลดริค · ครูฝึกอาชีพ", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
@@ -922,7 +922,7 @@ class WorldRoom extends Room {
       this.save(pid);
       this.broadcast("system", `${p.name} เลเวลอัปเป็น Lv.${p.level}!`);
       if (p.level === D.JOB_CHANGE_LEVEL && client)
-        client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! ไปคุยกับปู่ธาราจารย์ (ครูฝึกอาชีพ) กลางเมืองอรุณรุ่งเพื่อเปลี่ยนอาชีพ`);
+        client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! ไปคุยกับอัลดริค (ครูฝึกอาชีพ) กลางเมืองอรุณรุ่งเพื่อเปลี่ยนอาชีพ`);
     }
   }
 
