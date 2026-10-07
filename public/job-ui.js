@@ -8,11 +8,12 @@ const JOB_ORDER = ["guardian", "slayer", "hunter", "mage", "healer"];
 const JOB_PREVIEW = {
   guardian: "shoes:plateboots,armor:plate,gloves:gauntlets,head:greathelm,weapon:saber,offhand:shield_knight",
   slayer: "shoes:ironboots,armor:chain,gloves:bracers,head:mailcoif,weapon:greatsword",
-  hunter: "shoes:ranger_boots,armor:ranger_vest,gloves:ranger_gloves,head:ranger_cap,weapon:bow_hunter",
-  mage: "shoes:mage_shoes,armor:mage_robe,gloves:mage_gloves,head:mage_hat,weapon:staff_oak",
-  healer: "shoes:priest_shoes,armor:priest_robe,gloves:priest_gloves,head:priest_hood,weapon:book_light",
+  hunter: "shoes:ranger_boots,armor:ranger_vest,gloves:ranger_gloves,head:ranger_cap,weapon:bow_hunter,offhand:quiver_leather",
+  mage: "shoes:mage_shoes,armor:mage_robe,gloves:mage_gloves,head:mage_hat,weapon:staff_oak,offhand:orb_mana",
+  healer: "shoes:priest_shoes,armor:priest_robe,gloves:priest_gloves,head:priest_hood,weapon:book_light,offhand:relic_light",
 };
 const jq = () => gameData && gameData.jobQuests;
+const OFF_NAME = { shield: "โล่", emblem: "ตรานักรบ", quiver: "กระบอกธนู", orb: "ลูกแก้วเวท", relic: "เครื่องรางศักดิ์สิทธิ์" };
 
 function openJob() {
   closeShop(); closeSmith();
@@ -77,7 +78,7 @@ function renderJob() {
   $("jobBody").innerHTML = `<div class="job-left"><canvas id="jobPreview" width="64" height="64"></canvas>
       <div class="job-name" style="color:${j.color}">${j.name}<small>${j.en}</small></div></div>
     <div class="job-info"><p>${j.desc}</p>
-      <div class="job-tags"><span>อาวุธ: ${wnames}${j.shield ? " + โล่" : ""}</span><span>ชุด: ${armor}</span><span>ค่าแนะนำ: ${rec}</span></div>
+      <div class="job-tags"><span>อาวุธ: ${wnames}${j.offhand ? " · มือรอง: " + OFF_NAME[j.offhand] : ""}</span><span>ชุด: ${armor}</span><span>ค่าแนะนำ: ${rec}</span></div>
       <h4>สกิล</h4><ul class="job-skills">${sk}</ul>${quest}</div>`;
   drawJobPreview();
   const go = (act, extra) => room.send("jobQuest", { act, ...extra });

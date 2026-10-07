@@ -114,6 +114,10 @@ function wearError(job, it) {
   const J = D.JOBS[job] || D.JOBS.villager;
   if (!it || it.type !== "equip") return "ใส่ไอเทมนี้ไม่ได้";
   const lv = it.lv || 1;
+  if (it.ot) { // มือรองประจำอาชีพ
+    if (J.offhand !== it.ot) return `ใช้ได้เฉพาะ${Object.values(D.JOBS).filter((x) => x.offhand === it.ot).map((x) => x.name).join("/")}`;
+    return null;
+  }
   if (it.wt === "shield") {
     if (!J.shield) return `${J.name}ใช้โล่ไม่ได้`;
     if (job === "villager" && lv >= D.JOB_FREE_LV) return `ต้องเป็นผู้พิทักษ์`;
@@ -149,7 +153,8 @@ function equipFrom(b, idx, level, want, job = "villager") {
     const w = weaponType(b);
     if (w && D.WEAPON_TYPES[w].twoHand) return `${D.WEAPON_TYPES[w].name}เป็นอาวุธสองมือ ใส่โล่ไม่ได้`;
   }
-  if (it.wt && D.WEAPON_TYPES[it.wt] && D.WEAPON_TYPES[it.wt].twoHand && b.equip.offhand) {
+  const offIsShield = b.equip.offhand && I.ITEMS[b.equip.offhand.id] && I.ITEMS[b.equip.offhand.id].wt === "shield";
+  if (it.wt && D.WEAPON_TYPES[it.wt] && D.WEAPON_TYPES[it.wt].twoHand && offIsShield) {
     const free = b.inv.findIndex((x, i) => !x && i !== idx);
     if (free < 0 && b.equip.weapon) return "กระเป๋าเต็ม (ต้องถอดโล่ก่อน)";
     if (free >= 0) { b.inv[free] = gearSlot(b.equip.offhand); delete b.equip.offhand; }

@@ -30,7 +30,7 @@ function wearHtml(id, it) {
   const tags = jobs.length === Object.keys(J).length - 1 ? `<span class="jtag">ทุกอาชีพ</span>`
     : (!W.villager ? `<span class="jtag">ชาวบ้าน</span>` : "") + jobs.map((j) => `<span class="jtag" style="color:${J[j].color};border-color:${J[j].color}">${J[j].name}</span>`).join("");
   const wt = it.wt && it.wt !== "shield" && gameData.weaponTypes[it.wt];
-  const typ = it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";
+  const typ = it.ot ? "มือรอง · " + ({ emblem: "ตรานักรบ", quiver: "กระบอกธนู", orb: "ลูกแก้วเวท", relic: "เครื่องรางศักดิ์สิทธิ์" }[it.ot] || "") : it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";
   const err = wearErr(id);
   return `<div class="meta wear">${typ ? typ + " · " : ""}ใช้ได้: ${tags}</div>` + (err ? `<div class="need">${err}</div>` : "");
 }

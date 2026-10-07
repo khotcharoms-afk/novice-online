@@ -126,23 +126,23 @@ const MONSTER_RESPAWN_MS = 8000;
 
 // ---------- อาชีพ ----------
 // armor = ประเภทเกราะที่ใส่ได้ (ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ) · weapons = ชนิดอาวุธที่ใช้ได้ · shield = ใช้โล่ได้
-// atk/hp/sp/def = ตัวคูณค่าพลัง · rec = สัดส่วนลงแต้มแนะนำ
+// offhand = ชนิดมือรองประจำอาชีพ (โล่/ตรา/กระบอกธนู/ลูกแก้ว/เครื่องราง) · atk/hp/sp/def = ตัวคูณค่าพลัง · rec = สัดส่วนลงแต้มแนะนำ
 const JOBS = {
-  villager: { name: "ชาวบ้าน", en: "Villager", color: "#cfd3dd", atk: 1, armor: null, weapons: null, shield: true, hp: 1, sp: 1, def: 1,
+  villager: { name: "ชาวบ้าน", en: "Villager", color: "#cfd3dd", offhand: null, atk: 1, armor: null, weapons: null, shield: true, hp: 1, sp: 1, def: 1,
     rec: { str: 0.4, vit: 0.3, agi: 0.2, dex: 0.1, int: 0 }, role: "เริ่มต้น", desc: "ทุกคนเริ่มจากชาวบ้าน ถึง Lv.20 แล้วไปหาครูฝึกอาชีพที่เมืองเพื่อเปลี่ยนอาชีพ" },
-  guardian: { name: "ผู้พิทักษ์", en: "Guardian", color: "#6fb6ff", atk: 0.9, armor: ["heavy"], weapons: ["sword", "mace"], shield: true, hp: 1.35, sp: 0.9, def: 1.2,
+  guardian: { name: "ผู้พิทักษ์", en: "Guardian", color: "#6fb6ff", offhand: "shield", atk: 0.9, armor: ["heavy"], weapons: ["sword", "mace"], shield: true, hp: 1.35, sp: 0.9, def: 1.2,
     rec: { vit: 0.4, str: 0.3, dex: 0.15, agi: 0.15, int: 0 }, role: "แทงก์ · ป้องกัน",
     desc: "ถือดาบกับโล่ ยืนหน้าสุดของปาร์ตี้ ดึงความสนใจมอนมาที่ตัวเองและรับดาเมจแทนเพื่อน" },
-  slayer: { name: "นักดาบใหญ่", en: "Slayer", color: "#ff7a6b", atk: 1.1, armor: ["heavy"], weapons: ["greatsword", "axe"], shield: false, hp: 1.2, sp: 0.9, def: 1,
+  slayer: { name: "นักดาบใหญ่", en: "Slayer", color: "#ff7a6b", offhand: "emblem", atk: 1.1, armor: ["heavy"], weapons: ["greatsword", "axe"], shield: false, hp: 1.2, sp: 0.9, def: 1,
     rec: { str: 0.45, agi: 0.25, vit: 0.2, dex: 0.1, int: 0 }, role: "ตีแรงระยะใกล้ · คอมโบ",
     desc: "ใช้ดาบใหญ่หรือขวานสองมือ ตีปกติสะสมคอมโบแล้วปิดท้ายด้วยท่าปลิดชีพ ฟันกวาดโดนหลายตัว" },
-  hunter: { name: "นักล่า", en: "Hunter", color: "#7dff9a", atk: 1, armor: ["light"], weapons: ["bow", "dagger"], shield: false, hp: 1, sp: 1, def: 1,
+  hunter: { name: "นักล่า", en: "Hunter", color: "#7dff9a", offhand: "quiver", atk: 1, armor: ["light"], weapons: ["bow", "dagger"], shield: false, hp: 1, sp: 1, def: 1,
     rec: { dex: 0.45, agi: 0.3, vit: 0.15, str: 0.1, int: 0 }, role: "ยิงไกล · คล่องตัว",
     desc: "ยิงธนูจากระยะไกล เคลื่อนที่เร็ว พลังโจมตีมาจาก DEX" },
-  mage: { name: "นักเวทย์", en: "Mage", color: "#c38bff", atk: 1, armor: ["cloth"], weapons: ["staff"], shield: false, hp: 0.85, sp: 1.5, def: 0.9,
+  mage: { name: "นักเวทย์", en: "Mage", color: "#c38bff", offhand: "orb", atk: 1, armor: ["cloth"], weapons: ["staff"], shield: false, hp: 0.85, sp: 1.5, def: 0.9,
     rec: { int: 0.5, dex: 0.25, vit: 0.2, agi: 0.05, str: 0 }, role: "เวทโจมตีหมู่",
     desc: "ใช้คทา ร่ายเวทโจมตีระยะไกล เวทวงกว้างเก็บมอนทีละหลายตัว พลังมาจาก INT" },
-  healer: { name: "หมอ", en: "Healer", color: "#ffe28a", atk: 0.75, armor: ["cloth"], weapons: ["book", "mace"], shield: false, hp: 0.95, sp: 1.4, def: 1,
+  healer: { name: "หมอ", en: "Healer", color: "#ffe28a", offhand: "relic", atk: 0.75, armor: ["cloth"], weapons: ["book", "mace"], shield: false, hp: 0.95, sp: 1.4, def: 1,
     rec: { int: 0.45, vit: 0.3, dex: 0.15, agi: 0.1, str: 0 }, role: "ฮีล · บัฟ",
     desc: "ใช้คัมภีร์ลอยข้างตัว ฮีลเพื่อน ให้พรเพิ่มพลังทั้งปาร์ตี้ แสงพิพากษาแรงพิเศษกับอันเดด" },
 };
