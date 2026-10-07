@@ -31,7 +31,7 @@ function newCharData(uid, name, look) {
 // สรุปตัวละครสำหรับหน้าแอดมิน
 const adminChar = (id, c) => ({
   id, uid: c.uid, name: c.name, level: c.level || 1, job: c.job, jobName: D.JOB_NAME[c.job] || c.job,
-  gold: c.gold || 0, exp: c.exp || 0, stats: c.stats || null, inv: c.inv || null, equip: c.equip || {}, pet: c.pet || null,
+  gold: c.gold || 0, exp: c.exp || 0, stats: c.stats || null, inv: c.inv || null, equip: c.equip || {}, pet: c.pet || null, spirit: c.spirit || null,
   updatedAt: c.updatedAt || 0, createdAt: c.createdAt || 0,
 });
 // รายชื่อ ID แอดมิน: ตั้งใน Render เป็น ADMIN_IDS เช่น "sayan" หรือ "sayan,friend1" (ไม่มี = ไม่มีใครเป็นแอดมิน)

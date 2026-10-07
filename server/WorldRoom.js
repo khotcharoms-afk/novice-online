@@ -14,6 +14,7 @@ const { NavGrid } = require("./path");
 const D = require("./data");
 const I = require("./items");
 const Bag = require("./inventory");
+const SP = require("./spirits");
 
 const SPEED = 170;           // ความเร็วเดินผู้เล่น (px/วินาที)
 const TICK_MS = 50;          // อัปเดตโลก 20 ครั้ง/วินาที
@@ -55,10 +56,13 @@ defineTypes(Monster, {
 // สัตว์เลี้ยง (key = sessionId ของเจ้าของ) — บินได้ จึงไม่ชนสิ่งกีดขวาง
 class Pet extends Schema {}
 defineTypes(Pet, { kind: "string", x: "number", y: "number", dir: "string", moving: "boolean" });
+// ภูติ (key = sessionId ของเจ้าของ) · r = ระดับสี · lv = เลเวลภูติ
+class Spirit extends Schema {}
+defineTypes(Spirit, { kind: "string", x: "number", y: "number", r: "uint8", lv: "uint8" });
 class WorldState extends Schema {
-  constructor() { super(); this.players = new MapSchema(); this.monsters = new MapSchema(); this.drops = new MapSchema(); this.pets = new MapSchema(); }
+  constructor() { super(); this.players = new MapSchema(); this.monsters = new MapSchema(); this.drops = new MapSchema(); this.pets = new MapSchema(); this.spirits = new MapSchema(); }
 }
-defineTypes(WorldState, { players: { map: Player }, monsters: { map: Monster }, drops: { map: Drop }, pets: { map: Pet } });
+defineTypes(WorldState, { players: { map: Player }, monsters: { map: Monster }, drops: { map: Drop }, pets: { map: Pet }, spirits: { map: Spirit } });
 const PET_PICK = 12;          // สัตว์เลี้ยงบินถึงของในระยะนี้ = เก็บ
 const PET_FOLLOW = 30;        // ระยะห่างตอนบินตามเจ้าของ
 const DROP_OWNER_MS = 10000;  // เจ้าของมีสิทธิ์เก็บก่อน 10 วิ
@@ -140,6 +144,7 @@ class WorldRoom extends Room {
       { id: "shop_potion", name: "มิเรล · ร้านยา", sprite: "npc_potion", x: cx - 256, y: cy + 110 },
       { id: "smith", name: "ดัวร์กัน · ช่างตีบวก", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
       { id: "jobmaster", name: "อัลดริค · ครูฝึกอาชีพ", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
+      { id: "spiritkeeper", name: "ลูน่า · ผู้ผนึกภูติ", sprite: "npc_spiritkeeper", x: cx + 128, y: cy + 150 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
@@ -181,6 +186,7 @@ class WorldRoom extends Room {
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
+        spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
         mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
         portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })),
@@ -238,6 +244,9 @@ class WorldRoom extends Room {
     }));
     this.onMessage("sortBag", (client, m) => this.withBag(client, m || {}, (p, b) => Bag.sortBag(b)));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
+    this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
+    this.onMessage("spiritQuest", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritQuest(client, p, b, m || {})));
+    this.onMessage("spiritUp", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritUp(client, p, b, m || {})));
     this.onMessage("pickup", (client, m) => {
       const r = this.alive(client);
       if (!r || !m || !this.state.drops.get(String(m.id))) return;
@@ -340,6 +349,7 @@ class WorldRoom extends Room {
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0,
     });
     this.syncPet(client.sessionId);
+    this.syncSpirit(client.sessionId);
     this.sendInv(client.sessionId);
     client.send("quest", p.quest);
     this.sendSkills(client.sessionId);
@@ -507,6 +517,7 @@ class WorldRoom extends Room {
     if (p && !p.warp) this.broadcast("system", `${p.name} ออกจากเกม`);
     this.state.players.delete(client.sessionId);
     this.state.pets.delete(client.sessionId);
+    this.state.spirits.delete(client.sessionId);
     this.pr.delete(client.sessionId);
     this.mr.forEach((r) => { if (r.target === client.sessionId) r.target = null; r.dmgBy.delete(client.sessionId); });
   }
@@ -652,6 +663,151 @@ class WorldRoom extends Room {
     this.state.players.forEach((p, id) => this.updatePlayer(p, this.pr.get(id), id, dt, t));
     this.state.monsters.forEach((m, id) => this.updateMob(m, this.mr.get(id), id, dt, t));
     this.state.pets.forEach((pet, id) => this.updatePet(pet, id, dt, t));
+    this.state.spirits.forEach((sp, id) => this.updateSpirit(sp, id, dt, t));
+  }
+
+  // ================= ภูติ =================
+  syncSpirit(pid) {
+    const p = this.state.players.get(pid), s = p && p.bag && p.bag.spirit;
+    let sp = this.state.spirits.get(pid);
+    if (!s) { if (sp) this.state.spirits.delete(pid); return; }
+    if (!sp) {
+      sp = new Spirit();
+      sp.x = p.x + 22; sp.y = p.y - 4;
+      this.state.spirits.set(pid, sp);
+      const r = this.pr.get(pid); if (r) r.spReady = now() + 1500;
+    }
+    if (sp.kind !== s.id) sp.kind = s.id;
+    if (sp.r !== s.r) sp.r = s.r;
+    if (sp.lv !== s.lv) sp.lv = s.lv;
+  }
+  updateSpirit(sp, pid, dt, t) {
+    const p = this.state.players.get(pid), r = this.pr.get(pid), s = p && p.bag && p.bag.spirit;
+    if (!p || !r || !s) return;
+    const S = SP.SPIRITS[s.id];
+    // ลอยตามเจ้าของ (ฝั่งตรงข้ามกับสัตว์เลี้ยง: เยื้องไปด้านหน้า-ขวา)
+    const side = { down: [1, 0], up: [-1, 0], left: [0, -1], right: [0, 1] }[p.dir] || [1, 0];
+    const fx = p.x + side[0] * 26, fy = p.y + side[1] * 14 - 6;
+    const d = Math.hypot(fx - sp.x, fy - sp.y);
+    if (d > 600) { sp.x = fx; sp.y = fy; }
+    else if (d > 4) { const step = Math.min(d, ((d > 80 ? SPEED * 1.8 : SPEED * 1.1) * dt) / 1000); sp.x += ((fx - sp.x) / d) * step; sp.y += ((fy - sp.y) / d) * step; }
+    if (p.dead || t < (r.spReady || 0)) return;
+    const k = S.skill, P = SP.power(s);
+    if (S.role === "heal") {
+      const hurt = p.hp < (p.maxHp * k.below) / 100 || (k.cleanse && r.poison);
+      if (!hurt) return;
+      r.spReady = t + k.every;
+      const amt = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * k.healPct * P) / 100));
+      if (amt > 0) { p.hp += amt; this.broadcast("heal", { id: pid, amount: amt }); }
+      if (k.spPct) p.sp = Math.min(p.maxSp, p.sp + Math.round((p.maxSp * k.spPct * P) / 100));
+      if (k.cleanse) r.poison = null;
+      this.broadcast("spiritFx", { id: pid, kind: s.id, heal: true });
+      return;
+    }
+    // ภูติสายโจมตี: ตีเป้าหมายที่เรากำลังสู้ หรือมอนที่กำลังตีเราอยู่ (ไม่ไปหาเรื่องมอนเอง)
+    const okMob = (mid) => { const m = this.state.monsters.get(mid); return m && !m.dead && dist(p, m) <= k.range; };
+    let tgt = r.target && okMob(r.target) ? r.target : null;
+    if (!tgt) {
+      let bd = Infinity;
+      this.mr.forEach((mr, mid) => {
+        if (mr.target !== pid || !okMob(mid)) return;
+        const dd = dist(p, this.state.monsters.get(mid));
+        if (dd < bd) { bd = dd; tgt = mid; }
+      });
+    }
+    if (!tgt) return;
+    r.spReady = t + k.every;
+    const tgts = [tgt];
+    if (k.chain) {
+      const m0 = this.state.monsters.get(tgt);
+      const near = this.mobsNear(m0.x, m0.y, 160).filter((mid) => mid !== tgt)
+        .sort((a, b) => dist(m0, this.state.monsters.get(a)) - dist(m0, this.state.monsters.get(b)));
+      tgts.push(...near.slice(0, k.chain - 1));
+    }
+    this.broadcast("spiritFx", { id: pid, kind: s.id, fx: k.fx, tgts });
+    const m0 = this.state.monsters.get(tgt), delay = Math.min(450, 60 + Math.hypot(m0.x - sp.x, m0.y - sp.y) * 1.4);
+    this.clock.setTimeout(() => {
+      if (p.dead || !this.state.players.get(pid)) return;
+      tgts.forEach((mid, i) => {
+        const res = this.hitMob(pid, p, mid, k.mult * P * (i ? 0.8 : 1), { spirit: true, slow: k.slow });
+        if (k.drain && res && !res.miss && p.hp < p.maxHp) {
+          const hl = Math.min(p.maxHp - p.hp, Math.round((res.dmg * k.drain) / 100));
+          if (hl > 0) { p.hp += hl; if (hl >= 5) this.broadcast("heal", { id: pid, amount: hl }); }
+        }
+      });
+    }, k.chain ? 120 : delay);
+  }
+  // ภูติได้ EXP ตามเรา (เลเวลภูติไม่เกินเลเวลเรา)
+  spiritExp(pid, p, amount) {
+    const s = p.bag && p.bag.spirit;
+    if (!s || s.lv >= SP.SPIRIT_MAX_LV) return;
+    s.ex += Math.max(1, Math.round(amount * SP.EXP_SHARE));
+    let up = false;
+    while (s.lv < SP.SPIRIT_MAX_LV && s.lv < p.level && s.ex >= SP.expNeed(s.lv)) { s.ex -= SP.expNeed(s.lv); s.lv++; up = true; }
+    if (s.lv >= SP.SPIRIT_MAX_LV) s.ex = 0;
+    else s.ex = Math.min(s.ex, SP.expNeed(s.lv) - 1);
+    if (up) {
+      this.syncSpirit(pid);
+      const cl = this.clients.find((c) => c.sessionId === pid);
+      if (cl) cl.send("toast", `✨ ${SP.SPIRITS[s.id].name} เลเวลอัปเป็น Lv.${s.lv}!`);
+      this.broadcast("spiritFx", { id: pid, kind: s.id, lvup: true });
+      this.sendInv(pid);
+    }
+  }
+  // เควสภูติ (คุยกับลูน่า): m.act = start | cancel | finish · m.id = ภูติ
+  spiritQuest(client, p, b, m) {
+    if (!this.nearNpc(p, "spiritkeeper")) return "เดินเข้าใกล้ลูน่า (ผู้ผนึกภูติ) ก่อน";
+    const act = String(m.act || "");
+    if (act === "cancel") { b.spq = null; return; }
+    const id = String(m.id || ""), Q = SP.SPIRIT_QUESTS[id], S = SP.SPIRITS[id];
+    if (!Q) return;
+    const owned = (b.spirit && b.spirit.id === id) || b.inv.some((x) => x && x.id === id);
+    if (act === "start") {
+      if (b.spq) return "รับเควสภูติได้ทีละ 1 เควส — ส่งหรือยกเลิกอันเดิมก่อน";
+      if (p.level < S.lv) return `ต้องเลเวล ${S.lv} ขึ้นไป`;
+      if (owned) return "คุณมีภูติตัวนี้อยู่แล้ว";
+      b.spq = { id, kills: 0 };
+      client.send("toast", `รับเควส ${S.name} แล้ว`);
+      return;
+    }
+    if (act !== "finish" || !b.spq || b.spq.id !== id) return;
+    if (b.spq.kills < Q.kill[1]) return `ยังปราบ${D.MONSTERS[Q.kill[0]].name}ไม่ครบ (${b.spq.kills}/${Q.kill[1]})`;
+    if (Bag.countOf(b, Q.item[0]) < Q.item[1]) return `${I.ITEMS[Q.item[0]].name} ยังไม่ครบ (${Bag.countOf(b, Q.item[0])}/${Q.item[1]})`;
+    if (!b.inv.some((x) => !x)) return "กระเป๋าเต็ม — เว้นที่ว่างไว้รับภูติก่อน";
+    let need = Q.item[1];
+    for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) {
+      const x = b.inv[i];
+      if (x && x.id === Q.item[0]) { const k = Math.min(need, x.n); Bag.removeAt(b, i, k); need -= k; }
+    }
+    b.spq = null;
+    const spirit = { id, r: SP.QUEST_RARITY, lv: 1, ex: 0 };
+    if (!b.spirit) b.spirit = SP.norm(spirit); else Bag.addItem(b, id, 1, spirit);
+    client.send("spiritGot", { id });
+    rooms.forEach((rm) => rm.broadcast("system", `✨ ${p.name} ได้รับ${S.name}!`));
+    this.saveSoon(client.sessionId);
+  }
+  // อัประดับสีภูติที่เรียกอยู่ (ใช้ผลึกวิญญาณ + gold · สำเร็จแน่นอน)
+  spiritUp(client, p, b) {
+    if (!this.nearNpc(p, "spiritkeeper")) return "เดินเข้าใกล้ลูน่า (ผู้ผนึกภูติ) ก่อน";
+    const s = b.spirit;
+    if (!s) return "เรียกภูติออกมาก่อน (ภูติที่จะอัปต้องอยู่ในช่องภูติ)";
+    const U = SP.UPGRADE[s.r];
+    if (!U) return "ภูติตัวนี้ระดับสูงสุดแล้ว";
+    const have = Bag.countOf(b, "spirit_shard");
+    if (have < U.shards) return `ผลึกวิญญาณไม่พอ (${have}/${U.shards})`;
+    if (b.gold < U.gold) return `gold ไม่พอ (ต้องใช้ ${U.gold.toLocaleString()})`;
+    let need = U.shards;
+    for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) {
+      const x = b.inv[i];
+      if (x && x.id === "spirit_shard") { const k = Math.min(need, x.n); Bag.removeAt(b, i, k); need -= k; }
+    }
+    b.gold -= U.gold;
+    s.r++;
+    this.syncSpirit(client.sessionId);
+    client.send("spiritUpOk", { id: s.id, r: s.r });
+    this.broadcast("spiritFx", { id: client.sessionId, kind: s.id, lvup: true });
+    if (s.r >= 3) rooms.forEach((rm) => rm.broadcast("system", `✨ ${p.name} อัป${SP.SPIRITS[s.id].name}เป็นระดับ${I.RARITY[s.r].name}!`));
+    this.saveSoon(client.sessionId);
   }
 
   // ================= สัตว์เลี้ยง =================
@@ -1090,12 +1246,12 @@ class WorldRoom extends Room {
     if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
     const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100, ignoreDef: (sx.ignoreDef || 0) / 100 },
       { def: r.stats.def, lv: m.level }, mult);
-    this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
+    this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss, ...(opts.spirit ? { sp: 1 } : {}) });
     if (res.miss) return res;
     m.hp = Math.max(0, m.hp - res.dmg);
     r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + res.dmg);
-    // ดูดเลือด
-    if (sx.lifesteal && !p.dead && p.hp < p.maxHp) {
+    // ดูดเลือด (ดาเมจจากภูติไม่นับ)
+    if (sx.lifesteal && !opts.spirit && !p.dead && p.hp < p.maxHp) {
       const hl = Math.min(p.maxHp - p.hp, Math.floor((res.dmg * sx.lifesteal) / 100));
       if (hl > 0) { p.hp += hl; if (hl >= 5) this.broadcast("heal", { id: pid, amount: hl }); }
     }
@@ -1130,6 +1286,14 @@ class WorldRoom extends Room {
       const cl = this.clients.find((c) => c.sessionId === pid);
       if (cl) { cl.send("quest", q); cl.send("toast", `เควส: ${m.name} ${q.kills}/${Q.kill[1]}`); }
     });
+    // เควสภูติ: นับตัวที่ฆ่า
+    r.dmgBy.forEach((_d, pid) => {
+      const pp = this.state.players.get(pid), q = pp && pp.bag && pp.bag.spq, Q = q && SP.SPIRIT_QUESTS[q.id];
+      if (!Q || Q.kill[0] !== m.kind || q.kills >= Q.kill[1]) return;
+      q.kills++;
+      const cl = this.clients.find((c) => c.sessionId === pid);
+      if (cl) { cl.send("spq", q); cl.send("toast", `เควสภูติ: ${m.name} ${q.kills}/${Q.kill[1]}`); }
+    });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
     const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1) * (r.rank === 2 ? 8 : r.rank === 1 ? 3 : 1);
     let top = null, topDmg = -1;
@@ -1150,6 +1314,12 @@ class WorldRoom extends Room {
     const table = I.DROPS[m.kind] || [];
     for (const [id, chance, lo, hi] of table)
       if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, gearOf(id));
+    // ผลึกวิญญาณ (อัประดับภูติ): มอนธรรมดา Lv.10+ 0.5% · ชั้นยอด 20% · มินิบอส 2–4 · World Boss 8–12
+    {
+      const sh = r.boss ? 8 + Math.floor(Math.random() * 5) : r.rank === 2 ? 2 + Math.floor(Math.random() * 3)
+        : r.rank === 1 ? (Math.random() < 0.2 ? 1 : 0) : m.level >= 10 && Math.random() < 0.005 * (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) ? 1 : 0;
+      if (sh) this.spawnDrop("spirit_shard", sh, m.x - 10, m.y + 4, r.boss ? null : top, null);
+    }
     if (r.rank === 2) { // มินิบอส: อุปกรณ์ 1 ชิ้นแน่นอน
       const eq = table.filter(([id]) => I.ITEMS[id].type === "equip");
       if (eq.length) { const id = eq[Math.floor(Math.random() * eq.length)][0]; this.spawnDrop(id, 1, m.x + 10, m.y + 6, top, gearOf(id)); }
@@ -1199,6 +1369,7 @@ class WorldRoom extends Room {
     if (p.sx && p.sx.expPct) amount = Math.round(amount * (1 + p.sx.expPct / 100));
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("exp", amount);
+    this.spiritExp(pid, p, amount);
     p.exp += amount;
     let leveled = false;
     while (p.expNext > 0 && p.exp >= p.expNext) {
@@ -1231,6 +1402,7 @@ class WorldRoom extends Room {
     const gear = Bag.gearString(p.bag);
     if (gear !== p.gear) p.gear = gear;
     this.syncPet(client.sessionId);
+    this.syncSpirit(client.sessionId);
     this.applyStats(p, false);
     this.sendInv(client.sessionId);
   }
@@ -1239,6 +1411,7 @@ class WorldRoom extends Room {
     if (!p || !p.bag || !client) return;
     // แนบค่าที่คำนวณแล้วให้อุปกรณ์แต่ละชิ้น: st = ค่าพลังรวม, nx = ข้อมูลตีบวกขั้นถัดไป, sell = ราคาขาย
     const deco = (g) => {
+      if (g && Bag.isSpiritId(g.id)) return { ...g, si: SP.info(g) };
       if (!g || !Bag.isGearId(g.id)) return g;
       const it = I.ITEMS[g.id], to = (g.up || 0) + 1, out = { ...g, st: I.gearStats(g), sp: I.gearSpecial(g), sell: I.sellPrice(g.id, g) };
       if (I.canRefine(it) && to <= I.MAX_REFINE)
@@ -1247,6 +1420,7 @@ class WorldRoom extends Room {
     };
     const data = Bag.saveBag(p.bag);
     data.inv = data.inv.map(deco);
+    if (data.spirit) data.spirit = deco(data.spirit);
     data.equip = Object.fromEntries(Object.entries(data.equip).map(([k, g]) => [k, deco(g)]));
     client.send("inv", { ...data, ...(extra || {}) });
   }
@@ -1255,6 +1429,7 @@ class WorldRoom extends Room {
     if (!it) return;
     if (it.type === "equip") return Bag.equipFrom(b, idx, p.level, undefined, p.job);
     if (it.type === "pet") return Bag.summonPet(b, idx, p.level);
+    if (it.type === "spirit") return Bag.summonSpirit(b, idx, p.level);
     if (it.type !== "use") return "ใช้ไอเทมนี้ไม่ได้";
     if (p.dead) return;
     if (r && now() < r.useReady) return;

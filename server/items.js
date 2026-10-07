@@ -534,4 +534,11 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
     DROPS[k].push(...TIERS.tierDrops(m.level, big ? 0.002 : 0.0012));
   }
 }
+// ---------- ภูติ (server/spirits.js) + ผลึกวิญญาณสำหรับอัประดับ ----------
+{
+  const SP = require("./spirits");
+  for (const [id, S] of Object.entries(SP.SPIRITS))
+    ITEMS[id] = { name: S.name, type: "spirit", qlv: S.lv, sell: 500, desc: S.desc, spirit: { role: S.role, color: S.color, skill: S.skill } };
+  ITEMS.spirit_shard = { name: "ผลึกวิญญาณ", type: "material", sell: 300, desc: "ใช้อัประดับสีของภูติที่ลูน่า (ผู้ผนึกภูติ) · ดรอปจากมอนชั้นยอด มินิบอส และ World Boss" };
+}
 module.exports = { ACC_SLOTS, SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

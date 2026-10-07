@@ -5,6 +5,8 @@
 // =============================================================
 const I = require("./items");
 const D = require("./data");
+const SP = require("./spirits");
+const isSpiritId = (id) => I.ITEMS[id] && I.ITEMS[id].type === "spirit";
 
 const STARTER = { inv: [{ id: "mace", n: 1 }, { id: "potion_s", n: 5 }], gold: 50 };
 
@@ -20,7 +22,7 @@ function normGear(o) {
 }
 const gearSlot = (g) => ({ ...g, n: 1 });
 const plain = (g) => ({ id: g.id, r: g.r, up: g.up, x: { ...g.x }, s: { ...(g.s || {}) } });
-function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0, pet: null }; }
+function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0, pet: null, spirit: null }; }
 
 // โหลดจากฐานข้อมูล — ตัดไอเทมที่ไม่รู้จักทิ้ง; ตัวละครเก่าที่ยังไม่มีกระเป๋าได้ของเริ่มต้น
 function loadBag(c) {
@@ -32,7 +34,7 @@ function loadBag(c) {
   }
   c.inv.slice(0, I.INVENTORY_SIZE).forEach((s, i) => {
     if (!s || !I.ITEMS[s.id] || !Number.isInteger(s.n) || s.n <= 0) return;
-    bag.inv[i] = isGearId(s.id) ? gearSlot(normGear(s)) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
+    bag.inv[i] = isGearId(s.id) ? gearSlot(normGear(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
   });
   for (const slot of I.EQUIP_SLOTS) {
     const g = normGear(c.equip && c.equip[slot]);
@@ -48,13 +50,15 @@ function loadBag(c) {
   }
   bag.gold = Math.max(0, Math.floor(Number(c.gold) || 0));
   if (c.pet && I.ITEMS[c.pet] && I.ITEMS[c.pet].type === "pet") bag.pet = c.pet;
+  bag.spirit = SP.norm(c.spirit);
+  bag.spq = c.spq && SP.SPIRIT_QUESTS[c.spq.id] ? { id: c.spq.id, kills: Math.max(0, c.spq.kills | 0) } : null; // เควสภูติที่รับอยู่
   return bag;
 }
 const saveBag = (b) => ({
-  inv: b.inv.map((s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : { id: s.id, n: s.n })),
-  equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null });
+  inv: b.inv.map((s) => (!s ? null : isGearId(s.id) ? gearSlot(plain(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: s.n })),
+  equip: Object.fromEntries(Object.entries(b.equip).map(([k, g]) => [k, plain(g)])), gold: b.gold, pet: b.pet || null, spirit: b.spirit ? SP.norm(b.spirit) : null, spq: b.spq || null });
 
-const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet") ? 1 : I.MAX_STACK);
+const maxStack = (id) => (I.ITEMS[id] && (I.ITEMS[id].type === "equip" || I.ITEMS[id].type === "pet" || I.ITEMS[id].type === "spirit") ? 1 : I.MAX_STACK);
 
 // ใส่ของเข้ากระเป๋า → คืนจำนวนที่ใส่ไม่ลง (กระเป๋าเต็ม)
 // gear = ข้อมูลอุปกรณ์ (ระดับ/ตีบวก) ถ้าไม่ใส่ = ระดับธรรมดา
@@ -63,6 +67,11 @@ function addItem(b, id, n, gear) {
   if (isGearId(id)) {
     for (let i = 0; i < b.inv.length && n > 0; i++)
       if (!b.inv[i]) { b.inv[i] = gearSlot(normGear(gear || { id })); n--; gear = null; }
+    return n;
+  }
+  if (isSpiritId(id)) { // ภูติ: gear = ข้อมูลภูติ {r, lv, ex}
+    for (let i = 0; i < b.inv.length && n > 0; i++)
+      if (!b.inv[i]) { b.inv[i] = SP.norm({ ...(gear || {}), id }); n--; gear = null; }
     return n;
   }
   const cap = maxStack(id);
@@ -216,10 +225,27 @@ function recallPet(b) {
   b.pet = null;
   return null;
 }
+// เรียกภูติจากช่องกระเป๋า idx (ตัวเดิมสลับกลับเข้ากระเป๋า)
+function summonSpirit(b, idx, level) {
+  const s = b.inv[idx];
+  if (!s || !isSpiritId(s.id)) return "ไม่ใช่ภูติ";
+  const old = b.spirit;
+  b.spirit = SP.norm(s);
+  b.inv[idx] = old ? SP.norm(old) : null;
+  return null;
+}
+function recallSpirit(b) {
+  if (!b.spirit) return null;
+  const free = b.inv.findIndex((x) => !x);
+  if (free < 0) return "กระเป๋าเต็ม";
+  b.inv[free] = SP.norm(b.spirit);
+  b.spirit = null;
+  return null;
+}
 // เรียงกระเป๋า: อุปกรณ์ (ตามช่อง → ระดับ → ตีบวก → เลเวล) · ของใช้ · สัตว์เลี้ยง · คริสตัล · วัตถุดิบ
 // รวมกองของชนิดเดียวกันที่แยกกันอยู่ให้เป็นกองเดียวด้วย
 const SORT_SLOT = ["weapon", "offhand", "head", "face", "armor", "gloves", "cape", "shoes", "neck", "ring", "ear"];
-const SORT_TYPE = { equip: 0, use: 1, pet: 2, material: 4 };
+const SORT_TYPE = { equip: 0, use: 1, pet: 2, spirit: 2, material: 4 };
 function sortBag(b) {
   const items = b.inv.filter(Boolean);
   // รวมกอง
@@ -236,7 +262,7 @@ function sortBag(b) {
     const it = I.ITEMS[s.id];
     const type = /^stone_/.test(s.id) ? 3 : SORT_TYPE[it.type] ?? 5;
     const slot = it.type === "equip" ? SORT_SLOT.indexOf(it.slot) : 0;
-    return [type, slot, -(s.r || 0), -(s.up || 0), -(it.lv || 0), it.price || it.sell || 0, s.id, -s.n];
+    return [type, slot, -(s.r || 0), -(s.lv || 0), -(s.up || 0), -(it.lv || 0), it.price || it.sell || 0, s.id, -s.n];
   };
   merged.sort((a, c) => {
     const ka = key(a), kc = key(c);
@@ -259,4 +285,4 @@ function moveSlot(b, from, to) {
 }
 
 module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString, glowString,
-  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial, activeSets };
+  equipFrom, unequip, moveSlot, summonPet, recallPet, summonSpirit, recallSpirit, isSpiritId, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial, activeSets };

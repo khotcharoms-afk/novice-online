@@ -681,3 +681,28 @@ html, body { overscroll-behavior: none; }
 #tgtFill.elite { background: linear-gradient(#ffd36b, #d08a1a); }
 #tgtHpTxt { position: absolute; inset: 0; font-size: 10px; line-height: 11px; color: #fff; text-shadow: 0 0 3px #000; }
 @media (max-height: 540px) { #tgtBar { top: 4px; width: min(220px, 40vw); } #tgtBar.below-boss { top: 40px; } #tgtName { font-size: 11px; } }
+
+/* ---------- ภูติ ---------- */
+#spiritPanel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#spiritPanel.dragged { transform: none; }
+.sp-tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 8px 0; }
+.sp-tab { background: rgba(10,13,30,.7); border: 1px solid #2c3561; border-radius: 8px; color: var(--text); padding: 5px 3px; cursor: pointer; text-align: center; line-height: 1.2; font-size: 11px; }
+.sp-tab img { width: 32px; height: 32px; image-rendering: pixelated; display: block; margin: 0 auto 2px; }
+.sp-tab.sel { border-color: var(--sc); box-shadow: inset 0 0 12px color-mix(in srgb, var(--sc) 35%, transparent); }
+.sp-tab.lock { opacity: .55; } .sp-tab.own::after { content: "มีแล้ว"; display: block; color: #7dff9a; font-size: 10px; }
+.sp-tab.active::after { content: "กำลังทำ"; display: block; font-size: 10px; color: #2a1c08; background: var(--name); border-radius: 4px; margin-top: 2px; }
+.sp-big { width: 96px; height: 96px; image-rendering: pixelated; filter: drop-shadow(0 0 8px var(--sc)); animation: spbob 2s ease-in-out infinite; }
+@keyframes spbob { 50% { transform: translateY(-6px); } }
+.sp-up { margin-top: 10px; border-top: 1px solid #2c3561; padding-top: 8px; font-size: 13px; }
+.sp-up .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sp-up img { width: 32px; height: 32px; image-rendering: pixelated; }
+.sp-up .arrow { font-size: 18px; color: var(--muted); }
+.spirit-box { margin: 6px 0; padding: 6px 8px; background: rgba(120,200,255,.06); border: 1px solid rgba(120,200,255,.25); border-radius: 7px; }
+.sp-exp { position: relative; height: 14px; background: #141a36; border-radius: 7px; overflow: hidden; margin: 4px 0; }
+.sp-exp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #6a5cff, #9fe8ff); }
+.sp-exp b { position: relative; display: block; text-align: center; font-size: 10.5px; line-height: 14px; font-weight: 400; }
+.sp-skill { font-size: 12px; margin: 4px 0; } .sp-skill b { color: #9fe8ff; font-weight: 500; }
+.spirit-slot { margin-top: 4px; }
+#spiritTrack { position: fixed; left: 10px; top: 270px; z-index: 6; padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
+#spiritTrack .ok { color: #7dff9a; }
+@media (max-width: 640px) { .sp-tabs { grid-template-columns: repeat(3, 1fr); } #spiritTrack { zoom: .85; top: 230px; } #spiritPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }

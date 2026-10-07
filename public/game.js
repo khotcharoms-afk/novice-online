@@ -345,6 +345,10 @@ function bindRoom(room) {
     room.onMessage("bossCast", (c) => scene && scene.bossCast(c));
     room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
+    room.onMessage("spiritFx", (c) => scene && scene.spiritFx(c));
+    room.onMessage("spq", (q) => { INV.spq = q; renderSpiritTrack(); renderSpirit(); });
+    room.onMessage("spiritGot", ({ id }) => { const it = itemOf(id); toast(`✨ ได้รับ ${it ? it.name : id}! ภูติลอยตามคุณแล้ว (ถ้ามีภูติอยู่แล้ว ตัวใหม่จะอยู่ในกระเป๋า)`); });
+    room.onMessage("spiritUpOk", ({ id, r }) => { const it = itemOf(id), R = gameData.rarity[r]; toast(`✨ ${it ? it.name : id} อัปเป็นระดับ${R.name}แล้ว!`); });
     room.onMessage("bossSlam", (c) => scene && scene.bossSlam(c));
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
     room.onLeave((code) => {
@@ -391,6 +395,8 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
+    this.load.image("npcsrc_spiritkeeper", "/assets/npc_spiritkeeper.png");
+    (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
   }
 
@@ -463,6 +469,26 @@ class WorldScene extends Phaser.Scene {
     $s(room.state).pets.onRemove((_p, id) => {
       const pv = this.petViews.get(id);
       if (pv) { pv.sp.destroy(); pv.sh.destroy(); this.petViews.delete(id); }
+    });
+    // ภูติ
+    this.spiritViews = new Map();
+    $s(room.state).spirits.onAdd((sp, id) => {
+      const v = { tx: sp.x, ty: sp.y, kind: sp.kind, r: -1, seed: Math.random() * 1000 };
+      v.sh = this.add.ellipse(sp.x, sp.y, 12, 4, 0x000000, 0.22);
+      v.aura = this.add.circle(sp.x, sp.y - 40, 12, 0xffffff, 0.18).setBlendMode(Phaser.BlendModes.ADD);
+      v.sp = this.add.sprite(sp.x, sp.y - 40, "spirit/" + sp.kind, 0).setScale(0.8);
+      this.spiritViews.set(id, v);
+      const sync = () => {
+        v.tx = sp.x; v.ty = sp.y;
+        if (sp.kind !== v.kind) { v.kind = sp.kind; v.sp.setTexture("spirit/" + sp.kind, 0); v.r = -1; }
+        if (sp.r !== v.r) this.spiritLook(v, sp.r);
+      };
+      sync();
+      $s(sp).onChange(sync);
+    });
+    $s(room.state).spirits.onRemove((_s, id) => {
+      const v = this.spiritViews.get(id);
+      if (v) { this.tweens.killTweensOf([v.aura, v.fx].filter(Boolean)); v.sp.destroy(); v.sh.destroy(); v.aura.destroy(); this.spiritViews.delete(id); }
     });
     this.dropViews = new Map();
     $s(room.state).drops.onAdd((d, id) => this.addDrop(d, id));
@@ -864,7 +890,7 @@ class WorldScene extends Phaser.Scene {
   }
 
   // ---------- เอฟเฟกต์ ----------
-  onHit({ tgt, src, dmg, crit, miss, poison }) {
+  onHit({ tgt, src, dmg, crit, miss, poison, sp }) {
     const v = this.views.get(tgt);
     if (!v) return;
     if (poison) { // พิษ: ตัวเลขเขียวเล็ก ๆ เฉพาะคนที่โดน
@@ -877,7 +903,7 @@ class WorldScene extends Phaser.Scene {
     if (!mine && !onMe && !v.isMob) return;
     const x = v.root.x + Phaser.Math.Between(-10, 10), y = v.root.y - 72;
     if (miss) { this.floatText(x, y, "MISS", "#c7cbe0", 12); return; }
-    const color = onMe ? "#ff5a5a" : crit ? "#ffb03a" : mine ? "#ffffff" : "#c7cbe0";
+    const color = onMe ? "#ff5a5a" : crit ? "#ffb03a" : sp && mine ? "#9fe8ff" : mine ? "#ffffff" : "#c7cbe0";
     this.floatText(x, y, crit ? dmg + "!" : String(dmg), color, crit ? 20 : mine || onMe ? 16 : 12);
     if (!v.dead) {
       v.sprite.setTintFill(0xffffff);
@@ -1221,8 +1247,96 @@ class WorldScene extends Phaser.Scene {
       pv.sp.setFrame((ROW[pv.dir] ?? 0) * 2 + flap);
     });
   }
+  // ภูติ: ลอยขึ้นลง · ออร่าสีตามระดับ (ม่วง/ทอง = ใหญ่และเรืองแรงขึ้น)
+  spiritLook(v, r) {
+    v.wantR = r;
+    if (!gameData) return; // ยังไม่ได้ข้อมูล → ทำตอนอัปเดตเฟรมถัดไป
+    v.r = r;
+    const R = gameData && gameData.rarity[r], it = gameData && gameData.items[v.kind];
+    const col = Phaser.Display.Color.HexStringToColor((r >= 2 && R ? R.color : it && it.spirit ? it.spirit.color : "#ffffff")).color;
+    this.tweens.killTweensOf(v.aura);
+    v.aura.setFillStyle(col, 0.12 + r * 0.04).setRadius(10 + r * 2);
+    this.tweens.add({ targets: v.aura, scale: { from: 0.85, to: 1.2 }, alpha: { from: 0.6, to: 1 }, duration: 900 - r * 80, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    if (this.game.renderer.type === Phaser.WEBGL && v.sp.preFX) {
+      v.sp.preFX.clear(); v.fx = null;
+      if (r >= 2) { v.fx = v.sp.preFX.addGlow(Phaser.Display.Color.HexStringToColor(R.color).color, 1, 0, false, 0.1, 10); this.tweens.add({ targets: v.fx, outerStrength: { from: 1, to: r + 1 }, duration: 800, yoyo: true, repeat: -1 }); }
+    }
+  }
+  updateSpirits(time) {
+    this.spiritViews.forEach((v) => {
+      if (v.r < 0 && gameData && v.wantR !== undefined) this.spiritLook(v, v.wantR);
+      let x = v.sh.x, y = v.sh.y;
+      if (Math.abs(v.tx - x) > 300 || Math.abs(v.ty - y) > 300) { x = v.tx; y = v.ty; }
+      else { x += (v.tx - x) * 0.2; y += (v.ty - y) * 0.2; }
+      const bob = Math.sin((time + v.seed) / 300) * 3.5;
+      v.sh.setPosition(x, y).setDepth(y - 1);
+      v.sp.setPosition(x, y - 40 + bob).setDepth(y + 3).setFrame(Math.floor((time + v.seed) / 160) % 4);
+      v.aura.setPosition(x, y - 40 + bob).setDepth(y + 2);
+      v.sp.setFlipX(v.tx < x - 1 ? true : v.tx > x + 1 ? false : v.sp.flipX);
+      if (v.r >= 3 && time >= (v.nextSpark || 0)) { // ม่วง/ทอง: ประกายลอย
+        v.nextSpark = time + 160 + Math.random() * 160;
+        const c = Phaser.Display.Color.HexStringToColor(gameData.rarity[v.r].color).color;
+        const p = this.add.circle(x + (Math.random() - 0.5) * 22, y - 40 + bob + (Math.random() - 0.5) * 16, 1.2, c, 1).setDepth(y + 4).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: p, y: p.y - 14, alpha: 0, duration: 650, onComplete: () => p.destroy() });
+      }
+    });
+  }
+  // ภูติใช้สกิล: ยิงจากตัวภูติ · ฮีล = วงแสงที่เจ้าของ · เลเวลอัป = ประกาย
+  spiritFx({ id, kind, fx, tgts, heal, lvup }) {
+    const v = this.spiritViews && this.spiritViews.get(id), owner = this.views.get(id);
+    if (!v) return;
+    const it = gameData && gameData.items[kind], col = Phaser.Display.Color.HexStringToColor((it && it.spirit && it.spirit.color) || "#ffffff").color;
+    this.tweens.add({ targets: v.sp, scale: { from: 1.15, to: 0.85 }, duration: 220, ease: "Back.easeOut" });
+    if (lvup) { this.sparkle(v.sp.x, v.sp.y, col); this.sparkle(v.sp.x, v.sp.y - 6, 0xffffff); return; }
+    if (heal) {
+      if (!owner) return;
+      const ring = this.add.circle(owner.root.x, owner.root.y - 4, 18, col, 0.22).setStrokeStyle(2, col, 0.9).setDepth(owner.root.depth - 1);
+      this.tweens.add({ targets: ring, scale: 2.4, alpha: 0, duration: 600, onComplete: () => ring.destroy() });
+      this.sparkle(owner.root.x, owner.root.y - 30, col);
+      const beam = this.add.line(0, 0, v.sp.x, v.sp.y, owner.root.x, owner.root.y - 30, col, 0.7).setOrigin(0).setLineWidth(2).setDepth(1e6 - 2).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: beam, alpha: 0, duration: 400, onComplete: () => beam.destroy() });
+      return;
+    }
+    const from = { x: v.sp.x, y: v.sp.y };
+    if (fx === "bolt") { // สายฟ้ากระโดดเป็นลูกโซ่
+      let a = from;
+      (tgts || []).forEach((t, i) => {
+        const b = this.views.get(t);
+        if (!b) return;
+        const to = { x: b.root.x, y: b.root.y - 26 }, a0 = a;
+        this.time.delayedCall(i * 70, () => this.lightning(a0, to, 0xfff27a));
+        a = to;
+      });
+      return;
+    }
+    const b = tgts && this.views.get(tgts[0]);
+    if (!b) return;
+    this.shotFrom(from, b, fx === "dark" ? "dark" : fx);
+  }
+  lightning(a, b, col) {
+    const g = this.add.graphics().setDepth(1e6 - 1).setBlendMode(Phaser.BlendModes.ADD);
+    const pts = [a];
+    for (let i = 1; i < 6; i++) { const t = i / 6; pts.push({ x: a.x + (b.x - a.x) * t + (Math.random() - 0.5) * 14, y: a.y + (b.y - a.y) * t + (Math.random() - 0.5) * 14 }); }
+    pts.push(b);
+    for (const [w, al, c] of [[5, 0.35, col], [2, 1, 0xffffff]]) { g.lineStyle(w, c, al); g.beginPath(); g.moveTo(pts[0].x, pts[0].y); pts.slice(1).forEach((p) => g.lineTo(p.x, p.y)); g.strokePath(); }
+    this.burst(b.x, b.y, col, 16);
+    this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+  }
+  shotFrom(from, b, kind) {
+    const COL = { fire: 0xff8a3a, ice: 0x9fe3ff, dark: 0xb06aff };
+    const c = COL[kind] || 0xffffff, x1 = b.root.x, y1 = b.root.y - 26;
+    const d = Math.hypot(x1 - from.x, y1 - from.y), ms = Math.min(450, 60 + d * 1.4);
+    const o = this.add.container(from.x, from.y, [this.add.circle(0, 0, 6, c, 0.4), this.add.circle(0, 0, 3, 0xffffff, 0.95)]).setDepth(1e6 - 1);
+    o.list[0].setBlendMode(Phaser.BlendModes.ADD);
+    const trail = this.time.addEvent({ delay: 30, loop: true, callback: () => {
+      const t = this.add.circle(o.x, o.y, 3, c, 0.6).setDepth(1e6 - 2).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: t, scale: 0.2, alpha: 0, duration: 220, onComplete: () => t.destroy() });
+    } });
+    this.tweens.add({ targets: o, x: x1, y: y1, duration: ms, onComplete: () => { trail.remove(); o.destroy(); this.burst(x1, y1, c, 18); } });
+  }
   update(time, dt) {
     if (this.petViews) this.updatePets(time);
+    if (this.spiritViews) this.updateSpirits(time);
     this.updateBossBar();
     this.updateTargetBar(time);
     const k = Math.min(1, (dt / 1000) * 14);
@@ -1264,7 +1378,7 @@ class WorldScene extends Phaser.Scene {
     if (this.pendingNpc) {
       const mv = this.views.get(room.sessionId);
       if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
-        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else openShop(this.pendingNpc.id);
+        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else if (this.pendingNpc.id === "spiritkeeper") openSpirit(); else openShop(this.pendingNpc.id);
         this.pendingNpc = null;
       }
     }

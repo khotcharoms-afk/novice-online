@@ -8,12 +8,12 @@ const BAR_KEYS = ["q", "e", "r", "f", "z", "x", "v", "b"];
 const DOLL_L = ["head", "face", "ear", "armor", "gloves", "neck"];
 const DOLL_R = ["weapon", "offhand", "cape", "shoes", "ring"];
 const ACC_TH = { neck: "สร้อยคอ", ring: "แหวน", ear: "ต่างหู" };
-const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง" };
+const TYPE_NAME = { equip: "อุปกรณ์", use: "ของใช้", material: "ของดรอป", pet: "สัตว์เลี้ยง", spirit: "ภูติ" };
 const BONUS_NAME = { atk: "พลังโจมตี", def: "ป้องกัน", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP สูงสุด", maxSp: "SP สูงสุด" };
 const itemOf = (id) => gameData && gameData.items[id];
 // ระดับความหายาก / ชื่อพร้อม +ตีบวก
 const isGear = (g) => !!(g && itemOf(g.id) && itemOf(g.id).type === "equip");
-const rarOf = (g) => (isGear(g) && gameData.rarity ? gameData.rarity[g.r || 0] : null);
+const rarOf = (g) => ((isGear(g) || (g && itemOf(g.id) && itemOf(g.id).type === "spirit")) && gameData.rarity ? gameData.rarity[g.r || 0] : null);
 // ไอคอนของตีบวก +7 ขึ้นไปเรืองแสง (สีเดียวกับแสงบนตัวละคร)
 const refineGlow = (g) => {
   const up = (g && g.up) || 0;
@@ -50,9 +50,10 @@ function wearHtml(id, it) {
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
 function onInv(v) {
-  INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null };
+  INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null, spirit: v.spirit || null, spq: v.spq || null };
   renderInv(); renderPaperDoll(); renderShop(); renderItemBar(); renderSmith();
   if (typeof renderQuestTrack === "function") { renderQuestTrack(); renderJob(); }
+  if (typeof renderSpirit === "function") { renderSpiritTrack(); renderSpirit(); }
   refreshCard();
 }
 // กระเป๋าอัปเดต (ได้เงิน/เก็บของ/กินยา) → การ์ดที่เปิดอยู่ไม่ปิดเอง: แสดงข้อมูลใหม่ของชิ้นเดิม · ชิ้นนั้นย้ายไป/หายไปแล้วค่อยปิด
@@ -64,6 +65,7 @@ function refreshCard() {
   let cur = null;
   if (ctx.where === "inv") cur = INV.inv[ctx.idx];
   else if (ctx.where === "eq") cur = INV.equip[ctx.slot];
+  else if (ctx.where === "spirit") cur = INV.spirit;
   else return; // ร้านค้า/สัตว์เลี้ยง: ข้อมูลไม่เปลี่ยน
   if (!cur || cur.id !== g.id || (cur.up || 0) !== (g.up || 0) || (cur.r || 0) !== (g.r || 0)) return hideCard();
   const left = c.style.left, top = c.style.top;
@@ -129,7 +131,7 @@ function quickUse(idx) {
   if (moveFrom !== null) return;
   if (!$("shopPanel").hidden && shopTab === "sell") return addSell(idx, s.n);
   if (it && it.type === "equip") room.send("equip", { idx });
-  else if (it && it.type === "pet") room.send("useItem", { idx });
+  else if (it && (it.type === "pet" || it.type === "spirit")) room.send("useItem", { idx });
   else if (it && it.type === "use") room.send("useItem", { idx });
 }
 function toggleInv(force) {
@@ -174,6 +176,18 @@ function renderPaperDoll() {
     b.ondblclick = () => id && room.send("petOff");
     makeDrop(b, (d) => d.from === "inv" && itemOf(INV.inv[d.idx]?.id)?.type === "pet", (d) => room.send("useItem", { idx: d.idx }));
     pb.appendChild(b);
+    // ช่องภูติ
+    const s = INV.spirit, sit = s && itemOf(s.id);
+    const c = document.createElement("button");
+    c.type = "button";
+    c.className = "eq-slot spirit-slot" + (s ? " filled" : "");
+    if (s) applyFrame(c, s);
+    c.innerHTML = s ? `<img src="${ICON(s.id)}" alt=""><span>${nameHtml(s)} <small>Lv.${s.lv}</small></span>` : `<span>ภูติ</span>`;
+    c.title = s ? "ภูติกำลังช่วยต่อสู้" : "รับภูติได้จากเควสของลูน่า (ผู้ผนึกภูติ) ในเมือง";
+    c.onclick = (e) => { if (s) openCard(s, { where: "spirit" }, e); };
+    c.ondblclick = () => s && room.send("spiritOff");
+    makeDrop(c, (d) => d.from === "inv" && itemOf(INV.inv[d.idx]?.id)?.type === "spirit", (d) => room.send("useItem", { idx: d.idx }));
+    pb.appendChild(c);
   }
   drawDoll();
 }
@@ -225,6 +239,8 @@ function openCard(g, ctx, ev) {
     const tiers = Object.entries(S.tiers).map(([n, t]) => `<li class="${have >= Number(n) ? "on" : ""}">${n} ชิ้น: ${fxTxt(t)}</li>`).join("");
     return `<div class="set-box"><div class="set-name">${S.name} <b>(${have}/${S.pieces.length})</b>${S.job ? ` <small>${S.job}</small>` : ""}</div><div class="set-pcs">${pcs}</div><ul>${tiers}</ul></div>`;
   }).join("");
+  let spiritHtml = "";
+  if (it.spirit && g.si) spiritHtml = spiritCardHtml(g, it);
   if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
   const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ",
     ranger: "ชุดนักพราน", shadow: "ชุดพรานเงา", mage: "ชุดนักเวท", priest: "ชุดนักบวช", arch: "ชุดจอมเวท", saint: "ชุดนักบุญ" };
@@ -236,7 +252,7 @@ function openCard(g, ctx, ev) {
   if (ctx.where === "inv") {
     if (it.type === "equip") acts.push(`<button class="btn-gold" data-a="equip">สวม</button>`);
     if (it.type === "use") acts.push(`<button class="btn-gold" data-a="use">ใช้</button>`, `<button class="btn-ghost" data-a="bar">ใส่ช่องลัด</button>`);
-    if (it.type === "pet") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
+    if (it.type === "pet" || it.type === "spirit") acts.push(`<button class="btn-gold" data-a="use">เรียกออกมา</button>`);
     if (!$("shopPanel").hidden) acts.push(`<button class="btn-ghost" data-a="sell">ใส่ตะกร้าขาย</button>`);
     acts.push(`<button class="btn-ghost" data-a="move">ย้ายช่อง</button>`, `<button class="btn-ghost danger" data-a="discard">ทิ้ง</button>`);
     if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
@@ -245,11 +261,12 @@ function openCard(g, ctx, ev) {
     if (!$("smithPanel").hidden && g.nx) acts.push(`<button class="btn-ghost" data-a="smith">ตีบวก</button>`);
   }
   else if (ctx.where === "pet") acts.push(`<button class="btn-ghost" data-a="petOff">เก็บกลับเข้ากระเป๋า</button>`);
+  else if (ctx.where === "spirit") acts.push(`<button class="btn-ghost" data-a="spiritOff">เก็บกลับเข้ากระเป๋า</button>`);
   const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
   card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}${it.type === "equip" ? wearHtml(id, it) : ""}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
     (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") + refineHtml + setHtml +
-    (it.desc ? `<div>${it.desc}</div>` : "") +
+    spiritHtml + (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
   card.querySelectorAll("button").forEach((b) => (b.onclick = () => {
     const a = b.dataset.a;
@@ -262,6 +279,7 @@ function openCard(g, ctx, ev) {
     if (a === "bar") assignBar(id);
     if (a === "smith") { openSmith(); smithSel = ctx.where === "eq" ? { slot: ctx.slot } : { idx: ctx.idx }; renderSmith(); }
     if (a === "petOff") room.send("petOff");
+    if (a === "spiritOff") room.send("spiritOff");
     hideCard();
   }));
   card.hidden = false;
@@ -273,6 +291,19 @@ function openCard(g, ctx, ev) {
   x = Math.max(8, x);
   const y = Math.min(window.innerHeight - r.height - 8, Math.max(8, ev.clientY - 10));
   card.style.left = x + "px"; card.style.top = y + "px";
+}
+// การ์ดภูติ: เลเวล + แถบ EXP + สกิล (ค่าจริงตามระดับสี/เลเวล)
+function spiritCardHtml(g, it) {
+  const si = g.si, k = it.spirit.skill, max = gameData.spiritMaxLv || 50;
+  const pct = si.need ? Math.floor((g.ex * 100) / si.need) : 100;
+  const role = it.spirit.role === "heal" ? "สายรักษา" : "สายโจมตี";
+  const eff = [];
+  if (si.dmg) eff.push(`ดาเมจ ${si.dmg}% ของพลังโจมตีเรา${k.chain ? ` · กระโดดได้ ${k.chain} ตัว` : ""}${k.slow ? ` · ทำให้ช้า ${k.slow / 1000} วิ` : ""}${si.drain ? ` · ดูดเป็น HP ${si.drain}%` : ""}`);
+  if (si.heal) eff.push(`ฟื้น HP ${si.heal}%${si.sp ? ` + SP ${si.sp}%` : ""} เมื่อ HP ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
+  return `<div class="spirit-box"><div class="meta">${role} · Lv.${g.lv}/${max}</div>
+    <div class="sp-exp"><i style="width:${pct}%"></i><b>${si.need ? `EXP ${g.ex.toLocaleString()}/${si.need.toLocaleString()}` : "เลเวลสูงสุด"}</b></div>
+    <div class="sp-skill"><b>${k.name}</b> <small>ทุก ${k.every / 1000} วิ</small><br>${eff.join("<br>")}</div>
+    <div class="meta">พลังภูติ ${si.power}% (ระดับสี × เลเวล) · ภูติได้ EXP 25% ของที่คุณได้ · เลเวลไม่เกินเลเวลคุณ</div></div>`;
 }
 function hideCard() { const c = $("itemCard"); if (c) c.hidden = true; cardCtx = null; }
 document.addEventListener("pointerdown", (e) => {
@@ -363,7 +394,7 @@ function setupItemsUI() {
     if (k === "i") toggleInv();
     const bi = BAR_KEYS.indexOf(k);
     if (bi >= 0) useBar(bi);
-    if (k === "escape") { hideCard(); closeShop(); closeSmith(); toggleInv(false); }
+    if (k === "escape") { hideCard(); closeShop(); closeSmith(); toggleInv(false); if (typeof closeSpirit === "function") closeSpirit(); }
   });
   // เดินออกห่างร้าน → ปิดร้าน
   setInterval(() => {

@@ -39,6 +39,11 @@ const ACTIONS = {
           if (Bag.addItem(b, a.id, 1, g)) left++;
           else if (n === 1) tag = ` [${I.RARITY[g.r].name}${g.up ? " +" + g.up : ""}]`;
         }
+      } else if (it.type === "spirit") { // ภูติ: เลือกระดับสี (r) + เลเวล (lv) ได้
+        left = 0;
+        const r = a.r === "rand" || a.r === undefined ? 1 : Number(a.r), lv = Math.floor(Number(a.lv) || 1);
+        for (let i = 0; i < n; i++) if (Bag.addItem(b, a.id, 1, { r, lv })) left++;
+        tag = ` [${I.RARITY[Math.max(0, Math.min(4, r | 0))].name} Lv.${lv}]`;
       } else left = Bag.addItem(b, a.id, n);
       if (left === n) fail("กระเป๋าเต็ม");
       return `ให้ ${it.name}${tag} ×${n - left}` + (left ? ` (กระเป๋าเต็ม ใส่ไม่ลง ${left})` : "");
@@ -125,7 +130,7 @@ async function editChar(charId, action, args) {
   if (action === "heal") fail("ตัวละครออฟไลน์อยู่ (ฟื้นเลือดตอนเข้าเกมอยู่แล้ว)");
   const c = await store.loadAny(charId);
   msg = fn(c, args || {});
-  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map", "job", "quest", "skills"];
+  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "spirit", "spq", "x", "y", "map", "job", "quest", "skills"];
   await store.save(charId, Object.fromEntries(keep.filter((k) => k in c).map((k) => [k, c[k] === undefined ? null : c[k]])));
   return { msg, online: false };
 }
