@@ -735,7 +735,7 @@ class WorldRoom extends Room {
     let id = null;
     this.state.players.forEach((pp, sid) => { if (pp === p) id = sid; });
     const client = id && this.clients.find((c) => c.sessionId === id);
-    if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, atkDelay: p.atkDelay,
+    if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, defPct: Math.round(D.defReduce(p.def, p.level) * 100), atkDelay: p.atkDelay,
       flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus, bonus: p.gearBonus || {},
       range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat, special: p.sx || {}, sets: Bag.activeSets(p.bag || Bag.emptyBag(), p.job) });
   }
@@ -1434,7 +1434,7 @@ class WorldRoom extends Room {
     if (Math.random() < Math.max(0, missChance - (a.hitBonus || 0))) return { dmg: 0, miss: true };
     if (d.flee && Math.random() < d.flee) return { dmg: 0, miss: true };
     const crit = Math.random() < (a.crit ?? 0.05);
-    let dmg = a.atk * rand(0.9, 1.1) * mult - d.def * 0.5 * (1 - (a.ignoreDef || 0));
+    let dmg = a.atk * rand(0.9, 1.1) * mult * (1 - D.defReduce(d.def * (1 - (a.ignoreDef || 0)), a.lv || 1));
     if (crit) dmg *= 1.5 + (a.critDmg || 0);
     return { dmg: Math.max(1, Math.round(dmg)), crit };
   }

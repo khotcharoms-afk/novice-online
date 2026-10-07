@@ -1684,7 +1684,7 @@ function renderStats() {
   const pc = (x) => (x * 100).toFixed(1) + "%";
   const plus = (k) => (derived.bonus && derived.bonus[k] ? ` <span class="bonus">(+${derived.bonus[k]})</span>` : "");
   const rows = [
-    [`พลังโจมตี${derived.atkType && derived.atkType !== "str" ? ` (${derived.atkType.toUpperCase()})` : ""}`, derived.atk + plus("atk")], ["ป้องกัน", derived.def + plus("def")],
+    [`พลังโจมตี${derived.atkType && derived.atkType !== "str" ? ` (${derived.atkType.toUpperCase()})` : ""}`, derived.atk + plus("atk")], ["ป้องกัน", derived.def + plus("def") + (derived.defPct !== undefined ? ` <small class="muted">(ลดดาเมจ ~${derived.defPct}%)</small>` : "")],
     ["HP สูงสุด", me.maxHp + plus("maxHp")], ["SP สูงสุด", me.maxSp + plus("maxSp")],
     ["ตีทุก", (derived.atkDelay / 1000).toFixed(2) + " วิ"], ["หลบ", pc(derived.flee)],
     ["คริติคอล", pc(derived.crit)], ["แม่นยำ", "+" + pc(derived.hitBonus)],

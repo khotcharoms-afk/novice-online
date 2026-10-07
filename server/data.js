@@ -227,12 +227,16 @@ const MINI_BOSSES = {
   dragon: { base: "dragonknight", name: "ขุนพลมังกรเพลิง", level: 95, tint: 0xffc080, scale: 1.7, ranged: { range: 170, fx: "fire", every: 2000 } },
   abyss:  { base: "abysslord", name: "เจ้าแห่งห้วงอเวจี", level: 99, tint: 0xd090ff, scale: 1.6 },
 };
+// ตั้งแต่ Lv.30 ขึ้นไป มอนอึดขึ้น ×2 ตีแรงขึ้น ×1.5 (ช่วงเลเวลต่ำค่อย ๆ เพิ่ม — มือใหม่ยังเล่นสบาย) · EXP เพิ่มตาม (×1.5) เพราะตีนานขึ้น
+const mobScale = (lv) => Math.min(1, lv / 30);
 const monsterStats = (lv) => ({
-  maxHp: 30 + lv * 20 + Math.round(0.5 * lv * lv),
-  atk: 3 + Math.round(lv * 3.2),
+  maxHp: Math.round((30 + lv * 20 + 0.5 * lv * lv) * (1 + mobScale(lv))),
+  atk: Math.round((3 + lv * 3.2) * (1 + 0.5 * mobScale(lv))),
   def: lv,
-  exp: Math.round(6 * Math.pow(lv, 1.5)),
+  exp: Math.round(6 * Math.pow(lv, 1.5) * (1 + 0.5 * mobScale(lv))),
 });
+// ป้องกันลดดาเมจเป็น % (ไม่ใช่ลบตรง ๆ) — ยิ่งป้องกันสูงยิ่งลดได้มาก แต่ไม่เกิน 75% · ผู้โจมตีเลเวลสูงทะลุป้องกันได้ดีขึ้น
+const defReduce = (def, atkLv) => Math.min(0.75, Math.max(0, def) / (Math.max(0, def) + 100 + 8 * atkLv));
 const MONSTER_RESPAWN_MS = 8000;
 
 // ---------- World Boss ----------
@@ -474,7 +478,7 @@ const JOB_QUESTS = {
 module.exports = { WORLD_BOSSES, MINI_BOSSES,
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
-  MONSTERS, monsterStats, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
+  MONSTERS, monsterStats, defReduce, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
   JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS,
   SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus,
 };
