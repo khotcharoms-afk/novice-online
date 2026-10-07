@@ -546,6 +546,13 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
     DROPS[k].push(...TIERS.tierDrops(m.level, big ? 0.002 : 0.0012));
   }
 }
+// ---------- อุปกรณ์ประจำอาชีพขั้น 2 Lv.50/70/90 (server/classgear.js) — ดรอปจากมินิบอสและ World Boss ----------
+{
+  const CG = require("./classgear"), TIERS = require("./tiers"), D = require("./data");
+  const { items, sets } = CG.build(ITEMS, TIERS.SHAPES, D.JOBS);
+  Object.assign(ITEMS, items);
+  Object.assign(ITEM_SETS, sets);
+}
 // ---------- ภูติ (server/spirits.js) + ผลึกวิญญาณสำหรับอัประดับ ----------
 {
   const SP = require("./spirits");

@@ -15,6 +15,7 @@ const D = require("./data");
 const I = require("./items");
 const Bag = require("./inventory");
 const SP = require("./spirits");
+const CG = require("./classgear");
 
 const SPEED = 170;           // ความเร็วเดินผู้เล่น (px/วินาที)
 const TICK_MS = 50;          // อัปเดตโลก 20 ครั้ง/วินาที
@@ -1636,14 +1637,17 @@ class WorldRoom extends Room {
   bossLoot(m, r, mvp, total) {
     const B = r.boss, L = B.loot, mp = mvp && this.state.players.get(mvp);
     const at = (i, n) => { const a = (i / n) * Math.PI * 2; return [m.x + Math.cos(a) * 46, m.y + Math.sin(a) * 30]; };
-    const tierPool = (L.tiers || []).flatMap((lv) => Object.keys(I.ITEMS).filter((k) => k.startsWith(`t${lv}_`)));
-    const pool = [...(L.pool || []), ...tierPool].sort(() => Math.random() - 0.5);
+    const pool = [...(L.pool || [])].sort(() => Math.random() - 0.5);
     const N = L.gear + L.items.length;
     for (let i = 0; i < L.gear; i++) {
       // ชิ้นแรก = รางวัล MVP: มหากาพย์ขึ้นไปแน่นอน · ชิ้นอื่นสุ่ม ดี–ตำนาน
       const x = Math.random(), rar = i === 0 ? (x < 0.2 ? 4 : 3) : (x < 0.04 ? 4 : x < 0.25 ? 3 : 2); // ชิ้นแรกม่วงขึ้นไปแน่นอน · ที่เหลือน้ำเงินขึ้นไป
       const [dx, dy] = at(i, N);
-      this.spawnDrop(pool[i % pool.length], 1, dx, dy, i === 0 ? mvp : null, I.makeGear(pool[i % pool.length], rar));
+      // บอส Lv.50+: อุปกรณ์ประจำอาชีพขั้น 2 (L.cls = ขั้นที่ดรอป) · ชิ้น MVP เป็นของอาชีพ MVP 60%
+      let id;
+      if (L.cls) { const lv = L.cls[Math.floor(Math.random() * L.cls.length)]; id = CG.pickClassItem(lv, i === 0 ? mp && mp.job : null); }
+      else id = pool[i % pool.length];
+      this.spawnDrop(id, 1, dx, dy, i === 0 ? mvp : null, I.makeGear(id, rar));
     }
     if (L.set && L.set.length) { // ชิ้นชุดพิเศษของบอส 1 ชิ้นแน่นอน
       const id = L.set[Math.floor(Math.random() * L.set.length)], x = Math.random();
@@ -1818,9 +1822,14 @@ class WorldRoom extends Room {
         : r.rank === 1 ? (Math.random() < 0.2 ? 1 : 0) : m.level >= 10 && Math.random() < 0.005 * (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) ? 1 : 0;
       if (sh) this.spawnDrop("spirit_shard", sh, m.x - 10, m.y + 4, r.boss ? null : top, null);
     }
-    if (r.rank === 2) { // มินิบอส: อุปกรณ์ 1 ชิ้นแน่นอน
-      const eq = table.filter(([id]) => I.ITEMS[id].type === "equip");
-      if (eq.length) { const id = eq[Math.floor(Math.random() * eq.length)][0]; this.spawnDrop(id, 1, m.x + 10, m.y + 6, top, gearOf(id)); }
+    if (r.rank === 2) { // มินิบอส: อุปกรณ์ 1 ชิ้นแน่นอน · Lv.45+ = อุปกรณ์ประจำอาชีพขั้น 2 (มักเป็นของอาชีพคนที่ตีมากสุด)
+      if (m.level >= 45) {
+        const id = CG.pickClassItem(CG.classTierOf(m.level), tp && tp.job);
+        this.spawnDrop(id, 1, m.x + 10, m.y + 6, top, gearOf(id));
+      } else {
+        const eq = table.filter(([id]) => I.ITEMS[id].type === "equip");
+        if (eq.length) { const id = eq[Math.floor(Math.random() * eq.length)][0]; this.spawnDrop(id, 1, m.x + 10, m.y + 6, top, gearOf(id)); }
+      }
     }
     if (r.boss) {
       this.bossLoot(m, r, top, total);

@@ -85,6 +85,7 @@ function build(ITEMS) {
       if (B.back) it.back = true;
       if (t.aura && P.slot === "weapon") it.aura = t.aura;
       if (P.slot === "weapon" && t.lv >= 70) it.desc = `อาวุธระดับ${t.name} — มีออร่าเรืองแสงรอบตัวตอนถือ`;
+      if (t.lv >= 50 && LOCKED(P)) { it.legacy = true; it.desc = (it.desc ? it.desc + " · " : "") + "อุปกรณ์รุ่นเก่า (ไม่ดรอปแล้ว — แทนด้วยอุปกรณ์ประจำอาชีพขั้น 2)"; }
       items[tid(t, pk)] = it;
     }
     // เซ็ตของขั้นนี้
@@ -107,6 +108,8 @@ function build(ITEMS) {
 const tierOf = (lv) => Math.min(90, Math.max(40, Math.floor((lv + 4) / 10) * 10));
 function tierDrops(mobLv, chance = 0.0012) {
   const t = TIERS.find((x) => x.lv === tierOf(mobLv));
-  return Object.keys(PIECES).map((pk) => [tid(t, pk), chance, 1, 1]);
+  // Lv.50+ อาวุธ/ชุด/มือรอง ถูกแทนด้วยอุปกรณ์ประจำอาชีพ (classgear.js) → มอนธรรมดาดรอปแค่เครื่องประดับ
+  return Object.keys(PIECES).filter((pk) => t.lv < 50 || !LOCKED(PIECES[pk])).map((pk) => [tid(t, pk), chance, 1, 1]);
 }
-module.exports = { TIERS, PIECES, SET_KINDS, build, tierDrops, tierOf };
+const LOCKED = (P) => !!(P.wt || P.ot || P.ac);
+module.exports = { TIERS, PIECES, SET_KINDS, SHAPES, build, tierDrops, tierOf };

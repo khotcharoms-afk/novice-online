@@ -163,7 +163,7 @@ const glowString = (b) => ["weapon", "offhand"]
 //  เกราะ (หนัก/เบา/ผ้า): ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ · Lv20 ขึ้นไปต้องตรงประเภทของอาชีพ
 //  ผ้าคลุม/หน้า/เครื่องประดับ: ใส่ได้ทุกอาชีพ
 // ของ Lv.50+ ที่ล็อกอาชีพ (อาวุธ/ชุด/มือรอง) → ต้องเป็นอาชีพขั้น 2 · ของประดับไม่ล็อก
-const job2Locked = (it) => it && it.type === "equip" && (it.lv || 1) >= D.JOB2_LEVEL && !!(it.wt || it.ac || it.ot);
+const job2Locked = (it) => it && it.type === "equip" && (it.lv || 1) >= D.JOB2_LEVEL && !!(it.wt || it.ac || it.ot || it.cls);
 function wearError(job, it) {
   const err = lineWearError(job, it);
   if (err || !job2Locked(it)) return err;
@@ -173,6 +173,8 @@ function wearError(job, it) {
 // กฎตามสายอาชีพ (ไม่สนขั้น)
 function lineWearError(job, it) {
   const J = D.JOBS[job] || D.JOBS.villager;
+  // อุปกรณ์ประจำอาชีพขั้น 2: อาชีพนั้นอาชีพเดียว (อาชีพขั้น 1 สายเดียวกันผ่านไปเจอด่านขั้น 2 ใน wearError)
+  if (it && it.cls && job !== it.cls && job !== (D.JOBS[it.cls] || {}).base) return `ใช้ได้เฉพาะ${D.JOBS[it.cls].name}`;
   if (!it || it.type !== "equip") return "ใส่ไอเทมนี้ไม่ได้";
   const lv = it.lv || 1;
   if (it.ot) { // มือรองประจำอาชีพ

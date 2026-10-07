@@ -263,7 +263,7 @@ const WORLD_BOSSES = {
     slam: { every: 8000, cast: 1200, r: 150, mult: 2.3 },
     summon: { at: [0.6, 0.3], kind: "skelknight", n: 4 },
     enrage: 0.3,
-    loot: { gear: 4, tiers: [50, 60], pool: [], items: [["stone_3", 4, 6], ["potion_l", 5, 8], ["spirit_shard", 3, 5]] },
+    loot: { gear: 4, cls: [50, 50, 70], pool: [], items: [["stone_3", 4, 6], ["potion_l", 5, 8], ["spirit_shard", 3, 5]] },
   },
   abyssdragon: {
     name: "มังกรอเวจีนิรันดร์", level: 90, sprite: "wyvern", tint: 0x8a4aff, scale: 2.5, speed: 85, aggressive: true,
@@ -272,7 +272,7 @@ const WORLD_BOSSES = {
     slam: { every: 7500, cast: 1100, r: 165, mult: 2.4 },
     summon: { at: [0.6, 0.3], kind: "dragonknight", n: 4 },
     enrage: 0.35,
-    loot: { gear: 5, tiers: [80, 90], pool: [], items: [["stone_3", 6, 9], ["potion_xl", 5, 8], ["spirit_shard", 5, 8]] },
+    loot: { gear: 5, cls: [70, 90, 90], pool: [], items: [["stone_3", 6, 9], ["potion_xl", 5, 8], ["spirit_shard", 5, 8]] },
   },
 };
 
