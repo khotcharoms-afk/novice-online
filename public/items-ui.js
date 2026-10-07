@@ -181,10 +181,22 @@ function openCard(g, ctx, ev) {
   // สเตตัสแฝง (สีเหลือง): ของในกระเป๋า = ค่าจริงของชิ้นนั้น · ของในร้าน = ค่าที่ติดมากับไอเทม
   const SX = gameData.special || {}, spc = g.sp || (g.st ? null : it.special) || {};
   const hidden = Object.entries(spc).map(([k, v]) => `<li>${(SX[k] || {}).name || k} +${v}%</li>`);
+  const fxTxt = (t) => [...Object.entries(t.b || {}).map(([k, v]) => `${BONUS_NAME[k] || k} +${v}`), ...Object.entries(t.sp || {}).map(([k, v]) => `${(SX[k] || {}).name || k} +${v}%`)].join(" · ");
+  // โบนัสตีบวก (ถึงขั้นแล้ว = สีเหลือง, ยังไม่ถึง = จาง)
+  const refineHtml = it.refineFx ? `<div class="meta">โบนัสตีบวก</div><ul class="refine-fx">${Object.entries(it.refineFx).map(([need, t]) =>
+    `<li class="${(g.up || 0) >= Number(need) ? "on" : ""}">ตีบวก +${need} ขึ้นไป: ${fxTxt(t)}</li>`).join("")}</ul>` : "";
+  // เซ็ต: ชิ้นที่ใส่อยู่ติ๊กถูก · โบนัสตามจำนวนชิ้น
+  const eqIds = Object.values(INV.equip || {}).map((x) => x && x.id);
+  const setHtml = Object.entries(gameData.itemSets || {}).filter(([, S]) => S.pieces.some((gr) => gr.includes(id))).map(([, S]) => {
+    const have = S.pieces.filter((gr) => gr.some((x) => eqIds.includes(x))).length;
+    const pcs = S.pieces.map((gr) => { const on = gr.find((x) => eqIds.includes(x)); return `<span class="${on ? "on" : ""}">${gr.map((x) => itemOf(x).name).join(" / ")}</span>`; }).join("");
+    const tiers = Object.entries(S.tiers).map(([n, t]) => `<li class="${have >= Number(n) ? "on" : ""}">${n} ชิ้น: ${fxTxt(t)}</li>`).join("");
+    return `<div class="set-box"><div class="set-name">${S.name} <b>(${have}/${S.pieces.length})</b>${S.job ? ` <small>${S.job}</small>` : ""}</div><div class="set-pcs">${pcs}</div><ul>${tiers}</ul></div>`;
+  }).join("");
   if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
   const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ",
     ranger: "ชุดนักพราน", shadow: "ชุดพรานเงา", mage: "ชุดนักเวท", priest: "ชุดนักบวช", arch: "ชุดจอมเวท", saint: "ชุดนักบุญ" };
-  const setTxt = it.set ? ` · ${SET_NAME[it.set] || it.set}` : "";
+  const setTxt = "";
   const slotTxt = (it.type === "equip" ? ` · ${it.slot === "acc" ? "เครื่องประดับ" : gameData.slotName[it.slot]}` : "") + setTxt;
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
   const sell = g.sell ?? it.sell ?? Math.floor((it.price || 0) / 2);
@@ -204,7 +216,7 @@ function openCard(g, ctx, ev) {
   const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
   card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}${it.type === "equip" ? wearHtml(id, it) : ""}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
-    (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") +
+    (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") + refineHtml + setHtml +
     (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
   card.querySelectorAll("button").forEach((b) => (b.onclick = () => {

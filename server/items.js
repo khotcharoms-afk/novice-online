@@ -52,22 +52,22 @@ const ITEMS = {
   goldboots:  { ac: "heavy", name: "รองเท้าเกราะทองคำ", type: "equip", slot: "shoes", lv: 25, bonus: { def: 10, agi: 2 }, price: 8000, visual: true, sexed: true, set: "gold" },
   // =============== อุปกรณ์อาชีพ (Phase 6) — Lv20 ขายที่ร้าน · Lv30 ดรอปเท่านั้น ===============
   // ---------- ผู้พิทักษ์: ดาบมือเดียว + โล่ ----------
-  saber:          { wt: "sword", name: "ดาบอัศวิน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 50, vit: 2 }, price: 7000, visual: true, back: true },
-  moonblade:      { special: { lifesteal: 3 }, wt: "sword", name: "ดาบแสงจันทร์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 78, vit: 3, def: 4 }, price: 18000, visual: true, back: true },
-  shield_knight:  { wt: "shield", name: "โล่อัศวิน", type: "equip", slot: "offhand", lv: 20, bonus: { def: 12, vit: 1, maxHp: 40 }, price: 6000, visual: true, sexed: true },
-  shield_spartan: { special: { dmgReduce: 4 }, wt: "shield", name: "โล่สัมฤทธิ์สปาร์ตัน", type: "equip", slot: "offhand", lv: 30, bonus: { def: 19, vit: 2, maxHp: 80 }, price: 15000, visual: true },
+  saber:          { refineFx: { 7: { sp: { dmgReduce: 2 } }, 9: { b: { atk: 15 } } }, wt: "sword", name: "ดาบอัศวิน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 50, vit: 2 }, price: 7000, visual: true, back: true },
+  moonblade:      { refineFx: { 7: { sp: { lifesteal: 2 } }, 9: { sp: { atkPct: 5 } } }, special: { lifesteal: 3 }, wt: "sword", name: "ดาบแสงจันทร์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 78, vit: 3, def: 4 }, price: 18000, visual: true, back: true },
+  shield_knight:  { refineFx: { 7: { sp: { dmgReduce: 2 } } }, wt: "shield", name: "โล่อัศวิน", type: "equip", slot: "offhand", lv: 20, bonus: { def: 12, vit: 1, maxHp: 40 }, price: 6000, visual: true, sexed: true },
+  shield_spartan: { refineFx: { 7: { sp: { dmgReduce: 3 } }, 9: { b: { maxHp: 150 } } }, special: { dmgReduce: 4 }, wt: "shield", name: "โล่สัมฤทธิ์สปาร์ตัน", type: "equip", slot: "offhand", lv: 30, bonus: { def: 19, vit: 2, maxHp: 80 }, price: 15000, visual: true },
   // ---------- นักดาบใหญ่: อาวุธสองมือ ----------
-  greatsword:     { wt: "greatsword", name: "ดาบใหญ่", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 62, str: 2 }, price: 7500, visual: true, back: true },
-  titanaxe:       { special: { critPct: 5 }, wt: "axe", name: "ขวานยักษ์โลหิต", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 96, str: 4 }, price: 19000, visual: true, back: true },
+  greatsword:     { refineFx: { 7: { sp: { critPct: 3 } }, 9: { sp: { critDmg: 15 } } }, wt: "greatsword", name: "ดาบใหญ่", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 62, str: 2 }, price: 7500, visual: true, back: true },
+  titanaxe:       { refineFx: { 7: { sp: { atkPct: 5 } }, 9: { sp: { critDmg: 20 } } }, special: { critPct: 5 }, wt: "axe", name: "ขวานยักษ์โลหิต", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 96, str: 4 }, price: 19000, visual: true, back: true },
   // ---------- นักล่า: ธนู ----------
-  bow_hunter:     { wt: "bow", name: "ธนูพราน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 46, dex: 3 }, price: 7000, visual: true, back: true },
-  bow_shadow:     { special: { aspd: 6 }, wt: "bow", name: "ธนูโค้งเงา", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 72, dex: 5, agi: 2 }, price: 18000, visual: true, back: true },
+  bow_hunter:     { refineFx: { 7: { sp: { aspd: 4 } }, 9: { sp: { atkPct: 5 } } }, wt: "bow", name: "ธนูพราน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 46, dex: 3 }, price: 7000, visual: true, back: true },
+  bow_shadow:     { refineFx: { 7: { sp: { aspd: 5 } }, 9: { sp: { critPct: 5 } } }, special: { aspd: 6 }, wt: "bow", name: "ธนูโค้งเงา", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 72, dex: 5, agi: 2 }, price: 18000, visual: true, back: true },
   // ---------- นักเวทย์: คทา ----------
-  staff_oak:      { wt: "staff", name: "คทาไม้โอ๊ค", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 44, int: 3, maxSp: 30 }, price: 7000, visual: true, back: true },
-  staff_crystal:  { special: { spRegen: 20 }, wt: "staff", name: "คทาคริสตัลม่วง", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 70, int: 6, maxSp: 60 }, price: 18000, visual: true, back: true },
+  staff_oak:      { refineFx: { 7: { sp: { cdr: 3 } }, 9: { sp: { atkPct: 5 } } }, wt: "staff", name: "คทาไม้โอ๊ค", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 44, int: 3, maxSp: 30 }, price: 7000, visual: true, back: true },
+  staff_crystal:  { refineFx: { 7: { sp: { cdr: 4 } }, 9: { sp: { spRegen: 25, atkPct: 6 } } }, special: { spRegen: 20 }, wt: "staff", name: "คทาคริสตัลม่วง", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 70, int: 6, maxSp: 60 }, price: 18000, visual: true, back: true },
   // ---------- หมอ: คัมภีร์ลอย ----------
-  book_light:     { wt: "book", name: "คัมภีร์แสง", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 34, int: 3, maxSp: 40 }, price: 7000, visual: true, back: true },
-  book_holy:      { special: { healPct: 10 }, wt: "book", name: "คัมภีร์ศักดิ์สิทธิ์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 54, int: 6, vit: 2, maxSp: 70 }, price: 18000, visual: true, back: true },
+  book_light:     { refineFx: { 7: { sp: { healPct: 6 } }, 9: { sp: { cdr: 4 } } }, wt: "book", name: "คัมภีร์แสง", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 34, int: 3, maxSp: 40 }, price: 7000, visual: true, back: true },
+  book_holy:      { refineFx: { 7: { sp: { healPct: 8 } }, 9: { sp: { undeadDmg: 25, cdr: 5 } } }, special: { healPct: 10 }, wt: "book", name: "คัมภีร์ศักดิ์สิทธิ์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 54, int: 6, vit: 2, maxSp: 70 }, price: 18000, visual: true, back: true },
   // ---------- เกราะเบา: ชุดนักพราน (Lv20) / ชุดพรานเงา (Lv30) ----------
   ranger_cap:     { ac: "light", set: "ranger", name: "หมวกพราน", type: "equip", slot: "head", lv: 20, bonus: { def: 6, dex: 2 }, price: 3800, visual: true },
   ranger_vest:    { ac: "light", set: "ranger", name: "เสื้อหนังพราน", type: "equip", slot: "armor", lv: 20, bonus: { def: 18, agi: 2 }, price: 6200, visual: true, sexed: true },
@@ -143,6 +143,61 @@ const ITEMS = {
   old_bone:   { name: "กระดูกเก่า", type: "material", sell: 26 },
   orc_scrap:  { name: "เศษเกราะออร์ค", type: "material", sell: 40 },
 };
+
+// =============================================================
+//  เซ็ตอุปกรณ์: ใส่ครบตามจำนวนชิ้นได้โบนัสเพิ่ม (b = ค่าพลัง, sp = สเตตัสแฝง %)
+//  pieces = รายการช่อง แต่ละช่องใส่ชิ้นไหนก็ได้ในกลุ่ม (เช่นอาวุธของเซ็ตเลือกได้หลายแบบ)
+// =============================================================
+const ITEM_SETS = {
+  leather: { name: "ชุดหนัง", pieces: [["hood"], ["leather"], ["gloves"], ["boots"]],
+    tiers: { 2: { b: { def: 2 } }, 4: { b: { agi: 2, maxHp: 40 } } } },
+  chain: { name: "ชุดโซ่", pieces: [["mailcoif"], ["chain"], ["bracers"], ["ironboots"]],
+    tiers: { 2: { b: { def: 3 } }, 4: { b: { vit: 2, maxHp: 60 }, sp: { dmgReduce: 2 } } } },
+  plate: { name: "ชุดเกราะเหล็ก", job: "ผู้พิทักษ์ / นักดาบใหญ่", pieces: [["greathelm"], ["plate"], ["gauntlets"], ["plateboots"], ["saber", "greatsword"]],
+    tiers: { 2: { b: { def: 5, maxHp: 60 } }, 4: { b: { str: 2, vit: 2 }, sp: { dmgReduce: 3 } }, 5: { b: { atk: 20 }, sp: { atkPct: 5 } } } },
+  gold: { name: "ชุดเกราะทองคำ", job: "ผู้พิทักษ์ / นักดาบใหญ่", pieces: [["goldhelm"], ["goldplate"], ["goldgaunt"], ["goldboots"], ["moonblade", "titanaxe"]],
+    tiers: { 2: { b: { def: 8, maxHp: 100 } }, 4: { b: { str: 3, vit: 3 }, sp: { dmgReduce: 4, hpRegen: 20 } }, 5: { b: { atk: 35 }, sp: { atkPct: 8, critDmg: 15 } } } },
+  knight: { name: "อาวุธคู่อัศวิน", job: "ผู้พิทักษ์", pieces: [["saber", "moonblade"], ["shield_knight", "shield_spartan"]],
+    tiers: { 2: { b: { def: 6, vit: 2 }, sp: { dmgReduce: 3 } } } },
+  ranger: { name: "ชุดนักพราน", job: "นักล่า", pieces: [["ranger_cap"], ["ranger_vest"], ["ranger_gloves"], ["ranger_boots"], ["bow_hunter"]],
+    tiers: { 2: { b: { dex: 2 } }, 4: { b: { agi: 3 }, sp: { flee: 3 } }, 5: { b: { atk: 18 }, sp: { aspd: 6 } } } },
+  shadow: { name: "ชุดพรานเงา", job: "นักล่า", pieces: [["shadow_hood"], ["shadow_vest"], ["shadow_gloves"], ["shadow_boots"], ["bow_shadow"]],
+    tiers: { 2: { b: { dex: 3, agi: 2 } }, 4: { sp: { flee: 4, critPct: 4 } }, 5: { b: { atk: 30 }, sp: { aspd: 8, critDmg: 15 } } } },
+  mage: { name: "ชุดนักเวท", job: "นักเวทย์", pieces: [["mage_hat"], ["mage_robe"], ["mage_gloves"], ["mage_shoes"], ["staff_oak"]],
+    tiers: { 2: { b: { int: 2, maxSp: 30 } }, 4: { sp: { spRegen: 15, cdr: 3 } }, 5: { b: { atk: 18 }, sp: { atkPct: 5 } } } },
+  arch: { name: "ชุดจอมเวท", job: "นักเวทย์", pieces: [["arch_hat"], ["arch_robe"], ["arch_gloves"], ["arch_shoes"], ["staff_crystal"]],
+    tiers: { 2: { b: { int: 3, maxSp: 50 } }, 4: { sp: { spRegen: 20, cdr: 5 } }, 5: { b: { atk: 30 }, sp: { atkPct: 8, cdr: 4 } } } },
+  priest: { name: "ชุดนักบวช", job: "หมอ", pieces: [["priest_hood"], ["priest_robe"], ["priest_gloves"], ["priest_shoes"], ["book_light"]],
+    tiers: { 2: { b: { int: 2, vit: 2 } }, 4: { sp: { healPct: 8, spRegen: 10 } }, 5: { sp: { healPct: 8, undeadDmg: 15 } } } },
+  saint: { name: "ชุดนักบุญ", job: "หมอ", pieces: [["saint_crown"], ["saint_robe"], ["saint_gloves"], ["saint_shoes"], ["book_holy"]],
+    tiers: { 2: { b: { int: 3, vit: 3, maxHp: 80 } }, 4: { sp: { healPct: 10, dmgReduce: 3 } }, 5: { sp: { healPct: 12, cdr: 5, undeadDmg: 20 } } } },
+};
+const setsOf = (id) => Object.keys(ITEM_SETS).filter((k) => ITEM_SETS[k].pieces.some((g) => g.includes(id)));
+// เซ็ตที่ใส่อยู่: ids = ไอเทมที่สวม → [{ set, count, total }] และโบนัสรวม
+function setBonus(ids) {
+  const b = {}, sp = {}, active = [];
+  for (const [k, S] of Object.entries(ITEM_SETS)) {
+    const count = S.pieces.filter((g) => g.some((id) => ids.includes(id))).length;
+    if (count < 2) continue;
+    active.push({ set: k, count, total: S.pieces.length });
+    for (const [need, t] of Object.entries(S.tiers)) {
+      if (count < Number(need)) continue;
+      for (const [x, v] of Object.entries(t.b || {})) b[x] = (b[x] || 0) + v;
+      for (const [x, v] of Object.entries(t.sp || {})) sp[x] = (sp[x] || 0) + v;
+    }
+  }
+  return { b, sp, active };
+}
+// โบนัสตีบวก: อาวุธอาชีพ/โล่ ตีบวกถึงขั้นที่กำหนดได้ค่าเพิ่ม (refineFx: { ขั้น: { b, sp } })
+function refineFxOf(g) {
+  const it = ITEMS[g && g.id], b = {}, sp = {};
+  for (const [need, t] of Object.entries((it && it.refineFx) || {})) {
+    if ((g.up || 0) < Number(need)) continue;
+    for (const [x, v] of Object.entries(t.b || {})) b[x] = (b[x] || 0) + v;
+    for (const [x, v] of Object.entries(t.sp || {})) sp[x] = (sp[x] || 0) + v;
+  }
+  return { b, sp };
+}
 
 // ร้านค้าในเมือง: แต่ละ NPC ขายของคนละหมวด (ทุกร้านรับซื้อของคืนได้)
 const SHOPS = {
@@ -315,4 +370,4 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
-module.exports = { SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

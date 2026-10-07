@@ -79,22 +79,23 @@ const countOf = (b, id) => b.inv.reduce((t, s) => t + (s && s.id === id ? s.n : 
 const indexOf = (b, id) => b.inv.findIndex((s) => s && s.id === id);
 
 // ค่าพลังรวมจากของที่สวม
+// ของที่สวมและอาชีพนี้ใส่ได้จริง (ของที่ใส่ไม่ได้ไม่นับค่าพลัง/เซ็ต)
+const activeGear = (b, job) => Object.values(b.equip).filter((g) => !(job && wearError(job, I.ITEMS[g.id])));
 function gearBonus(b, job) {
   const sum = { atk: 0, def: 0, str: 0, agi: 0, vit: 0, int: 0, dex: 0, maxHp: 0, maxSp: 0 };
-  for (const g of Object.values(b.equip)) {
-    if (job && wearError(job, I.ITEMS[g.id])) continue; // ของที่อาชีพนี้ใส่ไม่ได้ ไม่นับค่าพลัง
-    const bonus = I.gearStats(g);
-    for (const k in bonus) sum[k] = (sum[k] || 0) + bonus[k];
-  }
+  const gear = activeGear(b, job);
+  const add = (o) => { for (const k in o) sum[k] = (sum[k] || 0) + o[k]; };
+  for (const g of gear) { add(I.gearStats(g)); add(I.refineFxOf(g).b); }
+  add(I.setBonus(gear.map((g) => g.id)).b);
   return sum;
 }
+const activeSets = (b, job) => I.setBonus(activeGear(b, job).map((g) => g.id)).active;
 // สเตตัสแฝงรวมจากของที่สวม (ของที่อาชีพนี้ใส่ไม่ได้ไม่นับ) · มีเพดานบางค่า
 function gearSpecial(b, job) {
-  const sum = {};
-  for (const g of Object.values(b.equip)) {
-    if (job && wearError(job, I.ITEMS[g.id])) continue;
-    for (const [k, v] of Object.entries(I.gearSpecial(g))) sum[k] = (sum[k] || 0) + v;
-  }
+  const sum = {}, gear = activeGear(b, job);
+  const add = (o) => { for (const [k, v] of Object.entries(o)) sum[k] = (sum[k] || 0) + v; };
+  for (const g of gear) { add(I.gearSpecial(g)); add(I.refineFxOf(g).sp); }
+  add(I.setBonus(gear.map((g) => g.id)).sp);
   for (const k in sum) if (I.SPECIAL[k].cap) sum[k] = Math.min(I.SPECIAL[k].cap, sum[k]);
   return sum;
 }
@@ -241,4 +242,4 @@ function moveSlot(b, from, to) {
 }
 
 module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
-  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial };
+  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial, activeSets };

@@ -644,3 +644,11 @@ html, body { overscroll-behavior: none; }
 #itemCard ul.hidden-st { color: #ffd84a; }
 #spDerived .sx-head { grid-column: 1 / -1; color: #ffd84a; font-size: 11.5px; margin-top: 6px; border-top: 1px solid #2c3561; padding-top: 4px; }
 #spDerived .sx b { color: #ffd84a; }
+#itemCard { max-height: calc(100vh - 16px); overflow-y: auto; }
+#itemCard ul.refine-fx li { color: #6f7590; } #itemCard ul.refine-fx li.on { color: #ffd84a; }
+#itemCard .set-box { border: 1px solid #3a6a4a; border-radius: 7px; padding: 5px 7px; margin: 6px 0; background: rgba(60, 140, 90, .08); }
+#itemCard .set-name { color: #7dff9a; font-size: 12.5px; } #itemCard .set-name small { color: var(--muted); font-size: 10.5px; margin-left: 4px; }
+#itemCard .set-pcs { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 11px; color: #6f7590; margin: 2px 0 3px; }
+#itemCard .set-pcs .on { color: #dfe3f5; } #itemCard .set-pcs .on::before { content: "✔ "; color: #7dff9a; }
+#itemCard .set-box ul { margin: 0; padding-left: 16px; font-size: 11.5px; } #itemCard .set-box li { color: #6f7590; } #itemCard .set-box li.on { color: #7dff9a; }
+#spDerived .sx-head.set { color: #7dff9a; } #spDerived .sx.set b { color: #7dff9a; }

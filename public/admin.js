@@ -432,7 +432,9 @@ function renderSpawnFoot() {
   foot.innerHTML = `<div class="sp-sel"><img src="/assets/icons/${esc(i.id)}.png" alt="">
       <div><h3>${esc(i.name)}</h3><div class="muted">${[i.lv ? "Lv." + i.lv : "", i.wt ? WT_TH[i.wt] : "", i.ac ? AC_TH[i.ac] : "", bonus, i.desc].filter(Boolean).join(" · ")}</div>
       ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (ชาวบ้านใช้ได้ด้วย)" : ""}</div>` : ""}
-      ${i.special ? `<div class="sx-fixed">สเตตัสแฝงติดตัว: ${Object.entries(i.special).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</div>` : ""}</div></div>
+      ${i.special ? `<div class="sx-fixed">สเตตัสแฝงติดตัว: ${Object.entries(i.special).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</div>` : ""}
+      ${i.refineFx ? `<div class="muted">โบนัสตีบวก: ${Object.entries(i.refineFx).map(([n, t]) => `+${n} → ${[...Object.entries(t.b || {}).map(([k, v]) => `${STAT_TH[k] || k} +${v}`), ...Object.entries(t.sp || {}).map(([k, v]) => `${SPECIAL[k].name} +${v}%`)].join(", ")}`).join(" · ")}</div>` : ""}
+      ${i.sets && i.sets.length ? `<div style="color:#7dff9a;font-size:12.5px">เซ็ต: ${i.sets.join(", ")}</div>` : ""}</div></div>
     <div class="row">
       ${stack ? `<label>จำนวน</label><input type="number" id="spN" value="${i.type === "use" ? 10 : 1}" min="1" max="999" style="width:80px">
         ${[1, 10, 50, 99].map((n) => `<button class="btn" data-n="${n}">${n}</button>`).join("")}` : ""}

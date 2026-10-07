@@ -144,7 +144,7 @@ function mount(app, api) {
   app.get("/api/admin/items", admin(async () => ({
     items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0, slot: it.slot || null,
       wt: it.wt || null, ac: it.ac || null, set: it.set || null, bonus: it.bonus || null, desc: it.desc || "", price: it.price || 0,
-      shop: I.SHOP.includes(id), special: it.special || null, jobs: it.type === "equip" ? require("./inventory").jobsFor(it) : [] })),
+      shop: I.SHOP.includes(id), special: it.special || null, refineFx: it.refineFx || null, sets: I.setsOf(id).map((k) => I.ITEM_SETS[k].name), jobs: it.type === "equip" ? require("./inventory").jobsFor(it) : [] })),
     special: I.SPECIAL,
     jobs: Object.fromEntries(Object.entries(D.JOBS).map(([k, j]) => [k, { name: j.name, color: j.color }])),
     rarity: I.RARITY.map((r) => ({ name: r.name, color: r.color })),

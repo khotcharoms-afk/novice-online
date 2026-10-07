@@ -169,7 +169,7 @@ class WorldRoom extends Room {
     });
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
-        statInfo: D.STAT_INFO, special: I.SPECIAL, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
+        statInfo: D.STAT_INFO, special: I.SPECIAL, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
@@ -514,7 +514,7 @@ class WorldRoom extends Room {
     const client = id && this.clients.find((c) => c.sessionId === id);
     if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, atkDelay: p.atkDelay,
       flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus, bonus: p.gearBonus || {},
-      range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat, special: p.sx || {} });
+      range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat, special: p.sx || {}, sets: Bag.activeSets(p.bag || Bag.emptyBag(), p.job) });
   }
 
   // ================= ลงแต้มสเตตัส =================

@@ -1251,7 +1251,9 @@ function renderStats() {
   const SX = (gameData && gameData.special) || {};
   const sxRows = Object.entries(derived.special || {}).map(([k, v]) => `<div class="sx">${(SX[k] || {}).name || k} <b>+${v}%</b></div>`).join("");
   $("spDerived").innerHTML = rows.map(([l, v]) => `<div>${l} <b>${v}</b></div>`).join("") +
-    (sxRows ? `<div class="sx-head">สเตตัสแฝงจากอุปกรณ์</div>${sxRows}` : "");
+    (sxRows ? `<div class="sx-head">สเตตัสแฝงจากอุปกรณ์</div>${sxRows}` : "") +
+    ((derived.sets || []).length ? `<div class="sx-head set">เซ็ตที่ใส่อยู่</div>` + derived.sets.map((a) =>
+      `<div class="sx set">${(gameData.itemSets[a.set] || {}).name || a.set} <b>${a.count}/${a.total}</b></div>`).join("") : "");
 }
 
 // ---------- ตั้งค่า AUTO ----------
