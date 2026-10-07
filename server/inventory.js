@@ -162,7 +162,16 @@ const glowString = (b) => ["weapon", "offhand"]
 //  อาวุธ/โล่: ล็อกตามอาชีพ (ชาวบ้านใช้ได้ทุกชนิดที่ Lv ต่ำกว่า 20)
 //  เกราะ (หนัก/เบา/ผ้า): ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ · Lv20 ขึ้นไปต้องตรงประเภทของอาชีพ
 //  ผ้าคลุม/หน้า/เครื่องประดับ: ใส่ได้ทุกอาชีพ
+// ของ Lv.50+ ที่ล็อกอาชีพ (อาวุธ/ชุด/มือรอง) → ต้องเป็นอาชีพขั้น 2 · ของประดับไม่ล็อก
+const job2Locked = (it) => it && it.type === "equip" && (it.lv || 1) >= D.JOB2_LEVEL && !!(it.wt || it.ac || it.ot);
 function wearError(job, it) {
+  const err = lineWearError(job, it);
+  if (err || !job2Locked(it)) return err;
+  if ((D.JOBS[job] || {}).tier === 2) return null;
+  return `ต้องเลื่อนขั้นเป็น${jobsFor(it).map((j) => D.JOBS[j].name).join("/")}ก่อน (อาชีพขั้น 2 · Lv.${D.JOB2_LEVEL})`;
+}
+// กฎตามสายอาชีพ (ไม่สนขั้น)
+function lineWearError(job, it) {
   const J = D.JOBS[job] || D.JOBS.villager;
   if (!it || it.type !== "equip") return "ใส่ไอเทมนี้ไม่ได้";
   const lv = it.lv || 1;
@@ -176,17 +185,20 @@ function wearError(job, it) {
     return null;
   }
   if (it.wt) {
-    if (job === "villager") return lv >= D.JOB_FREE_LV ? `ต้องเป็น${jobsFor(it).map((j) => D.JOBS[j].name).join("/")}` : null;
+    if (job === "villager") return lv >= D.JOB_FREE_LV ? `ต้องเป็น${lineJobs(it).map((j) => D.JOBS[j].name).join("/")}` : null;
     if (!J.weapons.includes(it.wt)) return `${J.name}ใช้${D.WEAPON_TYPES[it.wt].name}ไม่ได้`;
     return null;
   }
   if (it.ac && lv >= D.JOB_FREE_LV && !(J.armor || []).includes(it.ac))
-    return job === "villager" ? `ต้องเป็น${jobsFor(it).map((j) => D.JOBS[j].name).join("/")}` : `${J.name}ใส่${D.ARMOR_NAME[it.ac]}ไม่ได้`;
+    return job === "villager" ? `ต้องเป็น${lineJobs(it).map((j) => D.JOBS[j].name).join("/")}` : `${J.name}ใส่${D.ARMOR_NAME[it.ac]}ไม่ได้`;
   return null;
 }
 // อาชีพที่ใช้ไอเทมนี้ได้ (ไม่นับชาวบ้าน) — ใช้แสดงในการ์ดไอเทม
+// Lv.50+ ที่ล็อกอาชีพ → แสดงอาชีพขั้น 2 · ต่ำกว่านั้น → อาชีพขั้น 1 (ขั้น 2 ใส่ได้ตามสายเดิม)
+const lineJobs = (it) => Object.keys(D.JOBS).filter((j) => j !== "villager" && !D.JOBS[j].tier && !lineWearError(j, it));
 function jobsFor(it) {
-  return Object.keys(D.JOBS).filter((j) => j !== "villager" && !D.JOBS[j].tier && !wearError(j, it)); // อาชีพขั้น 2 ใส่ได้ตามขั้น 1
+  const t2 = job2Locked(it);
+  return Object.keys(D.JOBS).filter((j) => j !== "villager" && (t2 ? D.JOBS[j].tier === 2 : !D.JOBS[j].tier) && !lineWearError(j, it));
 }
 const weaponType = (b) => { const g = b.equip.weapon; const it = g && I.ITEMS[g.id]; return (it && it.wt) || null; };
 

@@ -37,8 +37,11 @@ const wearErr = (id) => { const me = myPlayer(), w = gameData && gameData.wear &
 function wearHtml(id, it) {
   const W = gameData.wear && gameData.wear[id];
   if (!W) return "";
-  const J = gameData.jobs, jobs = Object.keys(J).filter((j) => j !== "villager" && !W[j]);
-  const tags = jobs.length === Object.keys(J).length - 1 ? `<span class="jtag">ทุกอาชีพ</span>`
+  // Lv.50+ ที่ล็อกอาชีพ → โชว์อาชีพขั้น 2 · ต่ำกว่านั้นโชว์ขั้น 1 (ขั้น 2 ใส่ได้ตามสายเดิม)
+  const J = gameData.jobs, t2 = (it.lv || 1) >= (gameData.job2Level || 50) && !!(it.wt || it.ac || it.ot);
+  const pool = Object.keys(J).filter((j) => j !== "villager" && (t2 ? J[j].tier === 2 : !J[j].tier));
+  const jobs = pool.filter((j) => !W[j]);
+  const tags = jobs.length === pool.length && !t2 ? `<span class="jtag">ทุกอาชีพ</span>`
     : (!W.villager ? `<span class="jtag">ชาวบ้าน</span>` : "") + jobs.map((j) => `<span class="jtag" style="color:${J[j].color};border-color:${J[j].color}">${J[j].name}</span>`).join("");
   const wt = it.wt && it.wt !== "shield" && gameData.weaponTypes[it.wt];
   const typ = it.ot ? "มือรอง · " + ({ emblem: "ตรานักรบ", quiver: "กระบอกธนู", orb: "ลูกแก้วเวท", relic: "เครื่องรางศักดิ์สิทธิ์" }[it.ot] || "") : it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";

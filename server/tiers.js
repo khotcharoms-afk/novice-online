@@ -45,11 +45,11 @@ const PIECES = {
 };
 // โบนัสเซ็ต (ค่าที่ขั้น Lv.40 · ขั้นสูงขึ้นคูณตามสัดส่วนเลเวล)
 const SET_KINDS = {
-  heavy: { name: "ชุดเกราะ", job: "ผู้พิทักษ์ / นักดาบใหญ่", pieces: [["helm"], ["plate"], ["gaunt"], ["greaves"], ["sword", "greatsword", "axe", "mace"], ["shield", "emblem"]],
+  heavy: { name: "ชุดเกราะ", job: "ผู้พิทักษ์ / นักดาบใหญ่", job2: "อัศวินศักดิ์สิทธิ์ / อัศวินทมิฬ / เบอร์เซิร์กเกอร์ / จอมดาบ", pieces: [["helm"], ["plate"], ["gaunt"], ["greaves"], ["sword", "greatsword", "axe", "mace"], ["shield", "emblem"]],
     tiers: { 2: { b: { def: 10, maxHp: 140 } }, 4: { b: { str: 4, vit: 4 }, sp: { dmgReduce: 4, hpRegen: 20 } }, 5: { b: { atk: 40 }, sp: { atkPct: 8, critDmg: 15 } }, 6: { b: { maxHp: 200 }, sp: { dmgReduce: 3, critDmg: 15 } } } },
-  light: { name: "ชุดพราน", job: "นักล่า", pieces: [["hood"], ["vest"], ["lgloves"], ["lboots"], ["bow", "dagger"], ["quiver"]],
+  light: { name: "ชุดพราน", job: "นักล่า", job2: "สไนเปอร์ / นักฆ่าเงา", pieces: [["hood"], ["vest"], ["lgloves"], ["lboots"], ["bow", "dagger"], ["quiver"]],
     tiers: { 2: { b: { dex: 4, agi: 3 } }, 4: { sp: { flee: 4, critPct: 4 } }, 5: { b: { atk: 36 }, sp: { aspd: 8, critDmg: 15 } }, 6: { sp: { critDmg: 12, moveSpd: 4 } } } },
-  cloth: { name: "ชุดคลุม", job: "นักเวทย์ / หมอ", pieces: [["hat"], ["robe"], ["cgloves"], ["shoes"], ["staff", "book"], ["orb", "relic"]],
+  cloth: { name: "ชุดคลุม", job: "นักเวทย์ / หมอ", job2: "จอมเวท / นักอัญเชิญ / นักบุญ / นักบวชสงคราม", pieces: [["hat"], ["robe"], ["cgloves"], ["shoes"], ["staff", "book"], ["orb", "relic"]],
     tiers: { 2: { b: { int: 4, maxSp: 60 } }, 4: { sp: { spRegen: 20, cdr: 4, healPct: 6 } }, 5: { b: { atk: 34 }, sp: { atkPct: 8, healPct: 8 } }, 6: { sp: { cdr: 3, healPct: 5, dmgReduce: 2 } } } },
 };
 // ภาพต้นแบบทรงใหม่ (tools/gear/shapes.py) — ไม่ใช่ไอเทม จึงเก็บแฟล็กไว้ที่นี่
@@ -91,7 +91,7 @@ function build(ITEMS) {
     const f = t.lv / 40;
     for (const [sk, S] of Object.entries(SET_KINDS)) {
       sets[`${t.key}_${sk}`] = {
-        name: `${S.name}${t.name}`, job: S.job,
+        name: `${S.name}${t.name}`, job: t.lv >= 50 ? S.job2 : S.job, // Lv.50+ = อาชีพขั้น 2
         pieces: S.pieces.map((grp) => grp.map((pk) => tid(t, pk))),
         tiers: Object.fromEntries(Object.entries(S.tiers).map(([n, v]) => [n, {
           ...(v.b ? { b: Object.fromEntries(Object.entries(v.b).map(([k, x]) => [k, Math.round(x * f)])) } : {}),
