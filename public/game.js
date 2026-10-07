@@ -493,7 +493,16 @@ class WorldScene extends Phaser.Scene {
         room.send("moveTo", { x: n.x, y: n.y + 40 });
         return;
       }
-      const hit = over.find((o) => o.getData && o.getData("mobId"));
+      let hit = over.find((o) => o.getData && o.getData("mobId"));
+      // จอสัมผัส: นิ้วใหญ่กว่าเมาส์ → แตะใกล้ ๆ มอน (ไม่เกิน ~1 ช่อง) ก็นับว่าเลือกมอนตัวนั้น
+      if (!hit && p.wasTouch) {
+        let bd = 34 / this.cameras.main.zoom + 14;
+        this.views.forEach((v) => {
+          if (!v.isMob || v.dead) return;
+          const d = Math.hypot(v.root.x - p.worldX, v.root.y - 26 - p.worldY);
+          if (d < bd) { bd = d; hit = v.sprite; }
+        });
+      }
       if (hit) {
         this.myTarget = hit.getData("mobId");
         room.send("attack", { id: this.myTarget });
@@ -1013,6 +1022,16 @@ function startGame() {
     scene: WorldScene,
   });
 }
+// มือถือหมุนจอ / แถบที่อยู่เบราว์เซอร์ยุบ-ขยาย → ปรับขนาดเกมให้ตรงจอทุกครั้ง (ไม่งั้นจุดที่แตะจะเพี้ยน)
+function syncGameSize() {
+  if (!phaserGame || !phaserGame.scale) return;
+  const w = window.innerWidth, h = window.innerHeight, sc = phaserGame.scale;
+  if (sc.width !== w || sc.height !== h) sc.resize(w, h);
+  sc.updateBounds();
+}
+["resize", "orientationchange", "scroll"].forEach((ev) => window.addEventListener(ev, () => { syncGameSize(); setTimeout(syncGameSize, 300); }));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(syncGameSize, 50));
+setInterval(syncGameSize, 1000);
 
 // =============================================================
 //  HUD
