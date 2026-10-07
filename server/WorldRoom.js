@@ -115,6 +115,35 @@ function partyRemove(cid, reason) {
   partySend(party);
 }
 setInterval(() => parties.forEach((pt) => partySend(pt)), 1000).unref();
+// คริสตัลจุดเกิดของแต่ละแผนที่ (คำนวณครั้งเดียว ใช้ได้แม้ห้องของแผนที่นั้นยังไม่เปิด — สำหรับวาป)
+const crystalCache = {};
+function mapCrystals(mapId) {
+  if (crystalCache[mapId]) return crystalCache[mapId];
+  const out = [];
+  if (W.MAPS[mapId] && W.MAPS[mapId].type !== "town") {
+    const map = getMap(mapId), T = map.tile, MW = map.width, MH = map.height;
+    const stand = (x, y) => isWalkable(map, x - 9, y - 8) && isWalkable(map, x + 9, y - 8) && isWalkable(map, x - 9, y + 2) && isWalkable(map, x + 9, y + 2);
+    const reach = new Uint8Array(MW * MH), st = [[Math.floor(map.spawn.x / T), Math.floor(map.spawn.y / T)]];
+    while (st.length) {
+      const [x, y] = st.pop();
+      if (x < 0 || y < 0 || x >= MW || y >= MH || reach[y * MW + x] || !stand(x * T + T / 2, y * T + T / 2)) continue;
+      reach[y * MW + x] = 1; st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    const cx = (MW / 2) * T, cy = (MH / 2) * T;
+    let best = null;
+    for (let rr = 0; rr < 12 && !best; rr++)
+      for (let dy = -rr; dy <= rr && !best; dy++)
+        for (let dx = -rr; dx <= rr && !best; dx++) {
+          const x = Math.floor(cx / T + dx) * T + T / 2, y = Math.floor(cy / T + dy) * T + T / 2;
+          if (stand(x, y) && stand(x, y + T) && reach[Math.floor(y / T) * MW + Math.floor(x / T)]) best = { x, y };
+        }
+    if (best) out.push(best);
+  }
+  return (crystalCache[mapId] = out);
+}
+// วาปด้วย "ตั๋ว" (ย้ายแผนที่โดยไม่ต้องรอบันทึก/โหลดจากฐานข้อมูล) · บันทึกของแต่ละตัวละครเรียงคิวกัน (ไม่ให้ข้อมูลเก่าเขียนทับใหม่)
+const warpTickets = new Map();   // ticket -> { uid, charId, user, char, until }
+const saveChain = new Map();     // charId -> Promise ของการบันทึกล่าสุด
 const pendingBoss = new Map(); // mapId -> bossKey (สั่งเรียกบอสตอนแผนที่ยังไม่มีคน → เกิดเมื่อมีคนเข้า)
 // ตารางเกิด World Boss อัตโนมัติ: key -> { next: เวลาเกิดครั้งถัดไป, alive, since, map, warned }
 const BOSS_LIFE_MS = 60 * 60000;   // เกิดแล้วไม่มีใครปราบภายใน 60 นาที → หายไป
@@ -151,9 +180,18 @@ class WorldRoom extends Room {
   // ตรวจตั๋วล็อกอิน + ความเป็นเจ้าของตัวละคร ก่อนให้เข้าห้อง
   async onAuth(client, options) {
     try {
-      const user = await store.verify(options && options.token);
-      if (maint.closed && !adminLogin(user)) throw new StoreError("เซิร์ฟเวอร์ปิดปรับปรุงชั่วคราว ลองใหม่อีกสักครู่");
-      let char = await store.load(user.uid, options && options.charId);
+      // ย้ายแผนที่ด้วยตั๋ว: ใช้ข้อมูลจากห้องเดิมในหน่วยความจำเลย (เร็วกว่าอ่านฐานข้อมูล)
+      const tk = options && options.ticket && warpTickets.get(String(options.ticket));
+      let user, char;
+      if (tk && tk.until > Date.now() && tk.charId === options.charId) {
+        warpTickets.delete(String(options.ticket));
+        user = tk.user; char = tk.char;
+      } else {
+        user = await store.verify(options && options.token);
+        if (maint.closed && !adminLogin(user)) throw new StoreError("เซิร์ฟเวอร์ปิดปรับปรุงชั่วคราว ลองใหม่อีกสักครู่");
+        if (saveChain.has(options && options.charId)) await saveChain.get(options.charId); // รอบันทึกล่าสุดให้เสร็จก่อนอ่าน
+        char = await store.load(user.uid, options && options.charId);
+      }
       const live = online.get(char.id);
       if (live) { const lp = live.room.state.players.get(live.sessionId); if (lp) char = { ...char, ...live.room.toData(lp) }; }
       // ตัวละครอยู่แผนที่อื่น → บอก client ให้เข้าห้องที่ถูก
@@ -211,35 +249,25 @@ class WorldRoom extends Room {
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
     this.mobSeq = 0;
     // คริสตัลจุดเกิด (แผนที่ล่ามอน): 1 อันกลางแผนที่ · มีเขตปลอดภัยรอบ ๆ
-    this.crystals = [];
-    if (this.def.type !== "town") {
-      const T = this.map.tile, cx = (this.map.width / 2) * T, cy = (this.map.height / 2) * T;
-      const want = [{ x: cx, y: cy }];
-      for (const w of want) {
-        let best = null;
-        for (let rr = 0; rr < 8 && !best; rr++)
-          for (let dy = -rr; dy <= rr && !best; dy++)
-            for (let dx = -rr; dx <= rr && !best; dx++) {
-              const x = Math.floor(w.x / T + dx) * T + T / 2, y = Math.floor(w.y / T + dy) * T + T / 2, tx = Math.floor(x / T), ty = Math.floor(y / T);
-              if (this.canStand(x, y) && this.canStand(x, y + T) && (!this.reach || this.reach[ty * this.map.width + tx])) best = { x, y };
-            }
-        if (best && !this.crystals.some((c) => Math.hypot(c.x - best.x, c.y - best.y) < T * 6)) this.crystals.push(best);
-      }
-    }
+    this.crystals = mapCrystals(this.mapId);
     this.spawnMonsters();
     this.mapKinds = new Set(this.def.spawns.map(([k]) => k));
     this.spawnMini();
     if (pendingBoss.has(this.mapId)) { const k = pendingBoss.get(this.mapId); pendingBoss.delete(this.mapId); this.spawnBoss(k); }
 
-    this.onMessage("getMap", (client) => {
+    this.onMessage("getMap", (client, m) => {
       const me = this.state.players.get(client.sessionId);
       if (me) this.clock.setTimeout(() => {
         this.sendDerived(me); this.sendInv(client.sessionId);
         if (maint.endAt || maint.closed) client.send("maint", WorldRoom.maintInfo());
       }, 50);
-      sendMap(client);
+      sendMap(client, m && m.lite);
     });
-    const sendMap = (client) =>
+    // lite = client มีข้อมูลเกม (ไอเทม/สกิล/อาชีพ…) จากแผนที่ก่อนแล้ว → ส่งแค่ข้อมูลของแผนที่นี้ (เล็กลง ~70%)
+    const mapOnly = () => ({ ...this.map, lite: true, npcs: this.npcs, crystals: this.crystals, online: online.size,
+      mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
+      portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })), world: worldInfo() });
+    const sendMap = (client, lite) => lite ? client.send("map", mapOnly()) :
       client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
         statInfo: D.STAT_INFO, special: I.SPECIAL, specialMinRarity: I.SPECIAL_MIN_RARITY, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
@@ -317,6 +345,7 @@ class WorldRoom extends Room {
       const c = clientOf(m.cid); if (c) c.send("system", "คุณถูกเชิญออกจากปาร์ตี้");
       partyRemove(m.cid, "ถูกเชิญออกจากปาร์ตี้");
     });
+    this.onMessage("teleport", (client, m) => this.teleport(client, String((m && m.map) || "")));
     this.onMessage("bossBoard", (client) => client.send("bossBoard", { at: Date.now(), list: WorldRoom.bossBoard() }));
     this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
     this.onMessage("spiritQuest", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritQuest(client, p, b, m || {})));
@@ -388,7 +417,11 @@ class WorldRoom extends Room {
   save(pid) {
     const p = this.state.players.get(pid), r = this.pr.get(pid);
     if (!p || !r || !r.charId) return Promise.resolve();
-    return store.save(r.charId, this.toData(p)).catch((e) => console.error("save failed", r.charId, e.message));
+    const data = this.toData(p), prev = saveChain.get(r.charId) || Promise.resolve();
+    const next = prev.then(() => store.save(r.charId, data)).catch((e) => console.error("save failed", r.charId, e.message));
+    saveChain.set(r.charId, next);
+    next.then(() => { if (saveChain.get(r.charId) === next) saveChain.delete(r.charId); });
+    return next;
   }
   // บันทึกเร็ว ๆ หลังเหตุการณ์สำคัญ (ได้ของหายาก ตีบวก ซื้อของแพง) — รวมหลายครั้งในเวลาใกล้กันเป็นครั้งเดียว
   saveSoon(pid) {
@@ -426,7 +459,7 @@ class WorldRoom extends Room {
     this.state.players.set(client.sessionId, p);
     online.set(c.id, { room: this, sessionId: client.sessionId });
     this.pr.set(client.sessionId, {
-      charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user),
+      charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user), auth,
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       autoCfg: { radius: WHOLE_MAP, kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0,
@@ -622,6 +655,34 @@ class WorldRoom extends Room {
     for (const [k, s] of Object.entries(bossSched)) if (!s.alive) out.push({ name: D.WORLD_BOSSES[k].name, next: Math.max(0, s.next - Date.now()), map: s.map ? W.MAPS[s.map].name : null });
     return out;
   }
+  // ================= วาปไปคริสตัล / กลับเมือง (จากหน้าแผนที่โลก) =================
+  static teleportCost(mapId) { const M = W.MAPS[mapId]; return !M || M.type === "town" ? 0 : Math.max(20, (M.lv ? M.lv[0] : 1) * 20); }
+  teleport(client, mapId) {
+    const pid = client.sessionId, p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || p.dead || p.warp) return;
+    const M = W.MAPS[mapId];
+    if (!M) return;
+    if (now() - (r.lastHurt || 0) < 5000) return client.send("toast", "กำลังต่อสู้อยู่ — รอให้ปลอดภัย 5 วินาทีก่อนวาป");
+    const cost = WorldRoom.teleportCost(mapId);
+    if (p.bag.gold < cost) return client.send("toast", `gold ไม่พอ (ค่าวาป ${cost.toLocaleString()})`);
+    let pos = null;
+    if (M.type !== "town") {
+      const c = mapCrystals(mapId)[0];
+      if (!c) return client.send("toast", "แผนที่นี้ไม่มีคริสตัล");
+      pos = { x: c.x, y: c.y + 46 };
+    }
+    p.bag.gold -= cost;
+    if (cost) this.sendInv(pid);
+    this.broadcast("spawnFx", { id: pid, x: p.x, y: p.y });
+    if (mapId === this.mapId) { // แผนที่เดิม: ย้ายตำแหน่งเลย
+      const to = pos || this.townSpawn();
+      p.x = to.x; p.y = to.y; r.nav = null; r.moveTarget = null; r.target = null; r.pick = null; p.moving = false;
+      this.broadcast("spawnFx", { id: pid, x: p.x, y: p.y });
+      return;
+    }
+    this.warpPlayer(pid, mapId, pos || getMap(mapId).spawn);
+  }
+
   // ================= ปาร์ตี้ =================
   // ชวน: m.sid (คลิกที่ตัวละครในแผนที่เดียวกัน) หรือ m.name (/invite ชื่อ · ข้ามแผนที่ได้)
   partyInvite(client, m) {
@@ -2176,9 +2237,13 @@ class WorldRoom extends Room {
     p.warp = { map: toMap, x: pos.x, y: pos.y };
     this.setAuto(pid, false);
     r.moveTarget = null; r.target = null; r.pick = null; r.nav = null; p.moving = false;
-    await this.save(pid);
+    this.save(pid); // บันทึกเบื้องหลัง (ไม่ต้องรอ)
+    const ticket = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const a = r.auth || {};
+    warpTickets.set(ticket, { charId: r.charId, user: a.user, char: { ...(a.char || {}), id: r.charId, name: p.name, ...this.toData(p) }, until: Date.now() + 60000 });
+    for (const [k, v] of warpTickets) if (v.until < Date.now()) warpTickets.delete(k);
     const client = this.clients.find((c) => c.sessionId === pid);
-    if (client) client.send("warp", { map: toMap, name: W.MAPS[toMap].name });
+    if (client) client.send("warp", { map: toMap, name: W.MAPS[toMap].name, ticket });
   }
   checkPortals(pid, p) {
     if (p.warp || p.dead) return;
@@ -2195,3 +2260,5 @@ class WorldRoom extends Room {
 module.exports = { WorldRoom };
 // ตัวจับเวลา World Boss (ทำงานตลอด แม้ไม่มีห้องเปิดอยู่)
 setInterval(() => { try { WorldRoom.bossTick(); } catch (e) { console.error("bossTick", e.message); } }, 15000).unref();
+// เตรียมแผนที่ + คริสตัลทุกแผนที่ไว้ล่วงหน้า (เข้าแผนที่ครั้งแรกจะไม่ต้องรอสร้าง)
+setTimeout(() => { for (const id of Object.keys(W.MAPS)) { try { getMap(id); mapCrystals(id); } catch (e) { console.error("prewarm", id, e.message); } } }, 500).unref();

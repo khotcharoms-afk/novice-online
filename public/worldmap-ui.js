@@ -41,13 +41,18 @@ function renderWorld() {
     <div>${m.desc}</div>
     ${m.mobs.length ? `<h4>มอนสเตอร์และของดรอป</h4>${mobs}` : ""}
     ${m.services.length ? `<h4>บริการ</h4>${m.services.map((s) => `<div class="row">${s}</div>`).join("")}` : ""}
-    ${m.id !== room.mapId ? `<button type="button" class="btn-gold wm-go" id="wmGo">🧭 เดินทางไปที่นี่ <small>(${routeTo(m.id).length - 1} แผนที่)</small></button>` : ""}
+    <div class="wm-acts">${m.type === "town" ? `<button type="button" class="btn-gold wm-go" id="wmTp">🏠 วาปกลับเมือง <small>(ฟรี)</small></button>`
+      : `<button type="button" class="btn-gold wm-go" id="wmTp">💎 วาปไปคริสตัล <small>(${tpCost(m).toLocaleString()} gold)</small></button>`}
+    ${m.id !== room.mapId ? `<button type="button" class="btn-ghost wm-go" id="wmGo">🧭 เดินไปเอง <small>(${routeTo(m.id).length - 1} แผนที่)</small></button>` : ""}</div>
     <h4>เชื่อมต่อกับ</h4><div class="links">${m.exits.map((id) => { const x = byId(id); return `<button type="button" data-go="${id}">${x.name}<small>${x.lv ? `Lv.${x.lv[0]}–${x.lv[1]}` : "ปลอดภัย"}</small></button>`; }).join("")}</div>
     <p class="hint">เดินทาง: เดินไปที่วงเวทสีฟ้าที่ขอบแผนที่ (ดูจุดสีฟ้าบนมินิแมพ)</p>`;
+  const tp = $("wmTp");
+  if (tp) tp.onclick = () => { room.send("teleport", { map: m.id }); toggleWorld(false); };
   const go = $("wmGo");
   if (go) go.onclick = () => { startTravel(m.id); toggleWorld(false); };
   $("wmInfo").querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => { wmSel = b.dataset.go; renderWorld(); }));
 }
+const tpCost = (m) => (m.type === "town" ? 0 : Math.max(20, (m.lv ? m.lv[0] : 1) * 20)); // ตรงกับ WorldRoom.teleportCost
 function setupWorldUI() {
   $("worldBtn").onclick = () => toggleWorld();
   $("wmClose").onclick = () => toggleWorld(false);

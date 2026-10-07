@@ -37,6 +37,7 @@ const MOB_KINDS = ["goblin", "wolf", "boar", "skeleton", "orc"];
 let room = null;
 let MANIFEST = { equip: [], icons: [] };
 let scene = null;
+let STATIC_DATA = null; // ข้อมูลเกมที่ไม่เปลี่ยนตามแผนที่ (เก็บไว้ ย้ายแผนที่จะได้ไม่ต้องโหลดซ้ำ)
 let gameData = null; // ข้อมูลแผนที่ + สกิล จากเซิร์ฟเวอร์
 let WORLD = null, CUR_MAP = null, leavingForWarp = false, gameClient = null, myChar = null, phaserGame = null; // ข้อมูลโลก (ทุกแผนที่) / แผนที่ปัจจุบัน
 
@@ -289,8 +290,8 @@ $("createBtn").onclick = async () => {
 //  เข้าเกม
 // =============================================================
 // เข้าห้องของแผนที่ที่ตัวละครอยู่ (ถ้าเซิร์ฟเวอร์บอกว่าอยู่แผนที่อื่น → เข้าห้องนั้นแทน)
-async function joinMap(client, c, mapId, tries = 0, warp = false) {
-  try { const r = await client.joinOrCreate("world", { token: await getToken(), charId: c.id, mapId, warp }); r.mapId = mapId; return r; }
+async function joinMap(client, c, mapId, tries = 0, warp = false, ticket = null) {
+  try { const r = await client.joinOrCreate("world", { token: ticket ? "" : await getToken(), charId: c.id, mapId, warp, ticket }); r.mapId = mapId; return r; }
   catch (e) {
     const m = /MAP:(\w+)/.exec(e.message || "");
     if (m && tries < 2) return joinMap(client, c, m[1], tries + 1, warp);
@@ -431,9 +432,10 @@ class WorldScene extends Phaser.Scene {
     setTravelProgress(82, "รับข้อมูลแผนที่…");
     room.onMessage("map", (data) => {
       setTravelProgress(90, "สร้างแผนที่…");
+      if (data.lite && STATIC_DATA) data = { ...STATIC_DATA, ...data }; else STATIC_DATA = data;
       gameData = data; this.buildMap(data); buildSkillBar(); sendAutoCfg();
       setTravelProgress(100, "พร้อมแล้ว");
-      setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 350);
+      setTimeout(() => { const t = $("travel"); if (t) t.classList.remove("show"); }, 120);
       setTimeout(continueTravel, 600); // เดินทางอัตโนมัติไปแผนที่ปลายทางต่อ
       $("apClose").onclick = () => toggleAutoPanel(false);
       if (!window._statsUI) { window._statsUI = 1; setupStats(); } else renderStats();
@@ -442,7 +444,7 @@ class WorldScene extends Phaser.Scene {
     // วงขอบเขต AUTO บนพื้น
     this.autoRing = this.add.ellipse(0, 0, 10, 10, 0xffd36b, 0.08).setStrokeStyle(3, 0xffd36b, 0.85)
       .setDepth(-9500).setVisible(false);
-    room.send("getMap");
+    room.send("getMap", { lite: !!STATIC_DATA });
 
     const $s = Colyseus.getStateCallbacks(room);
     $s(room.state).players.onAdd((p, id) => {
@@ -1819,11 +1821,13 @@ async function travelTo(c, w) {
   leavingForWarp = true;
   showTravel(w.map, w.name);
   hideCard(); hideTip();
-  try { await room.leave(true); } catch {}
+  const old = room;
+  if (w.ticket) old.leave(true).catch(() => {}); // มีตั๋ว: ไม่ต้องรอออกจากห้องเก่า เข้าห้องใหม่ได้เลย
+  else { try { await old.leave(true); } catch {} }
   setTravelProgress(20, "เชื่อมต่อแผนที่ใหม่…");
   for (let i = 0; i < 4; i++) {
     try {
-      room = await joinMap(gameClient, c, w.map, 0, true);
+      room = await joinMap(gameClient, c, w.map, 0, true, i === 0 ? w.ticket : null); // ครั้งแรกใช้ตั๋ว (เร็ว) · ลองใหม่ = ล็อกอินปกติ
       setTravelProgress(35, "โหลดภาพแผนที่…");
       bindRoom(room);
       leavingForWarp = false;

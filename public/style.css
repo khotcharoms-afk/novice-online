@@ -748,3 +748,4 @@ html, body { overscroll-behavior: none; }
 #playerMenu b { font-size: 13px; padding: 0 4px 2px; color: #ffd36b; font-weight: 500; }
 #playerMenu button { text-align: left; padding: 6px 8px; font-size: 13px; }
 .line.party .cname { color: #7dff9a; } .line.party { color: #c8ffd2; }
+.wm-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; } .wm-acts .wm-go { flex: 1; margin: 0 !important; }

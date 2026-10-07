@@ -16,14 +16,19 @@ const NODE_MODULES = path.join(__dirname, "..", "node_modules");
 const PORT = Number(process.env.PORT) || 2567;
 
 const app = express();
+app.use(require("compression")()); // บีบอัด (gzip) ไฟล์ js/json/html ให้เล็กลง โหลดเร็วขึ้น
 app.use(express.json({ limit: "10kb" }));
-app.use(express.static(path.join(__dirname, "..", "public")));
+// แคช: ภาพ/เสียง (assets) ใช้ของในเครื่องได้เลยแล้วเช็กเวอร์ชันใหม่เบื้องหลัง · โค้ด (js/css/html) เช็กทุกครั้ง (อัปเดตเกมแล้วเห็นทันที)
+app.use("/assets", express.static(path.join(__dirname, "..", "public", "assets"), {
+  setHeaders: (res, file) => res.setHeader("Cache-Control", /manifest\.json$/.test(file) ? "no-cache" : "public, max-age=600, stale-while-revalidate=604800"),
+}));
+app.use(express.static(path.join(__dirname, "..", "public"), { setHeaders: (res) => res.setHeader("Cache-Control", "no-cache") }));
 
 // ไลบรารีฝั่งเบราว์เซอร์
 const lib = { "colyseus.js": "colyseus.js/dist/colyseus.js", "phaser.min.js": "phaser/dist/phaser.min.js",
   "firebase-app.js": "firebase/firebase-app-compat.js", "firebase-auth.js": "firebase/firebase-auth-compat.js" };
 for (const [name, file] of Object.entries(lib))
-  app.get("/lib/" + name, (_req, res) => res.sendFile(path.join(NODE_MODULES, file)));
+  app.get("/lib/" + name, (_req, res) => res.sendFile(path.join(NODE_MODULES, file), { maxAge: "7d" }));
 
 app.get("/credits", (_req, res) =>
   res.type("text/plain; charset=utf-8").sendFile(path.join(__dirname, "..", "CREDITS.md"))

@@ -16,6 +16,7 @@
     "@colyseus/ws-transport": "^0.16.5",
     "colyseus": "^0.16.5",
     "colyseus.js": "^0.16.22",
+    "compression": "^1.8.2",
     "express": "^4.22.3",
     "firebase": "^12.19.0",
     "firebase-admin": "^14.5.0",
