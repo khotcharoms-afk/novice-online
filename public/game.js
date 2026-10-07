@@ -331,8 +331,8 @@ function bindRoom(room) {
     room.onMessage("maint", (info) => onMaint(info));
     room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
-    room.onMessage("chat", ({ id, name, text }) => {
-      addChat("chat", `<span class="cname">${esc(name)}:</span> ${esc(text)}`);
+    room.onMessage("chat", ({ id, name, text, party }) => {
+      addChat(party ? "chat party" : "chat", `${party ? "[ปาร์ตี้] " : ""}<span class="cname">${esc(name)}:</span> ${esc(text)}`);
       saveChat();
       const v = scene && scene.views.get(id);
       if (v) scene.showBubble(v, text);
@@ -346,6 +346,8 @@ function bindRoom(room) {
     room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
     room.onMessage("bossBoard", (d) => onBossBoard(d));
+    room.onMessage("party", (d) => onParty(d));
+    room.onMessage("partyInvite", (d) => onPartyInvite(d));
     room.onMessage("died", (d) => showDeath(d));
     room.onMessage("respawned", () => hideDeath());
     room.onMessage("spawnFx", (d) => scene && scene.spawnFx(d));
@@ -560,6 +562,8 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       let hit = over.find((o) => o.getData && o.getData("mobId"));
+      const pl = !hit && over.find((o) => o.getData && o.getData("playerId"));
+      if (pl) { showPlayerMenu(pl.getData("playerId"), p.event.clientX, p.event.clientY); return; }
       // จอสัมผัส: นิ้วใหญ่กว่าเมาส์ → แตะใกล้ ๆ มอน (ไม่เกิน ~1 ช่อง) ก็นับว่าเลือกมอนตัวนั้น
       if (!hit && p.wasTouch) {
         let bd = 34 / this.cameras.main.zoom + 14;
@@ -789,6 +793,9 @@ class WorldScene extends Phaser.Scene {
       sprite.setData("mobId", id);
       sprite.on("pointerover", () => { v.hover = true; });
       sprite.on("pointerout", () => { v.hover = false; });
+    } else if (!isMe) { // ผู้เล่นอื่น: คลิกแล้วมีเมนู (ชวนเข้าปาร์ตี้)
+      sprite.setInteractive({ hitArea: new Phaser.Geom.Rectangle(20, 14, 24, 48), hitAreaCallback: Phaser.Geom.Rectangle.Contains, cursor: "pointer" });
+      sprite.setData("playerId", id);
     }
     const v = { id, isMob, isMe, key, root, sprite, label, bars, wbg, wfg, bubble: null, e, gear: e.gear || "", job: e.job,
       tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
@@ -826,7 +833,7 @@ class WorldScene extends Phaser.Scene {
         if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
       }
       if ((e.glow || "") !== v.glowStr) this.buildGlow(v, e);
-      v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
+      v.label.setColor(v.isMe ? "#ffd36b" : typeof partyNames === "function" && partyNames().has(e.name) ? "#7dff9a" : "#ffffff");
       if (v.isMe && e.job !== v.lastJob) { v.lastJob = e.job; if (gameData) { buildSkillBar(); if (typeof renderQuestTrack === "function") renderQuestTrack(); } }
       v.label.setText(`${e.name}  Lv.${lv}`);
       if (v.isMe) {

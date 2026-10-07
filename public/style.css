@@ -563,7 +563,9 @@ img { -webkit-user-drag: none; user-drag: none; }
 .job-acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .job-acts .btn-gold { flex: 1; padding: 8px; font-size: 14px; }
 .job-done { color: #7dff9a; font-size: 15px; margin-top: 10px; } .job-note { color: var(--muted); margin-top: 8px; }
 @media (max-width: 640px) { .job-body { grid-template-columns: 1fr; } .job-tabs { grid-template-columns: repeat(3, 1fr); } .job-skills { grid-template-columns: 1fr; } }
-#questTrack { position: fixed; left: 10px; top: 186px; z-index: 6; padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
+#leftStack { position: fixed; left: 10px; top: 186px; z-index: 6; display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 400px); min-height: 120px; overflow-y: auto; pointer-events: none; }
+#leftStack > * { pointer-events: auto; }
+#questTrack { padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
 #questTrack .ok { color: #7dff9a; }
 #buffBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 118px; z-index: 6; display: flex; gap: 4px; pointer-events: none; }
 #buffBar .buff { background: rgba(10,13,30,.85); border: 1px solid #c9a45c; color: #ffe2a0; border-radius: 99px; padding: 1px 8px; font-size: 11.5px; }
@@ -579,7 +581,7 @@ img { -webkit-user-drag: none; user-drag: none; }
   #minimap { zoom: .62; }
   #chat { zoom: .7; width: 380px; }
   #chatLog { height: 78px; }
-  #questTrack { zoom: .7; top: 170px; }
+  #leftStack { zoom: .7; top: 170px; }
   #buffBar { zoom: .8; bottom: 70px; }
   /* แถบสกิล + ไอเทมลัด: แนวนอนมุมขวาล่าง */
   #bars { zoom: .72; top: auto !important; bottom: 8px; right: 8px; display: flex; flex-direction: column; align-items: flex-end; }
@@ -597,7 +599,7 @@ img { -webkit-user-drag: none; user-drag: none; }
 @media (max-width: 640px) and (min-height: 541px) {
   #status, #minimap { zoom: .85; }
   #chat { zoom: .85; }
-  #questTrack { top: 150px; zoom: .85; }
+  #leftStack { top: 150px; zoom: .85; }
 }
 
 /* จอสัมผัส: กันหน้าเว็บเลื่อน/ซูมตอนแตะในเกม (iPhone) */
@@ -706,15 +708,15 @@ html, body { overscroll-behavior: none; }
 .sp-exp b { position: relative; display: block; text-align: center; font-size: 10.5px; line-height: 14px; font-weight: 400; }
 .sp-skill { font-size: 12px; margin: 4px 0; } .sp-skill b { color: #9fe8ff; font-weight: 500; }
 .spirit-slot { margin-top: 4px; }
-#spiritTrack { position: fixed; left: 10px; top: 270px; z-index: 6; padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
+#spiritTrack { padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
 #spiritTrack .ok { color: #7dff9a; }
-@media (max-width: 640px) { .sp-tabs { grid-template-columns: repeat(3, 1fr); } #spiritTrack { zoom: .85; top: 230px; } #spiritPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }
+@media (max-width: 640px) { .sp-tabs { grid-template-columns: repeat(3, 1fr); } #spiritPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }
 .sp-stage { color: #ffd36b; font-weight: 500; }
 .sp-brk { margin-top: 8px; }
 .sp-brk .row span img { width: 20px; height: 20px; vertical-align: middle; margin-right: 2px; }
 .sp-brk .row .ok { color: #7dff9a; } .sp-up .muted { color: var(--muted); } .sp-hr { border: 0; border-top: 1px dashed #2c3561; margin: 8px 0; }
 #spiritTrack .spq + .spq { margin-top: 5px; padding-top: 5px; border-top: 1px solid #2c3561; }
-#spiritTrack { max-height: 40vh; overflow-y: auto; }
+
 
 /* ---------- บอร์ด World Boss ---------- */
 .boss-btn { width: auto !important; padding: 0 7px; font-size: 11.5px; margin-right: 4px; }
@@ -732,3 +734,17 @@ html, body { overscroll-behavior: none; }
 .boss-row.alive .bstate b { color: #ff7a6a; }
 .boss-hp { height: 8px; background: #141a36; border-radius: 4px; overflow: hidden; margin-top: 4px; } .boss-hp i { display: block; height: 100%; background: linear-gradient(90deg, #ff3a2a, #ff8a5a); }
 @media (max-width: 640px) { #bossPanel { zoom: .8; } .boss-row { grid-template-columns: 44px 1fr; } .boss-row .bstate { grid-column: 1 / -1; text-align: left; } }
+
+/* ---------- ปาร์ตี้ ---------- */
+#partyBox { padding: 6px 8px; font-size: 12px; min-width: 190px; }
+#partyBox .pt-head { display: flex; align-items: center; justify-content: space-between; color: #7dff9a; font-weight: 500; margin-bottom: 4px; }
+#partyBox .pt-head button { background: none; border: 1px solid #a23a44; color: #ffb0b8; border-radius: 5px; font-size: 11px; padding: 0 6px; cursor: pointer; }
+.pt-mem { padding: 3px 0; border-top: 1px solid #222a50; } .pt-mem:first-of-type { border-top: 0; }
+.pt-mem .nm { display: flex; justify-content: space-between; gap: 6px; } .pt-mem .nm b { font-weight: 500; } .pt-mem.me .nm b { color: #ffd36b; }
+.pt-mem .nm small { color: var(--muted); } .pt-mem.away { opacity: .6; } .pt-mem.dead .nm b { color: #ff7a7a; text-decoration: line-through; }
+.pt-bar { height: 4px; background: #141a36; border-radius: 2px; overflow: hidden; margin-top: 2px; } .pt-bar i { display: block; height: 100%; background: #e5484d; } .pt-bar.sp i { background: #4f8fff; }
+.pt-mem .kick { background: none; border: 0; color: #ff8a8a; cursor: pointer; font-size: 11px; padding: 0 2px; }
+#playerMenu { position: fixed; z-index: 30; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+#playerMenu b { font-size: 13px; padding: 0 4px 2px; color: #ffd36b; font-weight: 500; }
+#playerMenu button { text-align: left; padding: 6px 8px; font-size: 13px; }
+.line.party .cname { color: #7dff9a; } .line.party { color: #c8ffd2; }
