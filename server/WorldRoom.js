@@ -656,7 +656,8 @@ class WorldRoom extends Room {
     return out;
   }
   // ================= วาปไปคริสตัล / กลับเมือง (จากหน้าแผนที่โลก) =================
-  static teleportCost(mapId) { const M = W.MAPS[mapId]; return !M || M.type === "town" ? 0 : Math.max(20, (M.lv ? M.lv[0] : 1) * 20); }
+  // ค่าวาป ≈ รายได้จากการฟาร์ม ~1 นาทีที่เลเวลของแผนที่นั้น (ดู tools/economy.js) · กลับเมืองฟรี
+  static teleportCost(mapId) { const M = W.MAPS[mapId]; return !M || M.type === "town" ? 0 : Math.max(100, Math.round((Math.pow(M.lv ? M.lv[0] : 1, 1.55) * 22) / 50) * 50); }
   teleport(client, mapId) {
     const pid = client.sessionId, p = this.state.players.get(pid), r = this.pr.get(pid);
     if (!p || !r || p.dead || p.warp) return;

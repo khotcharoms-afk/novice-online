@@ -380,10 +380,10 @@ const goldDrop = (mobLv) => Math.round(mobLv * 1.0 + Math.random() * mobLv * 0.8
 // =============================================================
 const RARITY = [
   { name: "ธรรมดา", color: "#cfd3dd", mult: 1, extras: 0, weight: 716, sell: 1 },
-  { name: "ดี", color: "#7dff9a", mult: 1.1, extras: 1, weight: 200, sell: 1.5 },
-  { name: "หายาก", color: "#6fb6ff", mult: 1.25, extras: 2, weight: 70, sell: 2.5 },
-  { name: "มหากาพย์", color: "#c38bff", mult: 1.45, extras: 3, weight: 12, sell: 4 },
-  { name: "ตำนาน", color: "#ffc145", mult: 1.7, extras: 4, weight: 2, sell: 7 },
+  { name: "ดี", color: "#7dff9a", mult: 1.1, extras: 1, weight: 200, sell: 1.3 },
+  { name: "หายาก", color: "#6fb6ff", mult: 1.25, extras: 2, weight: 70, sell: 1.8 },
+  { name: "มหากาพย์", color: "#c38bff", mult: 1.45, extras: 3, weight: 12, sell: 2.5 },
+  { name: "ตำนาน", color: "#ffc145", mult: 1.7, extras: 4, weight: 2, sell: 4 },
 ];
 function rollRarity() {
   let x = Math.random() * RARITY.reduce((t, r) => t + r.weight, 0);
@@ -500,7 +500,8 @@ function gearStats(g) {
 const sellPrice = (id, g) => {
   const it = ITEMS[id];
   if (!it) return 0;
-  const base = it.sell ?? Math.floor((it.price || 0) / 2);
+  // อุปกรณ์ขายคืนร้านได้ 12% ของราคา (ของดรอปมีค่าตอนใช้/แลกกับคนอื่น ไม่ใช่ขายร้าน) · ของอื่นได้ครึ่งราคา
+  const base = it.sell ?? Math.floor((it.price || 0) * (it.type === "equip" ? 0.12 : 0.5));
   return Math.floor(base * ((g && RARITY[g.r || 0]) || RARITY[0]).sell);
 };
 const ACC_SLOTS = ["neck", "ring", "ear"];

@@ -53,7 +53,7 @@ function renderWorld() {
   if (go) go.onclick = () => { startTravel(m.id); toggleWorld(false); };
   $("wmInfo").querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => { wmSel = b.dataset.go; renderWorld(); }));
 }
-const tpCost = (m) => (m.type === "town" ? 0 : Math.max(20, (m.lv ? m.lv[0] : 1) * 20)); // ตรงกับ WorldRoom.teleportCost
+const tpCost = (m) => (m.type === "town" ? 0 : Math.max(100, Math.round((Math.pow(m.lv ? m.lv[0] : 1, 1.55) * 22) / 50) * 50)); // ตรงกับ WorldRoom.teleportCost
 function setupWorldUI() {
   $("worldBtn").onclick = () => toggleWorld();
   $("wmClose").onclick = () => toggleWorld(false);
