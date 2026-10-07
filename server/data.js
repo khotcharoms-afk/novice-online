@@ -177,7 +177,7 @@ const SKILLS = {
     desc: (L) => `ATK +${2 * L} · DEF +${L} · HP/SP สูงสุด +${L}%`, pas: (L) => ({ atk: 2 * L, def: L, hpPct: L, spPct: L }) },
   firstaid:   { name: "ปฐมพยาบาล", max: 5, innate: 1, sp: [8, 0], cooldown: 12000, target: "self", auto: "heal", icon: "potion_m", color: "#2f8a4a",
     heal: [0.15, 0.05], desc: (L) => `ฟื้น HP ${Math.round((0.15 + 0.05 * L) * 100)}% (+INT×2)`, fx: { type: "heal", color: 0x7dffa8 } },
-  doublehit:  { name: "ฟันซ้ำ", max: 5, innate: 1, sp: [5, 0], cooldown: 5000, target: "mob", range: 60, auto: "dmg", icon: "sword", color: "#7a4a2a",
+  doublehit:  { name: "ฟันซ้ำ", max: 5, sp: [5, 0], cooldown: 5000, target: "mob", range: 60, auto: "dmg", icon: "sword", color: "#7a4a2a",
     mult: [0.8, 0.05], desc: (L) => `ตี 2 ครั้งติด ครั้งละ ${Math.round((0.8 + 0.05 * L) * 100)}%` },
   // ===== ผู้พิทักษ์ =====
   swordmastery: { name: "ชำนาญดาบ", passive: true, max: 10, icon: "saber", color: "#3a5a9a",
@@ -255,9 +255,9 @@ const BUFFS = {
 };
 // ต้นไม้สกิล: แต่ละแท็บ = รายการแถว (I, II, III) ของสกิล
 const SKILL_TREE = {
-  villager: [["basic", "firstaid", "doublehit"]],
-  guardian: [["swordmastery", "ironbody", "shieldbash"], ["provoke", "shieldwall"]],
-  slayer: [["gsmastery", "cleave"], ["fury", "execute"], ["bloodlust"]],
+  villager: [["basic", "firstaid"]],
+  guardian: [["swordmastery", "ironbody", "shieldbash"], ["doublehit", "provoke", "shieldwall"]],
+  slayer: [["gsmastery", "doublehit", "cleave"], ["fury", "execute"], ["bloodlust"]],
   hunter: [["bowmastery", "doubleshot"], ["hawkeye", "arrowrain"], ["swiftstep"]],
   mage: [["staffmastery", "meditation", "firebolt"], ["frostnova"], ["meteor"]],
   healer: [["faith", "heal", "holylight"], ["bless"]],
@@ -283,6 +283,7 @@ function sanitizeSkills(raw, job, lv) {
   const out = innateSkills();
   for (const k of treeKeys(job)) {
     const v = Math.floor(Number(raw && raw[k]) || 0);
+    if (k === "doublehit" && v <= 1) continue; // ฟันซ้ำ Lv1 เดิมเคยได้ฟรีตอนเป็นชาวบ้าน → ไม่นับ
     if (v > 0) out[k] = Math.max(out[k] || 0, Math.min(SKILLS[k].max, v));
   }
   return skillSpent(out) > skillPointsAt(lv) ? innateSkills() : out;
