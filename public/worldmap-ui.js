@@ -39,13 +39,14 @@ function renderWorld() {
     <h3>${m.name}</h3>
     <div class="tags">${m.lv ? `<span class="tag">Lv.${m.lv[0]}–${m.lv[1]}</span>` : '<span class="tag">ปลอดภัย</span>'}${m.id === room.mapId ? '<span class="tag here">คุณอยู่ที่นี่</span>' : ""}</div>
     <div>${m.desc}</div>
-    ${m.mobs.length ? `<h4>มอนสเตอร์และของดรอป</h4>${mobs}` : ""}
-    ${m.services.length ? `<h4>บริการ</h4>${m.services.map((s) => `<div class="row">${s}</div>`).join("")}` : ""}
     <div class="wm-acts">${m.type === "town" ? `<button type="button" class="btn-gold wm-go" id="wmTp">🏠 วาปกลับเมือง <small>(ฟรี)</small></button>`
       : `<button type="button" class="btn-gold wm-go" id="wmTp">💎 วาปไปคริสตัล <small>(${tpCost(m).toLocaleString()} gold)</small></button>`}
     ${m.id !== room.mapId ? `<button type="button" class="btn-ghost wm-go" id="wmGo">🧭 เดินไปเอง <small>(${routeTo(m.id).length - 1} แผนที่)</small></button>` : ""}</div>
+    ${m.mobs.length ? `<h4>มอนสเตอร์และของดรอป</h4>${mobs}` : ""}
+    ${m.services.length ? `<h4>บริการ</h4>${m.services.map((s) => `<div class="row">${s}</div>`).join("")}` : ""}
+
     <h4>เชื่อมต่อกับ</h4><div class="links">${m.exits.map((id) => { const x = byId(id); return `<button type="button" data-go="${id}">${x.name}<small>${x.lv ? `Lv.${x.lv[0]}–${x.lv[1]}` : "ปลอดภัย"}</small></button>`; }).join("")}</div>
-    <p class="hint">เดินทาง: เดินไปที่วงเวทสีฟ้าที่ขอบแผนที่ (ดูจุดสีฟ้าบนมินิแมพ)</p>`;
+    <p class="hint">เดินทาง: กดวาปไปคริสตัลของแผนที่ได้ทันที (ระหว่างต่อสู้วาปไม่ได้) หรือเดินไปที่วงเวทสีฟ้าที่ขอบแผนที่</p>`;
   const tp = $("wmTp");
   if (tp) tp.onclick = () => { room.send("teleport", { map: m.id }); toggleWorld(false); };
   const go = $("wmGo");
