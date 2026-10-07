@@ -49,11 +49,12 @@ def add_grip(src, ang, L, gc=None):
     arr = np.array(big); m = arr[..., 3] >= 200
     ys, xs = np.nonzero(m)
     d = np.array([math.cos(math.radians(ang)), math.sin(math.radians(ang))])   # ชี้จากปลายแคบ → ปลายกว้าง (กระบัง)
-    proj = np.stack([xs, ys], 1) @ d
-    tip_i = proj.argmax()
-    # จุดกระบังด้านนอกสุด: เฉลี่ยพิกเซลที่อยู่ปลายสุดฝั่งกว้าง
-    sel = proj > proj.max() - 1.5
-    gx, gy = xs[sel].mean(), ys[sel].mean()
+    P = np.stack([xs, ys], 1).astype(float); proj = P @ d
+    L0 = proj.max() - proj.min()
+    # แนวกลางใบดาบ: จุดศูนย์กลางของช่วงใบ (ไม่รวมกระบัง) แล้วลากตามแกนไปถึงปลายฝั่งกระบัง
+    blade = (proj > proj.min() + 0.15 * L0) & (proj < proj.min() + 0.6 * L0)
+    cb = P[blade].mean(0)
+    gx, gy = cb + d * (proj.max() - cb @ d)
     nrm = np.array([-d[1], d[0]])
     grip, gripd = (92, 58, 38), (58, 36, 24)
     pom = tuple(int(gc[i:i + 2], 16) for i in (1, 3, 5)) if gc else (210, 175, 80)
@@ -89,12 +90,12 @@ def carry(iid):
     src = weapon_src(iid, front, back)
     ang, L = axis_info(src)
     if L > 46: src = src.resize((max(1, round(src.width * 46 / L)), max(1, round(src.height * 46 / L))), Image.NEAREST); ang, L = axis_info(src)
-    if ITEMS[iid].get("base", iid) == "greatsword" or iid == "greatsword":   # ดาบ (ไม่ใช่ง้าว) → เติมด้ามจับ
-        src = add_grip(src, ang, L, ITEMS[iid].get("glowColor"))
-        prev = ang; ang, L = axis_info(src)
-        if math.cos(math.radians(ang - prev)) < 0: ang += 180   # คงทิศเดิม: ด้าม/กระบังชี้ขึ้น
-    diag_dn, diag_mir = render(src, ang, 38), render(src, ang, -38)
-    steep, steep_mir = render(src, ang, 22), render(src, ang, -22)
+    is_sword = ITEMS[iid].get("base", iid) == "greatsword" or iid == "greatsword"
+    def R(tilt):  # หมุนใบดาบครั้งเดียว แล้วค่อยวาดด้ามในทิศสุดท้าย (เส้นด้ามคมไม่แตก)
+        im = render(src, ang, tilt)
+        return add_grip(im, -90 + tilt, 0, ITEMS[iid].get("glowColor")) if is_sword else im
+    diag_dn, diag_mir = R(38), R(-38)
+    steep, steep_mir = R(22), R(-22)
     gc = ITEMS[iid].get("glowColor")
     if gc:
         def glow1(W):
