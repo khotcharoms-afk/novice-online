@@ -749,3 +749,22 @@ html, body { overscroll-behavior: none; }
 #playerMenu button { text-align: left; padding: 6px 8px; font-size: 13px; }
 .line.party .cname { color: #7dff9a; } .line.party { color: #c8ffd2; }
 .wm-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; } .wm-acts .wm-go { flex: 1; margin: 0 !important; }
+/* แผนที่โลกบนจอเตี้ย (มือถือแนวนอน): รูปแผนที่ย่อตามความสูงจอ + ข้อมูลอยู่ข้าง ๆ เลื่อนดูได้ (ปุ่มวาปกดได้เสมอ) */
+@media (max-height: 600px) {
+  #worldPanel { --z: 1; top: 4px !important; transform: translateX(-50%) !important; }
+  #worldPanel.dragged { transform: none !important; }
+  #worldPanel { width: max-content !important; max-width: calc((100vw - 8px) / var(--z)); }
+  .wm-body { grid-template-columns: auto 230px !important; align-items: start; }
+  .wm-acts { flex-direction: column; } .wm-go { font-size: 13px !important; padding: 7px !important; }
+  .wm-map { width: max-content; }
+  .wm-map img { height: calc((100vh - 64px) / var(--z)); width: auto; }
+  .wm-info { max-height: calc((100vh - 64px) / var(--z)); padding: 8px; }
+  .wm-info h3 { font-size: 16px; }
+  .wm-legend { display: none; }
+}
+@media (max-height: 540px) { #worldPanel { --z: .72; } }
+/* จอแคบแนวตั้ง: เลื่อนดูทั้งหน้าต่างได้ */
+@media (max-width: 900px) and (min-height: 601px) {
+  #worldPanel { top: 8px !important; transform: translateX(-50%) !important; max-height: calc(100vh - 16px); overflow-y: auto; }
+  .wm-info { max-height: none; }
+}

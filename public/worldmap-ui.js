@@ -27,7 +27,7 @@ function renderWorld() {
     b.style.left = m.world.x + "%"; b.style.top = m.world.y + "%";
     b.innerHTML = `${m.id === room.mapId ? '<span class="here">คุณอยู่ที่นี่</span>' : ""}<i class="dot ${lvClass(m)}"></i>
       <span class="lbl">${m.name}<small>${m.lv ? `Lv.${m.lv[0]}–${m.lv[1]}` : "ปลอดภัย"}</small></span>`;
-    b.onclick = () => { wmSel = m.id; renderWorld(); };
+    b.onclick = () => { wmSel = m.id; renderWorld(); const info = $("wmInfo"); if (info) { info.scrollTop = 0; if (window.innerWidth <= 900 && window.innerHeight > 600) info.scrollIntoView({ behavior: "smooth", block: "start" }); } };
     pins.appendChild(b);
   }
   const m = WORLD.maps.find((x) => x.id === wmSel) || WORLD.maps[0];
