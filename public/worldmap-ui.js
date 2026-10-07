@@ -34,7 +34,7 @@ function renderWorld() {
   const byId = (id) => WORLD.maps.find((x) => x.id === id);
   const items = gameData ? gameData.items : {};
   const mobs = m.mobs.map((mb) => `<div class="row"><span>${mb.name}${mb.aggressive ? '<span class="agg">ดุ</span>' : ""}</span><span class="lv">Lv.${mb.level}</span></div>
-    <div class="drops">${mb.drops.map((id) => `<img src="/assets/icons/${id}.png" alt="${(items[id] || {}).name || id}" title="${(items[id] || {}).name || id}">`).join("")}</div>`).join("");
+    <div class="drops">${sampleDrops(mb.drops, items).map((id) => `<img src="/assets/icons/${id}.png" alt="${(items[id] || {}).name || id}" title="${(items[id] || {}).name || id}">`).join("")}${mb.drops.length > 5 ? `<span class="more">+${mb.drops.length - 5}</span>` : ""}</div>`).join("");
   $("wmInfo").innerHTML = `<div class="kind">${m.type === "town" ? "เมือง · ปลอดภัย" : "พื้นที่ล่ามอนสเตอร์"}</div>
     <h3>${m.name}</h3>
     <div class="tags">${m.lv ? `<span class="tag">Lv.${m.lv[0]}–${m.lv[1]}</span>` : '<span class="tag">ปลอดภัย</span>'}${m.id === room.mapId ? '<span class="tag here">คุณอยู่ที่นี่</span>' : ""}</div>
@@ -52,6 +52,15 @@ function renderWorld() {
   const go = $("wmGo");
   if (go) go.onclick = () => { startTravel(m.id); toggleWorld(false); };
   $("wmInfo").querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => { wmSel = b.dataset.go; renderWorld(); }));
+}
+// ของดรอปแสดงแค่ตัวอย่าง 5 อย่าง: ของประจำตัวมอน 2 · อุปกรณ์เด่น (เลเวลสูงสุด) 3
+function sampleDrops(drops, items) {
+  const it = (id) => items[id] || {};
+  const mats = drops.filter((id) => it(id).type === "material" && !/^stone_|spirit_shard/.test(id)).slice(0, 2);
+  const gear = drops.filter((id) => it(id).type === "equip").sort((a, b) => (it(b).lv || 0) - (it(a).lv || 0)).slice(0, 5 - mats.length);
+  const out = [...mats, ...gear];
+  for (const id of drops) if (out.length < 5 && !out.includes(id)) out.push(id);
+  return out.slice(0, 5);
 }
 const tpCost = (m) => (m.type === "town" ? 0 : Math.max(100, Math.round((Math.pow(m.lv ? m.lv[0] : 1, 1.55) * 22) / 50) * 50)); // ตรงกับ WorldRoom.teleportCost
 function setupWorldUI() {
