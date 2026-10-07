@@ -92,6 +92,25 @@
       header { padding: 10px 16px; }
       .hide-sm { display: none; }
     }
+    /* ---------- คลังไอเทม ---------- */
+    dialog.spawn { width: min(980px, calc(100vw - 24px)); max-height: calc(100vh - 30px); display: none; flex-direction: column; gap: 8px; padding: 14px 16px; }
+    dialog.spawn[open] { display: flex; }
+    .sp-head { display: flex; justify-content: space-between; align-items: center; } .sp-head h2 { margin: 0; font-size: 16px; color: var(--gold); font-weight: 500; }
+    .chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .chip { background: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 3px 11px; cursor: pointer; font-size: 12.5px; color: var(--text); }
+    .chip small { color: var(--muted); } .chip.on { border-color: var(--jc, var(--brass)); color: var(--jc, var(--gold)); background: var(--ink-2); }
+    .sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; overflow-y: auto; min-height: 160px; flex: 1; padding: 2px; }
+    .sp-item { position: relative; display: grid; justify-items: center; gap: 2px; padding: 8px 4px 6px; background: #111733; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; text-align: center; color: var(--text); }
+    .sp-item:hover { border-color: var(--brass-dim); } .sp-item.sel { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), inset 0 0 12px #ffd36b33; }
+    .sp-item img { width: 40px; height: 40px; image-rendering: pixelated; }
+    .sp-item b { font-weight: 500; font-size: 12.5px; line-height: 1.2; } .sp-item small { color: var(--muted); font-size: 11px; }
+    .sp-item .dots { display: flex; gap: 3px; } .sp-item .dots i { width: 8px; height: 8px; border-radius: 50%; }
+    .sp-item .drop { position: absolute; top: 4px; right: 4px; font-size: 9.5px; color: #c38bff; border: 1px solid #c38bff66; border-radius: 4px; padding: 0 3px; }
+    .sp-foot { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 8px; }
+    .sp-sel { display: flex; gap: 10px; align-items: center; } .sp-sel img { width: 48px; height: 48px; image-rendering: pixelated; background: #0f1430; border-radius: 8px; border: 1px solid var(--line); }
+    .sp-sel h3 { margin: 0; font-size: 15px; font-weight: 500; }
+    .btn-give { background: linear-gradient(180deg, #e9c779, #b48a3e); color: #2b1d05; border-color: #f1d38f; font-weight: 500; padding: 6px 16px; margin-left: auto; }
+    .btn-spawn { border-color: var(--brass-dim); color: var(--gold); }
   </style>
 </head>
 <body>
@@ -188,6 +207,7 @@
     </div>
   </main>
   <dialog id="gearDlg"></dialog>
+  <dialog id="spawnDlg" class="spawn"></dialog>
   <div id="toast" role="status"></div>
 
   <script src="/lib/firebase-app.js"></script>

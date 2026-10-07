@@ -137,7 +137,10 @@ function mount(app, api) {
     world: WorldRoom.worldStats(), online: WorldRoom.onlineList(),
   })));
   app.get("/api/admin/items", admin(async () => ({
-    items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0 })),
+    items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0, slot: it.slot || null,
+      wt: it.wt || null, ac: it.ac || null, set: it.set || null, bonus: it.bonus || null, desc: it.desc || "", price: it.price || 0,
+      shop: I.SHOP.includes(id), jobs: it.type === "equip" ? require("./inventory").jobsFor(it) : [] })),
+    jobs: Object.fromEntries(Object.entries(D.JOBS).map(([k, j]) => [k, { name: j.name, color: j.color }])),
     rarity: I.RARITY.map((r) => ({ name: r.name, color: r.color })),
     online: WorldRoom.onlineList().map((o) => o.charId),
   })));

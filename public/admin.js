@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString();
 const when = (t) => (t ? new Date(t).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "-");
+let JOBS_INFO = {};
 let cfg = null, fbAuth = null, ITEMS = [], ITEM_BY = {}, RAR = [], curUid = null, ovTimer = null;
 const gName = (g) => { const it = ITEM_BY[g.id] || {}; return (g.up ? `+${g.up} ` : "") + (it.name || g.id); };
 const gCol = (g) => (ITEM_BY[g.id] || {}).type === "equip" && g.r > 0 && RAR[g.r] ? RAR[g.r].color : "";
@@ -52,7 +53,7 @@ async function checkAdmin() {
     $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
     $("who").textContent = `แอดมิน: ${me.loginId}` + (me.mode === "dev" ? " · โหมดทดสอบ" : "");
     const it = await api("GET", "/api/admin/items");
-    ITEMS = it.items; ITEM_BY = Object.fromEntries(ITEMS.map((i) => [i.id, i])); RAR = it.rarity || [];
+    ITEMS = it.items; ITEM_BY = Object.fromEntries(ITEMS.map((i) => [i.id, i])); RAR = it.rarity || []; JOBS_INFO = it.jobs || {};
     openTab("ov");
   } catch (e) { showLogin(e.message); }
 }
@@ -150,10 +151,7 @@ async function openAccount(uid) {
       <div class="acts">
         <div class="row"><label>gold</label><input type="number" data-f="gold" value="1000" style="width:120px">
           <button class="btn" data-a="gold+">เพิ่ม</button><button class="btn" data-a="gold-">ลด</button></div>
-        <div class="row"><label>ให้ไอเทม</label><select data-f="item" style="max-width:220px">${itemOpts}</select>
-          <input type="number" data-f="n" value="1" min="1" max="999" style="width:70px"><button class="btn" data-a="item">ให้</button></div>
-        <div class="row"><label>(อุปกรณ์)</label><select data-f="r"><option value="0">ระดับ: ธรรมดา</option>${RAR.slice(1).map((r, i) => `<option value="${i + 1}" style="color:${r.color}">ระดับ: ${r.name}</option>`).join("")}<option value="rand">ระดับ: สุ่มแบบดรอป</option></select>
-          <label style="min-width:auto">ตีบวก +</label><input type="number" data-f="up" value="0" min="0" max="10" style="width:60px"></div>
+        <div class="row"><label>ให้ไอเทม</label><button class="btn btn-spawn" data-a="spawn">🎁 เปิดคลังไอเทม (เลือกจากรูป · ค้นหา · กรองตามอาชีพ)</button></div>
         <div class="row"><label>เลเวล</label><input type="number" data-f="lv" value="${c.level}" min="1" max="99" style="width:80px">
           <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button><button class="btn" data-a="resetSkills">รีเซ็ตสกิล</button></div>
         <div class="row"><label>อาชีพ</label><select data-f="job">${Object.entries(JOBS_ADMIN).map(([k, n]) => `<option value="${k}" ${c.job === k ? "selected" : ""}>${n}</option>`).join("")}</select>
@@ -207,7 +205,7 @@ async function openAccount(uid) {
       const a2 = b.dataset.a;
       let body = { action: a2, name };
       if (a2 === "gold+" || a2 === "gold-") body = { action: "gold", name, n: (a2 === "gold-" ? -1 : 1) * Math.abs(Number(f("gold")) || 0) };
-      if (a2 === "item") body = { action: "item", name, id: f("item"), n: Number(f("n")), r: f("r"), up: Number(f("up")) };
+      if (a2 === "spawn") return openSpawn(id, name, uid);
       if (a2 === "level") body = { action: "level", name, lv: Number(f("lv")) };
       if (a2 === "job") { if (!confirm(`เปลี่ยนอาชีพของ ${name}? (แต้มสเตตัสจะถูกคืนทั้งหมด)`)) return; body = { action: "job", name, job: f("job") }; }
       if (a2 === "petSet") body = { action: "pet", name, id: f("pet") };
@@ -343,3 +341,89 @@ $("lgReload").onclick = loadLogs;
   fbAuth = firebase.auth();
   fbAuth.onAuthStateChanged((u) => (u ? checkAdmin() : showLogin()));
 })();
+
+
+// =============================================================
+//  คลังไอเทม (เสกของให้ตัวละคร): ค้นหา · หมวด · อาชีพ · ดูรายละเอียด · เลือกจำนวน/ระดับ/ตีบวก
+// =============================================================
+const SPAWN_CATS = [
+  ["all", "ทั้งหมด", () => true],
+  ["weapon", "อาวุธ", (i) => i.slot === "weapon"],
+  ["offhand", "โล่", (i) => i.slot === "offhand"],
+  ["head", "หมวก", (i) => i.slot === "head" || i.slot === "face"],
+  ["armor", "เสื้อ/เกราะ", (i) => i.slot === "armor"],
+  ["gloves", "ถุงมือ", (i) => i.slot === "gloves"],
+  ["shoes", "รองเท้า", (i) => i.slot === "shoes"],
+  ["cape", "ผ้าคลุม", (i) => i.slot === "cape"],
+  ["acc", "เครื่องประดับ", (i) => i.slot === "acc"],
+  ["use", "ยา", (i) => i.type === "use"],
+  ["pet", "สัตว์เลี้ยง", (i) => i.type === "pet"],
+  ["stone", "คริสตัล", (i) => /^stone_/.test(i.id)],
+  ["mat", "วัตถุดิบ", (i) => i.type === "material" && !/^stone_/.test(i.id)],
+];
+const WT_TH = { sword: "ดาบ", mace: "กระบอง", dagger: "มีดสั้น", greatsword: "ดาบใหญ่", axe: "ขวาน", bow: "ธนู", staff: "คทา", book: "คัมภีร์", shield: "โล่" };
+const AC_TH = { heavy: "เกราะหนัก", light: "เกราะเบา", cloth: "ชุดผ้า" };
+let SP = { cat: "all", job: "all", q: "", sel: null, charId: null, name: "", uid: null, given: 0 };
+function openSpawn(charId, name, uid) {
+  SP = { ...SP, charId, name, uid, sel: SP.sel, given: 0 };
+  const dlg = $("spawnDlg");
+  dlg.innerHTML = `<div class="sp-head"><h2>🎁 คลังไอเทม → <span style="color:var(--text)">${esc(name)}</span></h2>
+      <button class="btn" id="spClose">ปิด</button></div>
+    <div class="row"><input id="spQ" type="search" placeholder="ค้นหาชื่อไอเทม…" value="${esc(SP.q)}" style="flex:1;min-width:180px"></div>
+    <div class="chips" id="spCats"></div>
+    <div class="chips" id="spJobs"></div>
+    <div class="sp-grid" id="spGrid"></div>
+    <div class="sp-foot" id="spFoot"></div>`;
+  dlg.showModal();
+  $("spClose").onclick = () => { dlg.close(); if (SP.given) openAccount(SP.uid); };
+  dlg.onclose = () => { if (SP.given) { SP.given = 0; openAccount(SP.uid); } };
+  $("spQ").oninput = (e) => { SP.q = e.target.value; renderSpawn(); };
+  renderSpawn();
+  setTimeout(() => $("spQ").focus(), 50);
+}
+function spawnList() {
+  const cat = SPAWN_CATS.find((c) => c[0] === SP.cat)[2], q = SP.q.trim().toLowerCase();
+  return ITEMS.filter((i) => cat(i) && (!q || i.name.toLowerCase().includes(q) || i.id.includes(q)) &&
+    (SP.job === "all" || (i.type === "equip" && i.jobs.includes(SP.job))))
+    .sort((a, b) => (a.type === "equip" ? 0 : 1) - (b.type === "equip" ? 0 : 1) || (a.lv || 0) - (b.lv || 0) || a.name.localeCompare(b.name, "th"));
+}
+function renderSpawn() {
+  $("spCats").innerHTML = SPAWN_CATS.map(([k, n, f]) => `<button class="chip${SP.cat === k ? " on" : ""}" data-c="${k}">${n} <small>${ITEMS.filter(f).length}</small></button>`).join("");
+  $("spJobs").innerHTML = `<span class="muted">ใช้ได้กับอาชีพ:</span>` + [["all", "ทุกอาชีพ", "#a7abc4"], ...Object.entries(JOBS_INFO).filter(([k]) => k !== "villager").map(([k, j]) => [k, j.name, j.color])]
+    .map(([k, n, c]) => `<button class="chip${SP.job === k ? " on" : ""}" data-j="${k}" style="--jc:${c}">${n}</button>`).join("");
+  $("spCats").querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => { SP.cat = b.dataset.c; renderSpawn(); }));
+  $("spJobs").querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => { SP.job = b.dataset.j; renderSpawn(); }));
+  const list = spawnList();
+  $("spGrid").innerHTML = list.length ? list.map((i) => `<button class="sp-item${SP.sel === i.id ? " sel" : ""}" data-id="${i.id}" title="${esc(i.name)}">
+      <img src="/assets/icons/${esc(i.id)}.png" alt=""><b>${esc(i.name)}</b>
+      <small>${i.lv ? "Lv." + i.lv : ""}${i.wt ? " · " + WT_TH[i.wt] : i.ac && i.lv >= 20 ? " · " + AC_TH[i.ac] : ""}</small>
+      ${i.lv >= 20 && i.jobs.length && i.jobs.length < 5 ? `<span class="dots">${i.jobs.map((j) => `<i style="background:${(JOBS_INFO[j] || {}).color}" title="${(JOBS_INFO[j] || {}).name}"></i>`).join("")}</span>` : ""}
+      ${i.lv >= 20 && !i.shop && i.type === "equip" ? '<span class="drop">ดรอป</span>' : ""}</button>`).join("")
+    : '<div class="muted" style="grid-column:1/-1;padding:20px;text-align:center">ไม่พบไอเทม</div>';
+  $("spGrid").querySelectorAll(".sp-item").forEach((b) => (b.onclick = () => { SP.sel = b.dataset.id; renderSpawn(); }));
+  renderSpawnFoot();
+}
+function renderSpawnFoot() {
+  const i = ITEM_BY[SP.sel], foot = $("spFoot");
+  if (!i) { foot.innerHTML = '<div class="muted">เลือกไอเทมจากรายการด้านบน</div>'; return; }
+  const gear = i.type === "equip", stack = !gear && i.type !== "pet";
+  const bonus = Object.entries(i.bonus || {}).map(([k, v]) => `${STAT_TH[k] || k} +${v}`).join(" · ");
+  const jobs = gear ? (i.jobs.length >= 5 ? "ทุกอาชีพ" : i.jobs.map((j) => `<b style="color:${JOBS_INFO[j].color}">${JOBS_INFO[j].name}</b>`).join(" / ")) : "";
+  foot.innerHTML = `<div class="sp-sel"><img src="/assets/icons/${esc(i.id)}.png" alt="">
+      <div><h3>${esc(i.name)}</h3><div class="muted">${[i.lv ? "Lv." + i.lv : "", i.wt ? WT_TH[i.wt] : "", i.ac ? AC_TH[i.ac] : "", bonus, i.desc].filter(Boolean).join(" · ")}</div>
+      ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (ชาวบ้านใช้ได้ด้วย)" : ""}</div>` : ""}</div></div>
+    <div class="row">
+      ${stack ? `<label>จำนวน</label><input type="number" id="spN" value="${i.type === "use" ? 10 : 1}" min="1" max="999" style="width:80px">
+        ${[1, 10, 50, 99].map((n) => `<button class="btn" data-n="${n}">${n}</button>`).join("")}` : ""}
+      ${gear ? `<label>ระดับ</label><select id="spR"><option value="0">ธรรมดา</option>${RAR.slice(1).map((r, k) => `<option value="${k + 1}" style="color:${r.color}">${r.name}</option>`).join("")}<option value="rand">สุ่มแบบดรอป</option></select>
+        <label>ตีบวก +</label><input type="number" id="spUp" value="0" min="0" max="10" style="width:60px">` : ""}
+      <button class="btn btn-give" id="spGive">เสกให้ ${esc(SP.name)}</button>
+    </div>`;
+  foot.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => ($("spN").value = b.dataset.n)));
+  $("spGive").onclick = async () => {
+    const body = { action: "item", name: SP.name, id: i.id, n: stack ? Number($("spN").value) || 1 : 1,
+      r: gear ? $("spR").value : 0, up: gear ? Number($("spUp").value) || 0 : 0 };
+    const r = await run(() => api("POST", "/api/admin/char/" + SP.charId, body));
+    if (r) SP.given++;
+  };
+}
