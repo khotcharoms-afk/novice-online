@@ -333,6 +333,9 @@ function bindRoom(room) {
       if (v) scene.showBubble(v, text);
     });
     room.onMessage("toast", toast);
+    room.onMessage("quest", (q) => onQuest(q));
+    room.onMessage("jobChanged", (d) => onJobChanged(d));
+    room.onMessage("buff", (b) => onBuff(b));
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
@@ -359,7 +362,7 @@ class WorldScene extends Phaser.Scene {
     const paths = new Set();
     for (const [sex] of LOOK_OPTS.sex) {
       for (const [skin] of LOOK_OPTS.skin) paths.add(`look/base_${sex}_${skin}`);
-      paths.add(`look/outfit_villager_${sex}`);
+      for (const j of ["villager", "guardian", "slayer", "hunter", "mage", "healer"]) paths.add(`look/outfit_${j}_${sex}`);
       for (const [h] of LOOK_OPTS.hair[sex]) for (const [c] of LOOK_OPTS.color) paths.add(`look/hair_${h}_${c}`);
     }
     paths.forEach((p) => this.load.image(p, `/assets/${p}.png`));
@@ -369,6 +372,7 @@ class WorldScene extends Phaser.Scene {
     (MANIFEST.pets || []).forEach((k) => this.load.spritesheet("pet/" + k, `/assets/pets/${k}.png`, { frameWidth: 32, frameHeight: 32 }));
     this.load.image("npcsrc_merchant", "/assets/npc_merchant.png");
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
+    this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
   }
 
   create() {
@@ -456,14 +460,13 @@ class WorldScene extends Phaser.Scene {
     });
 
     // ---------- เหตุการณ์ต่อสู้ ----------
-    room.onMessage("atk", ({ id, dir }) => this.playOnce(id, "slash", dir, 380));
-    room.onMessage("skillfx", ({ id, dir }) => this.playOnce(id, "slash", dir, 620, 1));
-    room.onMessage("cast", ({ id }) => {
-      const v = this.views.get(id);
-      if (!v) return;
-      this.playOnce(id, "cast", v.dir, 520);
-      this.sparkle(v.root.x, v.root.y - 20, 0x7dffa8);
+    room.onMessage("atk", ({ id, dir, fx, tgt }) => {
+      if (fx === "arrow") { this.playOnce(id, "aim", dir, 320); this.projectile(id, tgt, "arrow"); }
+      else if (fx) { this.playOnce(id, "cast", dir, 420); this.projectile(id, tgt, fx); }
+      else this.playOnce(id, "slash", dir, 380);
     });
+    room.onMessage("skillfx", (f) => this.skillFx(f, false));
+    room.onMessage("cast", (f) => this.skillFx(f, true));
     room.onMessage("hit", (h) => this.onHit(h));
     room.onMessage("heal", ({ id, amount }) => {
       const v = this.views.get(id);
@@ -473,7 +476,7 @@ class WorldScene extends Phaser.Scene {
       const v = this.views.get(room.sessionId);
       if (v) this.floatText(v.root.x, v.root.y - 88, `+${n} EXP`, "#c9a6ff", 12, 1100);
     });
-    room.onMessage("lvup", ({ id }) => this.levelUpFx(id));
+    room.onMessage("lvup", ({ id, job }) => this.levelUpFx(id, job));
     room.onMessage("cd", ({ skill, until }) => { this.cdEnd[skill] = performance.now() + until; });
     room.onMessage("refined", (res) => onRefined(res));
     room.onMessage("derived", (d) => { derived = d; renderStats(); });
@@ -537,6 +540,7 @@ class WorldScene extends Phaser.Scene {
       this.anims.create({ key: `${key}:walk:${dir}`, frames: seq(d, 1, 8), frameRate: 12, repeat: -1 });
       this.anims.create({ key: `${key}:slash:${dir}`, frames: seq(4 + d, 0, 5), frameRate: 16 });
       this.anims.create({ key: `${key}:cast:${dir}`, frames: seq(9 + d, 0, 6), frameRate: 14 });
+      this.anims.create({ key: `${key}:aim:${dir}`, frames: [...seq(d, 0, 0), ...seq(d, 0, 0), ...seq(d, 0, 0)], frameRate: 10 }); // ยิงธนู: ยืนเล็ง
     }
     this.anims.create({ key: `${key}:die`, frames: seq(8, 0, 5), frameRate: 10 });
     return key;
@@ -648,7 +652,7 @@ class WorldScene extends Phaser.Scene {
       sprite.on("pointerover", () => { v.hover = true; });
       sprite.on("pointerout", () => { v.hover = false; });
     }
-    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e, gear: e.gear || "",
+    const v = { id, isMob, isMe, key, root, sprite, label, bars, bubble: null, e, gear: e.gear || "", job: e.job,
       tx: e.x, ty: e.y, dir: e.dir || "down", moving: false, dead: false, deadShown: false, busyUntil: 0 };
     this.views.set(id, v);
     this.syncView(v, e);
@@ -673,13 +677,14 @@ class WorldScene extends Phaser.Scene {
       v.label.setColor(diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
     } else {
-      if ((e.gear || "") !== v.gear) { // เปลี่ยนอุปกรณ์ → ประกอบภาพตัวละครใหม่
-        v.gear = e.gear || "";
+      if ((e.gear || "") !== v.gear || e.job !== v.job) { // เปลี่ยนอุปกรณ์/อาชีพ → ประกอบภาพตัวละครใหม่
+        v.gear = e.gear || ""; v.job = e.job;
         v.key = this.buildSheet(`pl_${e.job}_${e.look}_${v.gear}`, layersFor(e.look, e.job, v.gear));
         v.sprite.setTexture(v.key, DIR_ROW[v.dir] * COLS);
         if (v.isMe) { drawAvatar(v.key); if (typeof renderPaperDoll === "function") renderPaperDoll(); }
       }
       v.label.setColor(v.isMe ? "#ffd36b" : "#ffffff");
+      if (v.isMe && e.job !== v.lastJob) { v.lastJob = e.job; if (gameData) { buildSkillBar(); if (typeof renderQuestTrack === "function") renderQuestTrack(); } }
       v.label.setText(`${e.name}  Lv.${lv}`);
       if (v.isMe) {
         updateStatus(e);
@@ -787,9 +792,107 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
-  levelUpFx(id) {
+  // กระสุน: ลูกธนู / ลูกเวท / แสง จากผู้ใช้ไปหาเป้าหมาย (เวลาเท่ากับที่เซิร์ฟเวอร์รอก่อนคิดดาเมจ)
+  projectile(id, tgt, kind, toXY) {
+    const a = this.views.get(id), b = tgt && this.views.get(tgt);
+    if (!a || (!b && !toXY)) return;
+    const x0 = a.root.x, y0 = a.root.y - 30;
+    const x1 = b ? b.root.x : toXY.x, y1 = (b ? b.root.y : toXY.y) - 26;
+    const d = Math.hypot(x1 - x0, y1 - y0), ms = Math.min(450, 60 + d * 1.4);
+    const COL = { magic: 0xc38bff, fire: 0xff8a3a, holy: 0xfff1a0 };
+    let o;
+    if (kind === "arrow") {
+      o = this.add.container(x0, y0, [this.add.rectangle(0, 0, 14, 2, 0x8a5a2b), this.add.triangle(8, 0, 0, -3, 0, 3, 5, 0, 0xe8e8f0), this.add.rectangle(-7, 0, 3, 4, 0xffffff)]);
+      o.rotation = Math.atan2(y1 - y0, x1 - x0);
+    } else {
+      const c = COL[kind] || 0xffffff;
+      o = this.add.container(x0, y0, [this.add.circle(0, 0, kind === "fire" ? 7 : 6, c, 0.35), this.add.circle(0, 0, kind === "fire" ? 4 : 3, 0xffffff, 0.95)]);
+      this.tweens.add({ targets: o.list[0], scale: { from: 0.8, to: 1.3 }, duration: 120, yoyo: true, repeat: -1 });
+    }
+    o.setDepth(1e6 - 1);
+    this.tweens.add({ targets: o, x: x1, y: y1, duration: ms, onComplete: () => {
+      o.destroy();
+      if (kind !== "arrow") this.burst(x1, y1, COL[kind] || 0xffffff, 18);
+    } });
+  }
+  // วงระเบิดสั้น ๆ
+  burst(x, y, color, r = 30) {
+    const c = this.add.circle(x, y, r, color, 0.45).setDepth(1e6 - 2).setScale(0.3);
+    this.tweens.add({ targets: c, scale: 1, alpha: 0, duration: 320, onComplete: () => c.destroy() });
+  }
+  // วงเวทบนพื้น (รัศมีเท่าระยะสกิลจริง)
+  groundAoe(x, y, r, color, ms = 520) {
+    const g = this.add.ellipse(x, y, r * 2, r * 2 * 0.62, color, 0.28).setStrokeStyle(3, color, 0.95).setDepth(-8500).setScale(0.2);
+    this.tweens.add({ targets: g, scale: 1, duration: 180, ease: "Back.easeOut" });
+    this.tweens.add({ targets: g, alpha: 0, delay: ms - 220, duration: 220, onComplete: () => g.destroy() });
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2, rr = Math.random() * r * 0.9;
+      const sx = x + Math.cos(a) * rr, sy = y + Math.sin(a) * rr * 0.62;
+      const s = this.add.circle(sx, sy, 2.5, color).setDepth(1e6 - 3);
+      this.tweens.add({ targets: s, y: sy - 26, alpha: 0, duration: 520, delay: i * 18, onComplete: () => s.destroy() });
+    }
+  }
+  // เอฟเฟกต์สกิล (self = สกิลใช้กับตัวเอง/ร่ายเวท)
+  skillFx(f, self) {
+    const v = this.views.get(f.id);
+    if (!v) return;
+    const fx = f.fx || {};
+    const wt = f.wt;
+    if (self || fx.type === "proj" || fx.type === "aoe" || fx.type === "meteor") {
+      if (wt === "bow") this.playOnce(f.id, "aim", f.dir, 360); else this.playOnce(f.id, "cast", f.dir || v.dir, 520);
+    } else this.playOnce(f.id, "slash", f.dir, 620, f.skill === "doublehit" ? 1 : 0);
+    const tv = f.tgt && this.views.get(f.tgt);
+    const S = gameData && gameData.skills[f.skill];
+    if (S && (f.id === room.sessionId || (tv && f.id !== room.sessionId))) this.floatText(v.root.x, v.root.y - 92, S.name, "#9fe3ff", 11, 700);
+    switch (fx.type) {
+      case "heal": {
+        const hv = (f.tgtPlayer && this.views.get(f.tgtPlayer)) || v;
+        this.sparkle(hv.root.x, hv.root.y - 20, fx.color);
+        if (hv !== v) this.burst(hv.root.x, hv.root.y - 24, fx.color, 24);
+        break;
+      }
+      case "ring": {
+        const ring = this.add.ellipse(v.root.x, v.root.y - 2, 24, 10).setStrokeStyle(3, fx.color).setDepth(-8000);
+        const k = (f.r || 70) / 12;
+        this.tweens.add({ targets: ring, scaleX: k, scaleY: k, alpha: 0, duration: 650, onComplete: () => ring.destroy() });
+        this.sparkle(v.root.x, v.root.y - 24, fx.color);
+        break;
+      }
+      case "hit":
+        if (tv) { this.burst(tv.root.x, tv.root.y - 26, fx.color, 22); this.cameras.main.shake(90, 0.003); }
+        if (f.combo && f.id === room.sessionId) this.floatText(v.root.x, v.root.y - 104, `คอมโบ ×${f.combo}`, "#ff9a5a", 13, 900);
+        break;
+      case "proj":
+        this.projectile(f.id, f.tgt, fx.proj, { x: f.x, y: f.y });
+        break;
+      case "aoe":
+        this.groundAoe(f.x, f.y, f.r || 80, fx.color);
+        if (wt === "bow") for (let i = 0; i < 7; i++) this.time.delayedCall(i * 40, () => this.projectile(f.id, null, "arrow", { x: f.x + Phaser.Math.Between(-f.r / 2, f.r / 2), y: f.y + Phaser.Math.Between(-f.r / 3, f.r / 3) }));
+        break;
+      case "meteor": {
+        const m = this.add.circle(f.x - 60, f.y - 260, 14, fx.color).setDepth(1e6);
+        const glow = this.add.circle(f.x - 60, f.y - 260, 24, 0xffd36b, 0.4).setDepth(1e6);
+        const mark = this.add.ellipse(f.x, f.y, f.r * 2, f.r * 1.24, fx.color, 0.12).setStrokeStyle(2, fx.color, 0.7).setDepth(-8500);
+        this.tweens.add({ targets: [m, glow], x: f.x, y: f.y - 10, duration: 780, ease: "Quad.easeIn", onComplete: () => {
+          m.destroy(); glow.destroy(); mark.destroy();
+          this.groundAoe(f.x, f.y, f.r, fx.color, 600); this.burst(f.x, f.y - 10, 0xffd36b, 50);
+          this.cameras.main.shake(160, 0.006);
+        } });
+        break;
+      }
+    }
+  }
+
+  levelUpFx(id, job) {
     const v = this.views.get(id);
     if (!v) return;
+    if (job) {
+      const ring = this.add.ellipse(v.root.x, v.root.y - 2, 20, 8).setStrokeStyle(4, 0xffffff).setDepth(-8000);
+      this.tweens.add({ targets: ring, scaleX: 5, scaleY: 5, alpha: 0, duration: 1300, onComplete: () => ring.destroy() });
+      this.sparkle(v.root.x, v.root.y - 24, 0xffffff); this.sparkle(v.root.x, v.root.y - 30, 0xc38bff);
+      this.floatText(v.root.x, v.root.y - 100, "เปลี่ยนอาชีพ!", "#ffffff", 18, 2000);
+      return;
+    }
     const ring = this.add.ellipse(v.root.x, v.root.y - 2, 20, 8).setStrokeStyle(3, 0xffd36b).setDepth(-8000);
     this.tweens.add({ targets: ring, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 900, onComplete: () => ring.destroy() });
     this.sparkle(v.root.x, v.root.y - 24, 0xffd36b);
@@ -867,7 +970,7 @@ class WorldScene extends Phaser.Scene {
     if (this.pendingNpc) {
       const mv = this.views.get(room.sessionId);
       if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
-        if (this.pendingNpc.id === "smith") openSmith(); else openShop();
+        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else openShop();
         this.pendingNpc = null;
       }
     }
@@ -1066,7 +1169,7 @@ function renderStats() {
   const pc = (x) => (x * 100).toFixed(1) + "%";
   const plus = (k) => (derived.bonus && derived.bonus[k] ? ` <span class="bonus">(+${derived.bonus[k]})</span>` : "");
   const rows = [
-    ["พลังโจมตี", derived.atk + plus("atk")], ["ป้องกัน", derived.def + plus("def")],
+    [`พลังโจมตี${derived.atkType && derived.atkType !== "str" ? ` (${derived.atkType.toUpperCase()})` : ""}`, derived.atk + plus("atk")], ["ป้องกัน", derived.def + plus("def")],
     ["HP สูงสุด", me.maxHp + plus("maxHp")], ["SP สูงสุด", me.maxSp + plus("maxSp")],
     ["ตีทุก", (derived.atkDelay / 1000).toFixed(2) + " วิ"], ["หลบ", pc(derived.flee)],
     ["คริติคอล", pc(derived.crit)], ["แม่นยำ", "+" + pc(derived.hitBonus)],

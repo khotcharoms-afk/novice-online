@@ -366,3 +366,76 @@
   - OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
   - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
   - https://opengameart.org/content/lpc-combat-armor-for-women
+
+## Phase 6 — อุปกรณ์อาชีพ (LPC Universal Spritesheet Character Generator)
+
+ภาพอาวุธ โล่ ชุดเกราะเบา/ชุดผ้า และชุดพื้นฐานของแต่ละอาชีพ ประกอบ/ย้อมสีจากงาน LPC ด้านล่าง (ปรับย้อมสีโดยโปรเจกต์นี้) · คัมภีร์ลอยวาดเองโดยโปรเจกต์นี้
+
+- **torso/clothes/robe** — Luke Mehl; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/female-mage-clothing-set
+- **torso/jacket/frock** — bluecarrot16; CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-pirates
+- **legs/skirts/plain** — bluecarrot16, Pierre Vigier (pvigier), Johannes Sjölund (wulax), Ahmad3366, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **hat/magic/wizard** — Michael Whitlock (bigbeargames), Tuomo Untinen (reemax), JaidynReiman; CC-BY-SA 3.0, GPL 2.0, GPL 3.0
+  - https://opengameart.org/content/lpc-items-and-game-effects
+  - https://opengameart.org/content/lpc-pointed-hats
+- **hat/formal/crown** — DarkwallLKE, Charles Sanchez (CharlesGabriel); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-crown
+- **hat/formal/tiara** — Luke Mehl; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/female-mage-clothing-set
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **hat/cloth/hood** — Johannes Sjölund (wulax), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **hat/cloth/leather_cap** — Johannes Sjölund (wulax), Matthew Krohn (Makrohn), JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-expanded-hats-facial-helmets
+- **torso/armour/leather** — Johannes Sjölund (wulax), bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-clothing-updates
+- **arms/hands/gloves** — Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax), bluecarrot16, JaidynReiman; OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **feet/boots/fold** — JaidynReiman; OGA-BY 3.0+, CC-BY 3.0+, GPL 3.0
+  - https://opengameart.org/content/lpc-kimono-relm
+  - https://opengameart.org/content/lpc-expanded-socks-shoes
+- **feet/boots/rimmed** — JaidynReiman; OGA-BY 3.0+, CC-BY 3.0+, GPL 3.0
+  - https://opengameart.org/content/lpc-kimono-relm
+  - https://opengameart.org/content/lpc-expanded-socks-shoes
+- **feet/slippers** — bluecarrot16, JaidynReiman, Joe White, Luke Mehl; CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/thin-mage-clothing-set
+  - http://opengameart.org/content/lpc-clothing-updates
+- **feet/shoes/basic** — JaidynReiman, Joe White, Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - http://opengameart.org/content/lpc-clothing-updates
+- **legs/pants** — bluecarrot16, ElizaWy, JaidynReiman, Joe White, Matthew Krohn (makrohn), Johannes Sjölund (wulax), Stephen Challener (Redshrike); CC-BY-SA 3.0, GPL 3.0
+  - https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+- **torso/clothes/longsleeve** — ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax); OGA-BY 3.0
+  - http://opengameart.org/content/lpc-revised-character-basics
+  - https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing
+- **torso/clothes/sleeveless** — ElizaWy, JaidynReiman, Stephen Challener (Redshrike), Johannes Sjölund (wulax); OGA-BY 3.0
+  - http://opengameart.org/content/lpc-revised-character-basics
+  - https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing
+- **weapon/sword/saber** — Daniel Eddeland (daneeklu), Johannes Sjölund (wulax), gr3yh47, bluecarrot16; CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-extended-weapon-animations
+- **weapon/sword/glowsword** — bluecarrot16, tskaufma, Johannes Sjölund (wulax); OGA-BY 3.0, CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-glow-sword
+- **weapon/sword/longsword** — Pierre Vigier and DCSS artists (see https://github.com/crawl/tiles/blob/master/ARTISTS.md); OGA-BY 3.0
+  - https://opengameart.org/content/lpc-dcss-swords
+- **weapon/ranged/bow/normal** — Johannes Sjölund (wulax), Pierre Vigier (pvigier); OGA-BY 3.0+, GPL 3.0, CC-BY 4.0
+  - https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+  - https://opengameart.org/content/lpc-walk-animations-for-bows
+- **weapon/ranged/bow/recurve** — Daniel Eddeland (daneeklu), gr3yh47, Johannes Sjölund (wulax), Pierre Vigier (pvigier); CC-BY-SA 3.0
+  - https://opengameart.org/content/lpc-weapons-two-bows-a-spear-and-a-trident
+  - https://opengameart.org/content/lpc-walk-animations-for-bows
+- **weapon/magic/simple** — bluecarrot16, Dr. Jamgo; CC0
+  - https://opengameart.org/content/lpc-simple-staff
+- **shield/crusader** — bluecarrot16, Sander Frenken (castelonia); OGA-BY 3.0
+  - https://opengameart.org/content/lpc-shields
+- **shield/spartan** — bluecarrot16, Sander Frenken (castelonia); OGA-BY 3.0
+  - https://opengameart.org/content/lpc-shields

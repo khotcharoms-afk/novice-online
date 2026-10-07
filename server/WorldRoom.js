@@ -75,6 +75,9 @@ const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.login
 
 // ข้อมูลโลกสำหรับหน้าต่างแผนที่โลก: แต่ละแผนที่มีมอนอะไร ดรอปอะไร บริการอะไร
 let worldCache = null;
+// ใครใส่อะไรได้: WEAR[itemId][job] = ข้อความเหตุผลที่ใส่ไม่ได้ (null = ใส่ได้) — ส่งให้ client ใช้แสดงในการ์ดไอเทม
+const WEAR = Object.fromEntries(Object.entries(I.ITEMS).filter(([, it]) => it.type === "equip")
+  .map(([id, it]) => [id, Object.fromEntries(Object.keys(D.JOBS).map((j) => [j, Bag.wearError(j, it)]))]));
 function worldInfo() {
   if (worldCache) return worldCache;
   worldCache = { name: W.WORLD_NAME, maps: Object.entries(W.MAPS).map(([id, m]) => ({
@@ -82,7 +85,7 @@ function worldInfo() {
     exits: Object.values(m.exits),
     mobs: [...new Set(m.spawns.map(([k]) => k))].map((k) => ({ kind: k, name: D.MONSTERS[k].name, level: D.MONSTERS[k].level,
       aggressive: D.MONSTERS[k].aggressive, drops: (I.DROPS[k] || []).map(([id]) => id) })),
-    services: m.type === "town" ? ["ร้านค้า (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)"] : [],
+    services: m.type === "town" ? ["ร้านค้า (ลุงสมปอง)", "ตีบวก + รวมคริสตัล (ลุงเหล็กกล้า)", "เปลี่ยนอาชีพ (ปู่ธาราจารย์)"] : [],
   })) };
   return worldCache;
 }
@@ -126,6 +129,7 @@ class WorldRoom extends Room {
     this.npcs = this.def.type !== "town" ? [] : [
       { id: "merchant", name: "ลุงสมปอง (ร้านค้า)", sprite: "npc_merchant", x: cx - 128, y: cy - 110 },
       { id: "smith", name: "ลุงเหล็กกล้า (ตีบวก)", sprite: "npc_smith", x: cx + 128, y: cy - 110 },
+      { id: "jobmaster", name: "ปู่ธาราจารย์ (ครูฝึกอาชีพ)", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
@@ -163,6 +167,8 @@ class WorldRoom extends Room {
         statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
+        jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
+        jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
         mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
         portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })),
         world: worldInfo(),
@@ -181,7 +187,7 @@ class WorldRoom extends Room {
     this.onMessage("auto", (client, on) => { if (this.alive(client)) this.setAuto(client.sessionId, !!on); });
     // ตั้งค่า AUTO: ขอบเขต + ชนิดมอนที่จะตี (ว่าง = ตีทุกชนิดที่เลเวลไม่เกินเรา +2)
     // ---------- ไอเทม ----------
-    this.onMessage("equip", (client, m) => this.withBag(client, m, (p, b) => Bag.equipFrom(b, Number(m.idx), p.level, m.slot)));
+    this.onMessage("equip", (client, m) => this.withBag(client, m, (p, b) => Bag.equipFrom(b, Number(m.idx), p.level, m.slot, p.job)));
     this.onMessage("unequip", (client, m) => this.withBag(client, m, (p, b) => Bag.unequip(b, String(m.slot))));
     this.onMessage("moveItem", (client, m) => this.withBag(client, m, (p, b) => Bag.moveSlot(b, Number(m.from), Number(m.to))));
     this.onMessage("useItem", (client, m) => this.withBag(client, m, (p, b) => this.useItem(client.sessionId, p, b, Number(m.idx))));
@@ -243,6 +249,8 @@ class WorldRoom extends Room {
       r.target = String(m.id); r.moveTarget = null; r.dx = r.dy = 0; r.pick = null;
     });
     this.onMessage("skill", (client, m) => this.useSkill(client, m));
+    // ---------- เปลี่ยนอาชีพ ----------
+    this.onMessage("jobQuest", (client, m) => this.jobQuest(client, m || {}));
     this.onMessage("chat", (client, text) => {
       const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
       if (!r || !p || typeof text !== "string") return;
@@ -266,7 +274,7 @@ class WorldRoom extends Room {
     const spot = p.warp || (deadOut ? getMap(W.START_MAP).spawn : dead ? this.townSpawn() : p);
     const map = p.warp ? p.warp.map : deadOut ? W.START_MAP : this.mapId;
     return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp, map,
-      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job,
+      x: Math.round(spot.x), y: Math.round(spot.y), look: p.look, job: p.job, quest: p.quest || null,
       stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])), ...Bag.saveBag(p.bag) };
   }
   save(pid) {
@@ -295,9 +303,13 @@ class WorldRoom extends Room {
     p.name = c.name;
     p.look = D.sanitizeLook(c.look);
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
+    p.quest = c.quest && D.JOB_QUESTS[c.quest.job] ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = AUTO_RADII[1];
     this.applyCharData(p, c);
+    // ของที่อาชีพนี้ใส่ไม่ได้ (เช่นชาวบ้านที่ใส่เกราะ Lv20+ ไว้ก่อนมีระบบล็อก) → ถอดเข้ากระเป๋า
+    const stripped = Bag.stripInvalid(p.bag, p.job);
+    if (stripped.length) { p.gear = Bag.gearString(p.bag); this.applyStats(p, true); this.clock.setTimeout(() => client.send("system", `ถอดอุปกรณ์ที่${p.jobName}ใส่ไม่ได้เข้ากระเป๋า: ${stripped.join(", ")}`), 1500); }
     if (Number.isFinite(c.hp)) p.hp = Math.max(1, Math.min(p.maxHp, c.hp));
     if (Number.isFinite(c.sp)) p.sp = Math.max(0, Math.min(p.maxSp, c.sp));
     const s = c.map && Number.isFinite(c.x) && this.canStand(c.x, c.y) ? { x: c.x, y: c.y } : this.townSpawn();
@@ -309,10 +321,11 @@ class WorldRoom extends Room {
       charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user),
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       autoCfg: { radius: AUTO_RADII[1], kinds: [] },
-      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0,
+      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0,
     });
     this.syncPet(client.sessionId);
     this.sendInv(client.sessionId);
+    client.send("quest", p.quest);
     if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
   }
 
@@ -362,7 +375,14 @@ class WorldRoom extends Room {
     if (!p) return false;
     const data = room.toData(p);
     const msg = fn(data);
+    if (data.job && data.job !== p.job && D.JOBS[data.job]) {
+      p.job = data.job; p.jobName = D.JOBS[data.job].name; p.quest = null;
+      Bag.stripInvalid(p.bag, p.job); Object.assign(data, Bag.saveBag(p.bag));
+      const cl = room.clients.find((c) => c.sessionId === sessionId);
+      if (cl) { cl.send("quest", null); cl.send("jobChanged", { job: p.job, reward: null, stripped: [] }); }
+    }
     room.applyCharData(p, data);
+    p.gear = Bag.gearString(p.bag);
     if (!data.heal && Number.isFinite(data.hp)) { p.hp = Math.max(1, Math.min(p.maxHp, data.hp)); p.sp = Math.max(0, Math.min(p.maxSp, data.sp)); }
     if (data.x == null) {
       if (room.mapId !== W.START_MAP) { room.warpPlayer(sessionId, W.START_MAP, null); return true; }
@@ -433,9 +453,12 @@ class WorldRoom extends Room {
   }
 
   applyStats(p, refill) {
-    const gb = Bag.gearBonus(p.bag || Bag.emptyBag());
+    const bag = p.bag || Bag.emptyBag();
+    const gb = Bag.gearBonus(bag, p.job);
     const eff = Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k] + (gb[k] || 0)]));
-    const s = D.playerStats(p.level, eff);
+    const wt = Bag.weaponType(bag);
+    p.wt = wt && !Bag.wearError(p.job, I.ITEMS[bag.equip.weapon.id]) ? wt : null;
+    const s = D.playerStats(p.level, eff, p.job, p.wt);
     s.atk += gb.atk; s.def += gb.def; s.maxHp += gb.maxHp; s.maxSp += gb.maxSp;
     p.gearBonus = gb;
     const dHp = s.maxHp - (p.maxHp || 0), dSp = s.maxSp - (p.maxSp || 0);
@@ -447,7 +470,7 @@ class WorldRoom extends Room {
     }
     // ค่าเหล่านี้ใช้ในเซิร์ฟเวอร์เท่านั้น (ไม่ได้ประกาศใน schema จึงไม่ถูกส่งไป client)
     p.atk = s.atk; p.def = s.def; p.atkDelay = s.atkDelay; p.flee = s.flee;
-    p.hitBonus = s.hitBonus; p.crit = s.crit; p.healBonus = s.healBonus;
+    p.hitBonus = s.hitBonus; p.crit = s.crit; p.healBonus = s.healBonus; p.range = s.range;
     this.sendDerived(p);
   }
   // ส่งค่าที่คำนวณแล้ว (ATK DEF ความเร็วตี ฯลฯ) ให้เจ้าของตัวละครดูในหน้าสเตตัส
@@ -456,7 +479,8 @@ class WorldRoom extends Room {
     this.state.players.forEach((pp, sid) => { if (pp === p) id = sid; });
     const client = id && this.clients.find((c) => c.sessionId === id);
     if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, atkDelay: p.atkDelay,
-      flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus, bonus: p.gearBonus || {} });
+      flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus, bonus: p.gearBonus || {},
+      range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat });
   }
 
   // ================= ลงแต้มสเตตัส =================
@@ -475,7 +499,7 @@ class WorldRoom extends Room {
     const p = this.state.players.get(pid);
     if (!p || p.statPoints <= 0) return;
     const st = Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]]));
-    p.statPoints = D.allocate(st, p.statPoints, D.RECOMMEND);
+    p.statPoints = D.allocate(st, p.statPoints, (D.JOBS[p.job] || D.JOBS.villager).rec);
     for (const k of D.STAT_KEYS) p[k] = st[k];
     this.applyStats(p, false);
   }
@@ -606,7 +630,7 @@ class WorldRoom extends Room {
     }
     if (p.warp) return; // กำลังย้ายแผนที่
     this.checkPortals(id, p);
-    const step = (SPEED * dt) / 1000;
+    const step = (SPEED * this.mods(r).speed * dt) / 1000;
     if (p.auto) this.autoThink(id, p, r);
 
     // เดินไปเก็บของบนพื้น
@@ -622,7 +646,7 @@ class WorldRoom extends Room {
     if (r.target) {
       const mob = this.state.monsters.get(r.target);
       if (!mob || mob.dead) { r.target = null; r.pending = null; p.moving = false; return; }
-      const range = r.pending ? D.SKILLS[r.pending].range || MELEE_RANGE : MELEE_RANGE;
+      const range = r.pending ? D.SKILLS[r.pending].range || MELEE_RANGE : p.range || MELEE_RANGE;
       const d = dist(p, mob);
       if (d > range) {
         // เดินอ้อมสิ่งกีดขวางไปหามอน — ถ้าไม่มีทางไปถึงนานเกิน 1.2 วิ → เลิกไล่ตัวนี้ (AUTO ข้ามตัวนี้ไปสักพัก)
@@ -640,9 +664,16 @@ class WorldRoom extends Room {
       p.dir = dirOf(mob.x - p.x, mob.y - p.y);
       if (r.pending) { const sk = r.pending; r.pending = null; this.castSkill(id, p, r, sk, r.target); return; }
       if (t >= r.atkReady) {
-        r.atkReady = t + p.atkDelay;
-        this.broadcast("atk", { id, dir: p.dir });
-        this.hitMob(id, p, r.target, 1);
+        r.atkReady = t + Math.round(p.atkDelay * this.mods(r).aspd);
+        const fx = p.wt && D.WEAPON_TYPES[p.wt].fx;
+        this.broadcast("atk", { id, dir: p.dir, fx, tgt: r.target });
+        if (fx) { // ยิงไกล: ดาเมจเข้าเมื่อกระสุนถึงเป้า
+          const tid = r.target;
+          this.clock.setTimeout(() => { if (!p.dead) this.hitMob(id, p, tid, 1); }, Math.min(450, 60 + d * 1.4));
+        } else {
+          const res = this.hitMob(id, p, r.target, 1);
+          if (p.job === "slayer" && res && !res.miss) r.combo = Math.min(5, (r.combo || 0) + 1);
+        }
       }
       return;
     }
@@ -713,7 +744,8 @@ class WorldRoom extends Room {
 
   updateMob(m, r, id, dt, t) {
     if (m.dead) { if (t >= r.respawnAt) this.respawnMob(id); return; }
-    const step = (r.def.speed * dt) / 1000;
+    if (r.stunUntil > t) { m.moving = false; return; } // มึนงง
+    const step = (r.def.speed * (r.slowUntil > t ? 0.5 : 1) * dt) / 1000;
 
     // มอนดุ: มองหาผู้เล่นใกล้ ๆ
     if (!r.target && r.def.aggressive && !r.returning) {
@@ -770,17 +802,48 @@ class WorldRoom extends Room {
     return { dmg: Math.max(1, Math.round(dmg)), crit };
   }
 
-  hitMob(pid, p, mid, mult) {
-    const m = this.state.monsters.get(mid), r = this.mr.get(mid);
-    if (!m || m.dead) return;
-    const res = this.calcDamage({ atk: p.atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus },
+  // ตัวคูณจากบัฟที่ยังไม่หมดเวลา
+  mods(r) {
+    const o = { atk: 1, def: 1, taken: 1, aspd: 1, speed: 1, flee: 0 };
+    if (!r || !r.buffs) return o;
+    const t = now();
+    for (const [k, until] of Object.entries(r.buffs)) {
+      if (until <= t) { delete r.buffs[k]; continue; }
+      const b = D.BUFFS[k];
+      for (const f of ["atk", "def", "taken", "aspd", "speed"]) if (b[f]) o[f] *= b[f];
+      if (b.flee) o.flee += b.flee;
+    }
+    return o;
+  }
+  addBuff(pid, key) {
+    const r = this.pr.get(pid), b = D.BUFFS[key];
+    if (!r || !b) return;
+    r.buffs[key] = now() + b.ms;
+    const client = this.clients.find((c) => c.sessionId === pid);
+    if (client) client.send("buff", { key, ms: b.ms });
+  }
+  // opts: undead = ตัวคูณเพิ่มกับอันเดด · stun/slow = มิลลิวินาที
+  hitMob(pid, p, mid, mult, opts = {}) {
+    const m = this.state.monsters.get(mid), r = this.mr.get(mid), pr = this.pr.get(pid);
+    if (!m || m.dead) return null;
+    if (opts.undead && D.UNDEAD.includes(m.kind)) mult *= opts.undead;
+    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus },
       { def: r.stats.def, lv: m.level }, mult);
     this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
-    if (res.miss) return;
+    if (res.miss) return res;
     m.hp = Math.max(0, m.hp - res.dmg);
     r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + res.dmg);
     if (!r.target) { r.target = pid; r.returning = false; }
+    if (opts.stun) r.stunUntil = now() + opts.stun;
+    if (opts.slow) r.slowUntil = now() + opts.slow;
     if (m.hp <= 0) this.killMob(mid, m, r);
+    return res;
+  }
+  // มอนที่ยังไม่ตายในรัศมี rad รอบจุด (x,y)
+  mobsNear(x, y, rad) {
+    const out = [];
+    this.state.monsters.forEach((m, mid) => { if (!m.dead && Math.hypot(m.x - x, m.y - y) <= rad) out.push(mid); });
+    return out;
   }
 
   killMob(mid, m, r) {
@@ -790,6 +853,14 @@ class WorldRoom extends Room {
     // แบ่ง EXP ตามสัดส่วนดาเมจที่ทำ
     const total = [...r.dmgBy.values()].reduce((a, b) => a + b, 0) || 1;
     r.dmgBy.forEach((dmg, pid) => this.gainExp(pid, Math.max(1, Math.round((r.stats.exp * dmg) / total))));
+    // เควสเปลี่ยนอาชีพ: นับตัวที่ฆ่า (ทุกคนที่ช่วยตี)
+    r.dmgBy.forEach((_d, pid) => {
+      const pp = this.state.players.get(pid), q = pp && pp.quest, Q = q && D.JOB_QUESTS[q.job];
+      if (!Q || Q.kill[0] !== m.kind || q.kills >= Q.kill[1]) return;
+      q.kills++;
+      const cl = this.clients.find((c) => c.sessionId === pid);
+      if (cl) { cl.send("quest", q); cl.send("toast", `เควส: ${m.name} ${q.kills}/${Q.kill[1]}`); }
+    });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
     const gold = I.goldDrop(m.level);
     let top = null, topDmg = -1;
@@ -807,14 +878,16 @@ class WorldRoom extends Room {
   hitPlayer(mid, m, r, pid) {
     const p = this.state.players.get(pid), pr = this.pr.get(pid);
     if (!p || p.dead || !pr) return;
-    const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def, lv: p.level, flee: p.flee }, 1);
+    const md = this.mods(pr);
+    const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: p.flee + md.flee }, 1);
+    if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
     this.broadcast("hit", { tgt: pid, src: mid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return;
     p.hp = Math.max(0, p.hp - res.dmg);
     pr.lastHurt = now();
     if (p.hp <= 0) {
       p.dead = true; p.moving = false; p.auto = false; p.autoState = "";
-      pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0;
+      pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0; pr.buffs = {}; pr.combo = 0;
       pr.deadUntil = now() + RESPAWN_PLAYER_MS;
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
       const loss = Math.min(p.exp, Math.floor(p.expNext * 0.01));
@@ -846,7 +919,7 @@ class WorldRoom extends Room {
       this.save(pid);
       this.broadcast("system", `${p.name} เลเวลอัปเป็น Lv.${p.level}!`);
       if (p.level === D.JOB_CHANGE_LEVEL && client)
-        client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! เควสเปลี่ยนอาชีพจะเปิดในอัปเดตถัดไป`);
+        client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! ไปคุยกับปู่ธาราจารย์ (ครูฝึกอาชีพ) กลางเมืองอรุณรุ่งเพื่อเปลี่ยนอาชีพ`);
     }
   }
 
@@ -882,7 +955,7 @@ class WorldRoom extends Room {
   useItem(pid, p, b, idx) {
     const s = b.inv[idx], it = s && I.ITEMS[s.id], r = this.pr.get(pid);
     if (!it) return;
-    if (it.type === "equip") return Bag.equipFrom(b, idx, p.level);
+    if (it.type === "equip") return Bag.equipFrom(b, idx, p.level, undefined, p.job);
     if (it.type === "pet") return Bag.summonPet(b, idx, p.level);
     if (it.type !== "use") return "ใช้ไอเทมนี้ไม่ได้";
     if (p.dead) return;
@@ -1042,9 +1115,13 @@ class WorldRoom extends Room {
 
   autoThink(pid, p, r) {
     const t = now();
+    const skills = D.JOB_SKILLS[p.job] || [];
+    const healKey = skills.find((k) => D.SKILLS[k].auto === "heal");
+    const healSk = healKey && D.SKILLS[healKey];
+    const reserve = healSk ? healSk.sp : 0;
     // ฮีลตัวเองเมื่อเลือดต่ำ: สกิลก่อน ไม่พร้อม → กินยา
-    if (p.hp < p.maxHp * 0.45 && p.sp >= D.SKILLS.firstaid.sp && t >= (r.cds.firstaid || 0))
-      return this.castSkill(pid, p, r, "firstaid", null);
+    if (healSk && p.hp < p.maxHp * 0.45 && p.sp >= healSk.sp && t >= (r.cds[healKey] || 0))
+      return this.castSkill(pid, p, r, healKey, null);
     // AUTO กินยาเมื่อ HP ต่ำกว่า % ที่ตั้งไว้ · คูลดาวน์ 10 วินาที (เฉพาะ AUTO กดให้)
     const potPct = (r.autoCfg.potionPct || AUTO_POTION_PCT) / 100;
     if (p.hp < p.maxHp * potPct && r.autoCfg.potion !== false && t >= r.useReady && t >= (r.autoPotionReady || 0)) {
@@ -1073,7 +1150,7 @@ class WorldRoom extends Room {
     //  2) มอนในขอบเขต AUTO ตามชนิดที่เลือกไว้ (ไม่ได้เลือก = เลเวลไม่เกินเรา +2) ที่ไม่ได้สู้กับคนอื่นอยู่
     // เลือดน้อยและยังฮีลไม่ได้ → พักรอเลือดฟื้นก่อนค่อยหามอนตัวต่อไป
     if (!r.target) {
-      const healReady = t >= (r.cds.firstaid || 0) && p.sp >= D.SKILLS.firstaid.sp;
+      const healReady = !!healSk && t >= (r.cds[healKey] || 0) && p.sp >= healSk.sp;
       if (p.hp < p.maxHp * 0.4 && !healReady) r.resting = true;
       if (r.resting && (p.hp >= p.maxHp * 0.7 || healReady)) r.resting = false;
     }
@@ -1105,12 +1182,21 @@ class WorldRoom extends Room {
       }
       return;
     }
-    // ใช้ฟันซ้ำเมื่อพร้อม (เหลือ SP ไว้ฮีลเสมอ)
+    // ใช้สกิลของอาชีพเมื่อพร้อม (เหลือ SP ไว้ฮีลเสมอ): บัฟก่อน แล้วสกิลโจมตี (สกิลท้ายแถบ = แรงกว่า ใช้ก่อน)
     const mob = this.state.monsters.get(r.target);
-    const dh = D.SKILLS.doublehit;
-    if (mob && !mob.dead && !r.pending && t >= (r.cds.doublehit || 0) &&
-        p.sp >= dh.sp + D.SKILLS.firstaid.sp && dist(p, mob) <= dh.range)
-      this.castSkill(pid, p, r, "doublehit", r.target);
+    if (!mob || mob.dead || r.pending) return;
+    const d = dist(p, mob);
+    if (d > Math.max(p.range || MELEE_RANGE, 64) + 40) return; // ยังเดินไปไม่ถึง
+    let mobsOnMe = 0;
+    this.mr.forEach((mr, mid) => { const mm = this.state.monsters.get(mid); if (mr.target === pid && mm && !mm.dead) mobsOnMe++; });
+    for (const k of [...skills].reverse()) {
+      const sk = D.SKILLS[k];
+      if (t < (r.cds[k] || 0) || p.sp < sk.sp + (k === healKey ? 0 : reserve)) continue;
+      if (sk.auto === "buff" || (sk.auto === "def" && p.hp < p.maxHp * 0.6) || (sk.auto === "pull" && mobsOnMe < 2 && this.mobsNear(p.x, p.y, sk.area).length >= 2)) {
+        return this.castSkill(pid, p, r, k, null);
+      }
+      if (sk.auto === "dmg" && d <= (sk.range || MELEE_RANGE)) return this.castSkill(pid, p, r, k, r.target);
+    }
   }
 
   // ================= สกิล =================
@@ -1122,7 +1208,7 @@ class WorldRoom extends Room {
     if (!sk || !(D.JOB_SKILLS[p.job] || []).includes(key)) return;
     if (now() < (r.cds[key] || 0)) return client.send("toast", `${sk.name} ยังไม่พร้อม`);
     if (p.sp < sk.sp) return client.send("toast", "SP ไม่พอ");
-    if (sk.target === "self") return this.castSkill(pid, p, r, key, null);
+    if (sk.target !== "mob") return this.castSkill(pid, p, r, key, null);
     const tid = m.target ? String(m.target) : r.target;
     const mob = tid && this.state.monsters.get(tid);
     if (!mob || mob.dead) return client.send("toast", "เลือกมอนสเตอร์เป้าหมายก่อน");
@@ -1135,21 +1221,130 @@ class WorldRoom extends Room {
   castSkill(pid, p, r, key, tid) {
     const sk = D.SKILLS[key];
     if (p.sp < sk.sp || now() < (r.cds[key] || 0)) return;
+    const mob = tid && this.state.monsters.get(tid);
+    if (sk.target === "mob" && (!mob || mob.dead)) return;
     p.sp -= sk.sp;
     r.cds[key] = now() + sk.cooldown;
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("cd", { skill: key, until: sk.cooldown });
-    if (key === "firstaid") {
-      const amt = Math.max(20, Math.round(p.maxHp * 0.25) + (p.healBonus || 0));
-      p.hp = Math.min(p.maxHp, p.hp + amt);
-      this.broadcast("cast", { id: pid, skill: key });
-      this.broadcast("heal", { id: pid, amount: amt });
-    } else if (key === "doublehit") {
-      this.broadcast("skillfx", { id: pid, skill: key, dir: p.dir });
-      this.hitMob(pid, p, tid, 0.95);
-      this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, 0.95); }, 180);
-      r.atkReady = now() + p.atkDelay;
+    if (mob) p.dir = dirOf(mob.x - p.x, mob.y - p.y);
+    const fx = { id: pid, skill: key, dir: p.dir, fx: sk.fx || null, wt: p.wt };
+    if (mob) { fx.tgt = tid; fx.x = mob.x; fx.y = mob.y; }
+    if (sk.area) fx.r = sk.area;
+    const heal = (who, amt) => {
+      amt = Math.min(amt, who.maxHp - who.hp);
+      who.hp += amt;
+      this.state.players.forEach((pp, sid) => { if (pp === who) this.broadcast("heal", { id: sid, amount: amt }); });
+    };
+    switch (key) {
+      case "firstaid":
+        this.broadcast("cast", fx);
+        heal(p, Math.max(20, Math.round(p.maxHp * 0.25) + (p.healBonus || 0)));
+        break;
+      case "heal": { // เพื่อน (หรือตัวเอง) ที่เลือดน้อยสุดในระยะ
+        let best = p, bp = p.hp / p.maxHp;
+        this.state.players.forEach((pp) => { if (!pp.dead && dist(pp, p) <= sk.range && pp.hp / pp.maxHp < bp) { best = pp; bp = pp.hp / pp.maxHp; } });
+        this.state.players.forEach((pp, sid) => { if (pp === best) { fx.tgtPlayer = sid; fx.x = pp.x; fx.y = pp.y; } });
+        this.broadcast("cast", fx);
+        heal(best, Math.round(best.maxHp * 0.25 + (p.healBonus || 0) + p.level * 2));
+        break;
+      }
+      case "doublehit":
+        this.broadcast("skillfx", fx);
+        this.hitMob(pid, p, tid, 0.95);
+        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, 0.95); }, 180);
+        break;
+      case "doubleshot":
+        this.broadcast("skillfx", fx);
+        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, sk.mult); }, 200);
+        this.clock.setTimeout(() => { if (!p.dead) { this.broadcast("skillfx", fx); this.hitMob(pid, p, tid, sk.mult); } }, 420);
+        break;
+      case "execute": {
+        const combo = r.combo || 0; r.combo = 0;
+        let mult = sk.mult * (1 + 0.15 * combo);
+        if (mob.hp < mob.maxHp * 0.3) mult *= 1.5;
+        fx.combo = combo;
+        this.broadcast("skillfx", fx);
+        this.hitMob(pid, p, tid, mult);
+        break;
+      }
+      case "provoke":
+        this.broadcast("cast", fx);
+        for (const mid of this.mobsNear(p.x, p.y, sk.area)) { const mr = this.mr.get(mid); mr.target = pid; mr.returning = false; }
+        this.addBuff(pid, sk.buff);
+        break;
+      case "bless":
+        this.broadcast("cast", fx);
+        this.state.players.forEach((pp, sid) => { if (!pp.dead && dist(pp, p) <= sk.area) this.addBuff(sid, sk.buff); });
+        break;
+      case "meteor": {
+        this.broadcast("skillfx", fx);
+        const cx = mob.x, cy = mob.y;
+        this.clock.setTimeout(() => { if (!p.dead) for (const mid of this.mobsNear(cx, cy, sk.area)) this.hitMob(pid, p, mid, sk.mult); }, sk.delay);
+        break;
+      }
+      default:
+        if (sk.target === "self") { this.broadcast("cast", fx); if (sk.buff) this.addBuff(pid, sk.buff); break; }
+        this.broadcast("skillfx", fx);
+        if (sk.area && !sk.splash) { // วงกว้างรอบเป้าหมาย
+          const cx = mob.x, cy = mob.y;
+          for (const mid of this.mobsNear(cx, cy, sk.area)) this.hitMob(pid, p, mid, sk.mult, { slow: sk.slow });
+        } else {
+          const res = this.hitMob(pid, p, tid, sk.mult, { undead: sk.undead, stun: sk.stun, slow: sk.slow });
+          if (sk.splash && res && !res.miss) for (const mid of this.mobsNear(mob.x, mob.y, sk.area)) if (mid !== tid) this.hitMob(pid, p, mid, sk.mult * sk.splash);
+        }
     }
+    r.atkReady = Math.max(r.atkReady, now() + Math.round(p.atkDelay * 0.6));
+  }
+
+  // ================= เปลี่ยนอาชีพ =================
+  // m.act: "start" (รับเควส m.job) · "cancel" · "finish" (ส่งเควส → เปลี่ยนอาชีพ)
+  jobQuest(client, m) {
+    const pid = client.sessionId, p = this.state.players.get(pid);
+    if (!p || p.dead) return;
+    if (!this.nearNpc(p, "jobmaster")) return client.send("toast", "เดินเข้าใกล้ครูฝึกอาชีพก่อน");
+    const act = String(m.act || "");
+    if (p.job !== "villager") return client.send("toast", `คุณเป็น${p.jobName}แล้ว`);
+    if (act === "cancel") { p.quest = null; client.send("quest", null); this.saveSoon(pid); return; }
+    if (p.level < D.JOB_CHANGE_LEVEL) return client.send("toast", `ต้องเลเวล ${D.JOB_CHANGE_LEVEL} ขึ้นไป`);
+    if (act === "start") {
+      const job = String(m.job);
+      if (!D.JOB_QUESTS[job]) return;
+      p.quest = { job, kills: 0 };
+      client.send("quest", p.quest);
+      client.send("toast", `รับบททดสอบ${D.JOBS[job].name}แล้ว`);
+      this.saveSoon(pid);
+      return;
+    }
+    if (act !== "finish" || !p.quest) return;
+    const Q = D.JOB_QUESTS[p.quest.job], b = p.bag;
+    if (p.quest.kills < Q.kill[1]) return client.send("toast", `ยังปราบ${D.MONSTERS[Q.kill[0]].name}ไม่ครบ (${p.quest.kills}/${Q.kill[1]})`);
+    if (Bag.countOf(b, Q.item[0]) < Q.item[1]) return client.send("toast", `${I.ITEMS[Q.item[0]].name} ยังไม่ครบ (${Bag.countOf(b, Q.item[0])}/${Q.item[1]})`);
+    if (!b.inv.some((x) => !x)) return client.send("toast", "กระเป๋าเต็ม — เว้นที่ว่างไว้รับอาวุธประจำอาชีพก่อน");
+    // หักของ
+    let need = Q.item[1];
+    for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) {
+      const s = b.inv[i];
+      if (s && s.id === Q.item[0]) { const k = Math.min(need, s.n); Bag.removeAt(b, i, k); need -= k; }
+    }
+    const job = p.quest.job;
+    p.job = job; p.jobName = D.JOBS[job].name; p.quest = null;
+    // คืนแต้มสเตตัสทั้งหมด (รีเซ็ตฟรี 1 ครั้งตอนเปลี่ยนอาชีพ)
+    const st = D.baseStats();
+    for (const k of D.STAT_KEYS) p[k] = st[k];
+    p.statPoints = D.totalPoints(p.level);
+    const stripped = Bag.stripInvalid(b, job);
+    Bag.addItem(b, Q.reward, 1, I.makeGear(Q.reward, 0));
+    p.gear = Bag.gearString(b);
+    const r = this.pr.get(pid); r.cds = {}; r.buffs = {}; r.combo = 0;
+    this.setAuto(pid, false);
+    this.applyStats(p, true);
+    this.sendInv(pid);
+    client.send("quest", null);
+    client.send("jobChanged", { job, reward: Q.reward, stripped });
+    this.broadcast("lvup", { id: pid, level: p.level, job: true });
+    rooms.forEach((rm) => rm.broadcast("system", `🎉 ${p.name} เปลี่ยนอาชีพเป็น${p.jobName}แล้ว!`));
+    this.save(pid);
   }
 
   regen() {

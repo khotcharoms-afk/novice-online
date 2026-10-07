@@ -1,3 +1,4 @@
+const JOBS_ADMIN = { villager: "ชาวบ้าน", guardian: "ผู้พิทักษ์", slayer: "นักดาบใหญ่", hunter: "นักล่า", mage: "นักเวทย์", healer: "หมอ" };
 // =============================================================
 //  เมนูแอดมิน — ใช้ได้เฉพาะ ID ที่ตั้งไว้ใน ADMIN_IDS บน Render
 // =============================================================
@@ -155,6 +156,8 @@ async function openAccount(uid) {
           <label style="min-width:auto">ตีบวก +</label><input type="number" data-f="up" value="0" min="0" max="10" style="width:60px"></div>
         <div class="row"><label>เลเวล</label><input type="number" data-f="lv" value="${c.level}" min="1" max="99" style="width:80px">
           <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button></div>
+        <div class="row"><label>อาชีพ</label><select data-f="job">${Object.entries(JOBS_ADMIN).map(([k, n]) => `<option value="${k}" ${c.job === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+          <button class="btn" data-a="job">เปลี่ยนอาชีพ</button></div>
         <div class="row"><label>อื่น ๆ</label><button class="btn" data-a="town">ส่งกลับเมือง</button>
           <button class="btn" data-a="heal" ${c.online ? "" : "disabled"}>ฟื้นเลือดเต็ม</button>
           <button class="btn danger" data-a="kick" ${c.online ? "" : "disabled"}>เตะออกจากเกม</button></div>
@@ -206,6 +209,7 @@ async function openAccount(uid) {
       if (a2 === "gold+" || a2 === "gold-") body = { action: "gold", name, n: (a2 === "gold-" ? -1 : 1) * Math.abs(Number(f("gold")) || 0) };
       if (a2 === "item") body = { action: "item", name, id: f("item"), n: Number(f("n")), r: f("r"), up: Number(f("up")) };
       if (a2 === "level") body = { action: "level", name, lv: Number(f("lv")) };
+      if (a2 === "job") { if (!confirm(`เปลี่ยนอาชีพของ ${name}? (แต้มสเตตัสจะถูกคืนทั้งหมด)`)) return; body = { action: "job", name, job: f("job") }; }
       if (a2 === "petSet") body = { action: "pet", name, id: f("pet") };
       if (a2 === "petRemove") { if (!confirm(`ลบสัตว์เลี้ยงของ ${name}?`)) return; body = { action: "pet", name, id: null }; }
       if (a2 === "resetStats" && !confirm(`รีเซ็ตสเตตัสของ ${name}? (คืนแต้มทั้งหมดให้ลงใหม่)`)) return;

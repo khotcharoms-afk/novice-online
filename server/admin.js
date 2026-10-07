@@ -94,6 +94,11 @@ const ACTIONS = {
     });
   },
   resetStats(c) { c.stats = D.baseStats(); return "รีเซ็ตสเตตัส (คืนแต้มทั้งหมด)"; },
+  job(c, a) {
+    if (!D.JOBS[a.job]) fail("ไม่รู้จักอาชีพ");
+    c.job = a.job; c.quest = null; c.stats = D.baseStats();
+    return `เปลี่ยนอาชีพเป็น${D.JOBS[a.job].name} (คืนแต้มสเตตัสทั้งหมด)`;
+  },
   town(c) { c.x = null; c.y = null; c.map = require("./maps").START_MAP; return "ส่งกลับเมือง"; },
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
 };
@@ -107,7 +112,7 @@ async function editChar(charId, action, args) {
   if (action === "heal") fail("ตัวละครออฟไลน์อยู่ (ฟื้นเลือดตอนเข้าเกมอยู่แล้ว)");
   const c = await store.loadAny(charId);
   msg = fn(c, args || {});
-  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map"];
+  const keep = ["level", "exp", "stats", "inv", "equip", "gold", "pet", "x", "y", "map", "job", "quest"];
   await store.save(charId, Object.fromEntries(keep.filter((k) => k in c).map((k) => [k, c[k] === undefined ? null : c[k]])));
   return { msg, online: false };
 }

@@ -4,6 +4,7 @@
 //  equip = { head: "nasal", weapon: "sword", ... }
 // =============================================================
 const I = require("./items");
+const D = require("./data");
 
 const STARTER = { inv: [{ id: "mace", n: 1 }, { id: "potion_s", n: 5 }], gold: 50 };
 
@@ -78,9 +79,10 @@ const countOf = (b, id) => b.inv.reduce((t, s) => t + (s && s.id === id ? s.n : 
 const indexOf = (b, id) => b.inv.findIndex((s) => s && s.id === id);
 
 // ค่าพลังรวมจากของที่สวม
-function gearBonus(b) {
+function gearBonus(b, job) {
   const sum = { atk: 0, def: 0, str: 0, agi: 0, vit: 0, int: 0, dex: 0, maxHp: 0, maxSp: 0 };
   for (const g of Object.values(b.equip)) {
+    if (job && wearError(job, I.ITEMS[g.id])) continue; // ของที่อาชีพนี้ใส่ไม่ได้ ไม่นับค่าพลัง
     const bonus = I.gearStats(g);
     for (const k in bonus) sum[k] = (sum[k] || 0) + bonus[k];
   }
@@ -93,18 +95,71 @@ const idOf = (g) => (typeof g === "string" ? g : g && g.id);
 const gearString = (b) => DRAW_ORDER.filter((s) => I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
   .map((s) => `${s}:${idOf(b.equip[s])}`).join(",");
 
+// อาชีพนี้ใส่ไอเทมนี้ได้ไหม → คืนข้อความเหตุผลถ้าใส่ไม่ได้ (null = ใส่ได้)
+//  อาวุธ/โล่: ล็อกตามอาชีพ (ชาวบ้านใช้ได้ทุกชนิดที่ Lv ต่ำกว่า 20)
+//  เกราะ (หนัก/เบา/ผ้า): ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ · Lv20 ขึ้นไปต้องตรงประเภทของอาชีพ
+//  ผ้าคลุม/หน้า/เครื่องประดับ: ใส่ได้ทุกอาชีพ
+function wearError(job, it) {
+  const J = D.JOBS[job] || D.JOBS.villager;
+  if (!it || it.type !== "equip") return "ใส่ไอเทมนี้ไม่ได้";
+  const lv = it.lv || 1;
+  if (it.wt === "shield") {
+    if (!J.shield) return `${J.name}ใช้โล่ไม่ได้`;
+    if (job === "villager" && lv >= D.JOB_FREE_LV) return `ต้องเป็นผู้พิทักษ์`;
+    return null;
+  }
+  if (it.wt) {
+    if (job === "villager") return lv >= D.JOB_FREE_LV ? `ต้องเป็น${jobsFor(it).map((j) => D.JOBS[j].name).join("/")}` : null;
+    if (!J.weapons.includes(it.wt)) return `${J.name}ใช้${D.WEAPON_TYPES[it.wt].name}ไม่ได้`;
+    return null;
+  }
+  if (it.ac && lv >= D.JOB_FREE_LV && !(J.armor || []).includes(it.ac))
+    return job === "villager" ? `ต้องเป็น${jobsFor(it).map((j) => D.JOBS[j].name).join("/")}` : `${J.name}ใส่${D.ARMOR_NAME[it.ac]}ไม่ได้`;
+  return null;
+}
+// อาชีพที่ใช้ไอเทมนี้ได้ (ไม่นับชาวบ้าน) — ใช้แสดงในการ์ดไอเทม
+function jobsFor(it) {
+  return Object.keys(D.JOBS).filter((j) => j !== "villager" && !wearError(j, it));
+}
+const weaponType = (b) => { const g = b.equip.weapon; const it = g && I.ITEMS[g.id]; return (it && it.wt) || null; };
+
 // สวมของจากช่องกระเป๋า idx (ของที่ใส่อยู่เดิมสลับกลับเข้ากระเป๋าช่องเดิม)
-function equipFrom(b, idx, level, want) {
+function equipFrom(b, idx, level, want, job = "villager") {
   const s = b.inv[idx];
   const it = s && I.ITEMS[s.id];
   if (!it || it.type !== "equip") return "ใส่ไอเทมนี้ไม่ได้";
   if (level < (it.lv || 1)) return `ต้องเลเวล ${it.lv} ขึ้นไป`;
+  const err = wearError(job, it);
+  if (err) return err;
   let slot = it.slot;
   if (slot === "acc") slot = want === "acc1" || want === "acc2" ? want : !b.equip.acc1 ? "acc1" : !b.equip.acc2 ? "acc2" : "acc1";
+  // อาวุธสองมือกับโล่ใช้พร้อมกันไม่ได้
+  if (it.wt === "shield") {
+    const w = weaponType(b);
+    if (w && D.WEAPON_TYPES[w].twoHand) return `${D.WEAPON_TYPES[w].name}เป็นอาวุธสองมือ ใส่โล่ไม่ได้`;
+  }
+  if (it.wt && D.WEAPON_TYPES[it.wt] && D.WEAPON_TYPES[it.wt].twoHand && b.equip.offhand) {
+    const free = b.inv.findIndex((x, i) => !x && i !== idx);
+    if (free < 0 && b.equip.weapon) return "กระเป๋าเต็ม (ต้องถอดโล่ก่อน)";
+    if (free >= 0) { b.inv[free] = gearSlot(b.equip.offhand); delete b.equip.offhand; }
+    else { const off = b.equip.offhand; delete b.equip.offhand; b.equip.weapon = plain(normGear(s)); b.inv[idx] = gearSlot(off); return null; }
+  }
   const old = b.equip[slot];
   b.equip[slot] = plain(normGear(s));
   b.inv[idx] = old ? gearSlot(old) : null;
   return null;
+}
+// ถอดของที่อาชีพนี้ใส่ไม่ได้เข้ากระเป๋า (หลังเปลี่ยนอาชีพ) → คืนรายการชื่อของที่ถอด
+function stripInvalid(b, job) {
+  const out = [];
+  for (const slot of Object.keys(b.equip)) {
+    const g = b.equip[slot], it = I.ITEMS[g.id];
+    if (!wearError(job, it)) continue;
+    const free = b.inv.findIndex((x) => !x);
+    if (free < 0) continue; // กระเป๋าเต็ม — ยังใส่ไว้ แต่ค่าพลังไม่นับ
+    b.inv[free] = gearSlot(g); delete b.equip[slot]; out.push(it.name);
+  }
+  return out;
 }
 function unequip(b, slot) {
   const g = b.equip[slot];
@@ -176,4 +231,4 @@ function moveSlot(b, from, to) {
 }
 
 module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
-  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER };
+  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid };

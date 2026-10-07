@@ -529,3 +529,39 @@ img { -webkit-user-drag: none; user-drag: none; }
 #travel .tv-pct { display: flex; justify-content: space-between; width: min(320px, 70vw); margin: 0 auto; font-size: 12px; }
 #travel .tv-pct em { font-style: normal; color: var(--muted); }
 #travel .tv-pct b { font-size: 13px; color: var(--name); font-weight: 500; }
+
+/* ---------- เปลี่ยนอาชีพ (Phase 6) ---------- */
+.inv-slot.nowear::after { content: ""; position: absolute; inset: 0; border-radius: 6px; background: rgba(255, 60, 60, .22); pointer-events: none; }
+#itemCard .wear { line-height: 1.9; }
+.jtag { display: inline-block; font-size: 10.5px; padding: 0 6px; margin: 0 2px; border-radius: 99px; border: 1px solid #8a90b0; color: #dfe3f5; line-height: 1.5; }
+#jobPanel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#jobPanel.dragged { transform: none; }
+.job-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0; }
+.job-tab { background: rgba(10,13,30,.7); border: 1px solid #2c3561; border-radius: 8px; color: var(--text); padding: 6px 4px; cursor: pointer; text-align: center; line-height: 1.25; }
+.job-tab b { display: block; color: var(--jc); font-weight: 500; font-size: 14px; }
+.job-tab small { color: var(--muted); font-size: 10.5px; }
+.job-tab.sel { border-color: var(--jc); box-shadow: inset 0 0 12px color-mix(in srgb, var(--jc) 35%, transparent); }
+.job-tab.active::after { content: "กำลังทำ"; display: block; font-size: 10px; color: #2a1c08; background: var(--name); border-radius: 4px; margin-top: 3px; }
+.job-body { display: grid; grid-template-columns: 150px 1fr; gap: 12px; font-size: 13px; }
+.job-left { text-align: center; }
+#jobPreview { width: 128px; height: 128px; image-rendering: pixelated; background: radial-gradient(circle at 50% 70%, #2a3a6a, #10142a 70%); border-radius: 12px; border: 1px solid #2c3561; }
+.job-name { font-size: 20px; font-weight: 500; margin-top: 4px; } .job-name small { display: block; font-size: 11px; color: var(--muted); }
+.job-info p { margin: 0 0 6px; }
+.job-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.job-tags span { font-size: 11.5px; background: rgba(255,255,255,.06); border: 1px solid #2c3561; border-radius: 6px; padding: 1px 7px; }
+.job-info h4 { margin: 10px 0 4px; color: #c8a6ff; font-size: 13px; font-weight: 500; }
+.job-skills { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.job-skills li { background: rgba(255,255,255,.04); border-radius: 6px; padding: 4px 7px; }
+.job-skills small { color: var(--muted); font-size: 11px; } .job-skills .sp { color: #7fb4ff; font-size: 10.5px; }
+.job-info .story { color: #e8dcc0; font-style: italic; font-size: 12.5px; }
+.qrow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin-bottom: 4px; border-radius: 7px; background: rgba(255,255,255,.04); }
+.qrow span { flex: 1; } .qrow img { width: 24px; height: 24px; image-rendering: pixelated; } .qrow .qi { width: 24px; text-align: center; font-style: normal; }
+.qrow.ok b { color: #7dff9a; } .qrow.reward { background: rgba(255, 211, 107, .08); color: #ffe2a0; }
+.job-acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .job-acts .btn-gold { flex: 1; padding: 8px; font-size: 14px; }
+.job-done { color: #7dff9a; font-size: 15px; margin-top: 10px; } .job-note { color: var(--muted); margin-top: 8px; }
+@media (max-width: 640px) { .job-body { grid-template-columns: 1fr; } .job-tabs { grid-template-columns: repeat(3, 1fr); } .job-skills { grid-template-columns: 1fr; } }
+#questTrack { position: fixed; left: 10px; top: 186px; z-index: 6; padding: 7px 10px; font-size: 12px; line-height: 1.5; min-width: 170px; }
+#questTrack .ok { color: #7dff9a; }
+#buffBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 118px; z-index: 6; display: flex; gap: 4px; pointer-events: none; }
+#buffBar .buff { background: rgba(10,13,30,.85); border: 1px solid #c9a45c; color: #ffe2a0; border-radius: 99px; padding: 1px 8px; font-size: 11.5px; }
+#buffBar .buff b { color: #fff; font-weight: 500; }

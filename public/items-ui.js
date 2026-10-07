@@ -20,11 +20,26 @@ const applyFrame = (el, s) => { const c = frameOf(s); el.classList.toggle("rr", 
 // ชื่อไอเทมเป็นสีขาวเสมอ (ระดับดูจากสีกรอบแทน)
 const nameHtml = (g) => `<span class="iname">${gearName(g)}</span>`;
 const myPlayer = () => room && room.state.players.get(room.sessionId);
+// อาชีพของเราใส่ไอเทมนี้ได้ไหม (null = ได้, ข้อความ = เหตุผลที่ไม่ได้)
+const wearErr = (id) => { const me = myPlayer(), w = gameData && gameData.wear && gameData.wear[id]; return me && w ? w[me.job] || null : null; };
+// บรรทัด "ใช้ได้: …" ในการ์ดไอเทม
+function wearHtml(id, it) {
+  const W = gameData.wear && gameData.wear[id];
+  if (!W) return "";
+  const J = gameData.jobs, jobs = Object.keys(J).filter((j) => j !== "villager" && !W[j]);
+  const tags = jobs.length === Object.keys(J).length - 1 ? `<span class="jtag">ทุกอาชีพ</span>`
+    : (!W.villager ? `<span class="jtag">ชาวบ้าน</span>` : "") + jobs.map((j) => `<span class="jtag" style="color:${J[j].color};border-color:${J[j].color}">${J[j].name}</span>`).join("");
+  const wt = it.wt && it.wt !== "shield" && gameData.weaponTypes[it.wt];
+  const typ = it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";
+  const err = wearErr(id);
+  return `<div class="meta wear">${typ ? typ + " · " : ""}ใช้ได้: ${tags}</div>` + (err ? `<div class="need">${err}</div>` : "");
+}
 
 // ---------- รับข้อมูลกระเป๋าจากเซิร์ฟเวอร์ ----------
 function onInv(v) {
   INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null };
   renderInv(); renderPaperDoll(); renderShop(); renderItemBar(); renderSmith();
+  if (typeof renderQuestTrack === "function") { renderQuestTrack(); renderJob(); }
   hideCard();
 }
 
@@ -73,6 +88,7 @@ function renderInv() {
     if (s) used++;
     b.innerHTML = s ? `<img src="${ICON(s.id)}" alt="">${s.up ? `<span class="up">+${s.up}</span>` : ""}<span class="n">${s.n > 1 ? s.n : ""}</span>` : "";
     applyFrame(b, s);
+    b.classList.toggle("nowear", !!(s && wearErr(s.id)));
     b.setAttribute("aria-label", s ? `${itemOf(s.id)?.name || s.id} ×${s.n}` : "ช่องว่าง");
   });
   $("goldTxt").textContent = INV.gold.toLocaleString();
@@ -163,7 +179,8 @@ function openCard(g, ctx, ev) {
     for (const [k, v] of Object.entries(g.x || {})) extra.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   } else for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
-  const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ" };
+  const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ",
+    ranger: "ชุดนักพราน", shadow: "ชุดพรานเงา", mage: "ชุดนักเวท", priest: "ชุดนักบวช", arch: "ชุดจอมเวท", saint: "ชุดนักบุญ" };
   const setTxt = it.set ? ` · ${SET_NAME[it.set] || it.set}` : "";
   const slotTxt = (it.type === "equip" ? ` · ${it.slot === "acc" ? "เครื่องประดับ" : gameData.slotName[it.slot]}` : "") + setTxt;
   const need = it.lv && me && me.level < it.lv ? `<div class="need">ต้องเลเวล ${it.lv}</div>` : it.lv ? `<div class="meta">เลเวล ${it.lv} ขึ้นไป</div>` : "";
@@ -182,7 +199,7 @@ function openCard(g, ctx, ev) {
   }
   else if (ctx.where === "pet") acts.push(`<button class="btn-ghost" data-a="petOff">เก็บกลับเข้ากระเป๋า</button>`);
   const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
-  card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}` +
+  card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}${it.type === "equip" ? wearHtml(id, it) : ""}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
     (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
