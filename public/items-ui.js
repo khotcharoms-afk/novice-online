@@ -17,7 +17,9 @@ const rarOf = (g) => (isGear(g) && gameData.rarity ? gameData.rarity[g.r || 0] :
 const refineGlow = (g) => {
   const up = (g && g.up) || 0;
   if (up < 7) return "";
-  const it = itemOf(g.id), c = (it && it.glowColor) || { 7: "#7fe0ff", 8: "#4f8fff", 9: "#b45cff", 10: "#ff5a28" }[Math.min(10, up)];
+  const it = itemOf(g.id);
+  if (!it || (it.slot !== "weapon" && it.slot !== "offhand")) return ""; // เฉพาะอาวุธหลัก/มือรอง
+  const c = (it && it.glowColor) || { 7: "#7fe0ff", 8: "#4f8fff", 9: "#b45cff", 10: "#ff5a28" }[Math.min(10, up)];
   const r = up >= 10 ? 4 : up - 5;
   return ` style="filter:drop-shadow(0 0 ${r}px ${c}) drop-shadow(0 0 ${Math.ceil(r / 2)}px ${c})"`;
 };

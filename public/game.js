@@ -947,13 +947,9 @@ class WorldScene extends Phaser.Scene {
       if (slot === "weapon" && webgl) for (const w of [v.wfg, v.wbg]) if (w.preFX) w.preFX.addGlow(col, str, 0, false, 0.1, 14); // ท่าฟันก็เรืองแสง
     }
     if (retry) v.glowStr = null; // ภาพอุปกรณ์ยังโหลดไม่เสร็จ → สร้างใหม่ตอนโหลดเสร็จ
-    if (top >= 10) { // +10: ตัวเรืองแสง + วงแสงใต้เท้า + ประกายลอย
+    if (top >= 10) { // +10: วงแสงใต้เท้า + ประกายลอย (ตัว/ชุดไม่เรืองแสง)
       v.r10 = topCol;
       const col = Phaser.Display.Color.HexStringToColor(topCol).color;
-      if (webgl && v.sprite.preFX) {
-        v.bodyGlow = v.sprite.preFX.addGlow(col, 1.5, 0, false, 0.1, 10);
-        this.tweens.add({ targets: v.bodyGlow, outerStrength: { from: 0.8, to: 2.6 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
-      }
       v.groundGlow = this.add.ellipse(0, -1, 46, 16, col, 0.35).setBlendMode(Phaser.BlendModes.ADD);
       v.root.addAt(v.groundGlow, 0);
       this.tweens.add({ targets: v.groundGlow, scaleX: { from: 0.85, to: 1.15 }, scaleY: { from: 0.85, to: 1.15 }, alpha: { from: 0.2, to: 0.5 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });

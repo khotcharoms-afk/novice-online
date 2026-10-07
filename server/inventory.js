@@ -106,8 +106,8 @@ const idOf = (g) => (typeof g === "string" ? g : g && g.id);
 const gearString = (b) => DRAW_ORDER.filter((s) => I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
   .map((s) => `${s}:${idOf(b.equip[s])}`).join(",");
 
-// แสงตีบวก: ช่องที่เห็นบนตัวและตีบวก +7 ขึ้นไป → "weapon:10,armor:7"
-const glowString = (b) => ["weapon", "offhand", "armor", "head"]
+// แสงตีบวก: เฉพาะอาวุธหลัก/มือรองที่ตีบวก +7 ขึ้นไป → "weapon:10,offhand:7" (ชุดไม่เรืองแสง)
+const glowString = (b) => ["weapon", "offhand"]
   .filter((s) => b.equip[s] && typeof b.equip[s] === "object" && (b.equip[s].up || 0) >= 7 && I.ITEMS[idOf(b.equip[s])] && I.ITEMS[idOf(b.equip[s])].visual)
   .map((s) => `${s}:${b.equip[s].up}`).join(",");
 
