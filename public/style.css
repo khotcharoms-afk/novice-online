@@ -565,3 +565,34 @@ img { -webkit-user-drag: none; user-drag: none; }
 #buffBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 118px; z-index: 6; display: flex; gap: 4px; pointer-events: none; }
 #buffBar .buff { background: rgba(10,13,30,.85); border: 1px solid #c9a45c; color: #ffe2a0; border-radius: 99px; padding: 1px 8px; font-size: 11.5px; }
 #buffBar .buff b { color: #fff; font-weight: 500; }
+
+/* ---------- มือถือ (จอเตี้ย = แนวนอน / จอแคบ = แนวตั้ง): ย่อ HUD ไม่ให้บังเกม ---------- */
+.chat-toggle { margin-left: auto; background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; padding: 0 8px; }
+#chat.collapsed #chatLog, #chat.collapsed #chatForm { display: none; }
+#chat.collapsed { width: auto; }
+@media (max-height: 540px) {
+  #help, #onlinePill { display: none; }
+  #status { zoom: .62; }
+  #minimap { zoom: .62; }
+  #chat { zoom: .7; width: 380px; }
+  #chatLog { height: 78px; }
+  #questTrack { zoom: .7; top: 170px; }
+  #buffBar { zoom: .8; bottom: 70px; }
+  /* แถบสกิล + ไอเทมลัด: แนวนอนมุมขวาล่าง */
+  #bars { zoom: .72; top: auto !important; bottom: 8px; right: 8px; display: flex; flex-direction: column; align-items: flex-end; }
+  #skillBar { flex-direction: row !important; flex-wrap: nowrap; }
+  #skillBar .slot:not(.skill) { display: none; }
+  .auto-btn { margin: 0 0 0 4px !important; } .gear-btn { width: 28px !important; height: 46px !important; margin: 0 0 0 2px !important; }
+  #itemBar { display: flex !important; flex-direction: row !important; }
+  #itemBar .slot:nth-child(n+5) { display: none; }
+  /* หน้าต่างต่าง ๆ ย่อลงและเลื่อนดูได้ */
+  #statPanel, #invPanel, #shopPanel, #smithPanel, #jobPanel, #worldPanel, #autoPanel, #itemCard, #confirmBox { zoom: .72; }
+  #statPanel, #invPanel, #shopPanel, #smithPanel { top: 8px !important; max-height: calc(100vh / .72 - 16px); overflow-y: auto; }
+  #jobPanel, #worldPanel { max-height: calc(100vh / .72 - 16px); }
+  #autoPanel { top: 8px !important; bottom: auto; max-height: calc(100vh / .72 - 16px); overflow-y: auto; }
+}
+@media (max-width: 640px) and (min-height: 541px) {
+  #status, #minimap { zoom: .85; }
+  #chat { zoom: .85; }
+  #questTrack { top: 150px; zoom: .85; }
+}

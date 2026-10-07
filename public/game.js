@@ -1425,8 +1425,16 @@ function setupChat(sc) {
     input.value = "";
     input.blur();
   });
+  // ปุ่มย่อ/ขยายแชท (จอมือถือเริ่มแบบย่อ จะได้ไม่บังเกม)
+  const tg = document.createElement("button");
+  tg.type = "button"; tg.id = "chatToggle"; tg.className = "chat-toggle";
+  const setCollapsed = (on) => { $("chat").classList.toggle("collapsed", on); tg.textContent = on ? "▲" : "▼"; tg.title = on ? "ขยายแชท" : "ย่อแชท"; };
+  tg.onclick = () => setCollapsed(!$("chat").classList.contains("collapsed"));
+  document.querySelector("#chat .tabs").appendChild(tg);
+  setCollapsed(window.matchMedia("(max-height: 540px), (max-width: 640px)").matches);
   document.querySelectorAll(".tab").forEach((t) =>
     t.addEventListener("click", () => {
+      if ($("chat").classList.contains("collapsed")) setCollapsed(false);
       document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
       $("chatLog").dataset.tab = t.dataset.tab;
       $("chatLog").scrollTop = $("chatLog").scrollHeight;
