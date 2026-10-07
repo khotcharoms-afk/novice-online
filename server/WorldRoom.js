@@ -700,7 +700,9 @@ class WorldRoom extends Room {
         this.broadcast("atk", { id, dir: p.dir, fx, tgt: r.target });
         if (fx) { // ยิงไกล: ดาเมจเข้าเมื่อกระสุนถึงเป้า
           const tid = r.target;
-          this.clock.setTimeout(() => { if (!p.dead) this.hitMob(id, p, tid, 1); }, Math.min(450, 60 + d * 1.4));
+          // ดาเมจเข้าเมื่อกระสุนถึงเป้า: ธนูปล่อยที่ 380ms · เวทปล่อยที่ 170ms (ตรงกับท่าบน client)
+          const release = fx === "arrow" ? 380 : 170;
+          this.clock.setTimeout(() => { if (!p.dead) this.hitMob(id, p, tid, 1); }, release + Math.min(450, 60 + d * 1.4));
         } else {
           const res = this.hitMob(id, p, r.target, 1);
           if (p.job === "slayer" && res && !res.miss) r.combo = Math.min(5, (r.combo || 0) + 1);
@@ -1303,8 +1305,9 @@ class WorldRoom extends Room {
         break;
       case "doubleshot":
         this.broadcast("skillfx", fx);
-        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, sk.mult); }, 200);
-        this.clock.setTimeout(() => { if (!p.dead) { this.broadcast("skillfx", fx); this.hitMob(pid, p, tid, sk.mult); } }, 420);
+        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, sk.mult); }, 560);
+        this.clock.setTimeout(() => { if (!p.dead) this.broadcast("skillfx", fx); }, 560);
+        this.clock.setTimeout(() => { if (!p.dead) this.hitMob(pid, p, tid, sk.mult); }, 1120);
         break;
       case "execute": {
         const combo = r.combo || 0; r.combo = 0;

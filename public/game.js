@@ -18,6 +18,8 @@ const T = 32;
 const COLS = 9; // เฟรมต่อแถวในไฟล์ภาพตัวละคร
 // แถวในไฟล์ภาพ: เดิน 0–3, ฟัน 4–7, ล้ม 8, ร่ายเวท 9–12 (ทิศ ขึ้น/ซ้าย/ลง/ขวา)
 const DIR_ROW = { up: 0, left: 1, down: 2, right: 3 };
+const SHOOT_RELEASE_MS = 380; // ธนูปล่อยลูกศรที่เฟรมที่ 7 ของท่ายิง (ต้องตรงกับฝั่งเซิร์ฟเวอร์)
+const CAST_RELEASE_MS = 170;  // คทา/คัมภีร์ปล่อยลูกเวทตอนชี้สุด
 const ZOOMS = [1, 1.25, 1.5, 2];
 
 const LOOK_OPTS = {
@@ -472,8 +474,9 @@ class WorldScene extends Phaser.Scene {
 
     // ---------- เหตุการณ์ต่อสู้ ----------
     room.onMessage("atk", ({ id, dir, fx, tgt }) => {
-      if (fx === "arrow") { this.playOnce(id, "aim", dir, 320); this.projectile(id, tgt, "arrow"); }
-      else if (fx) { this.playOnce(id, "cast", dir, 420); this.projectile(id, tgt, fx); }
+      // ธนู: น้าวสายแล้วปล่อยลูกศรตอนเฟรมปล่อย · คทา/คัมภีร์: ชี้ไปข้างหน้าแล้วยิงลูกเวท
+      if (fx === "arrow") { this.playOnce(id, "aim", dir, 560); this.time.delayedCall(SHOOT_RELEASE_MS, () => this.projectile(id, tgt, "arrow")); }
+      else if (fx) { this.playOnce(id, this.hasAnim(id, "thrust") ? "thrust" : "cast", dir, 440); this.time.delayedCall(CAST_RELEASE_MS, () => this.projectile(id, tgt, fx)); }
       else this.playOnce(id, "slash", dir, 380);
     });
     room.onMessage("skillfx", (f) => this.skillFx(f, false));
@@ -541,18 +544,20 @@ class WorldScene extends Phaser.Scene {
   // tint = ย้อมสีมอน (อบสีลงภาพเลย — ใช้ได้ทั้งโหมด WebGL และ Canvas)
   buildSheet(key, layerKeys, tint) {
     if (this.textures.exists(key)) return key;
-    const tex = this.textures.createCanvas(key, 576, 832);
+    // ภาพผู้เล่นสูง 21 แถว (มีท่ายิงธนู/แทงคทา) · มอน/NPC 13 แถว
+    const H = Math.max(832, ...layerKeys.map((k) => this.textures.get(k).getSourceImage().height || 0));
+    const tex = this.textures.createCanvas(key, 576, H);
     const ctx = tex.getContext();
     for (const k of layerKeys) ctx.drawImage(this.textures.get(k).getSourceImage(), 0, 0);
     if (tint && tint !== 0xffffff) {
       ctx.globalCompositeOperation = "multiply";
       ctx.fillStyle = "#" + tint.toString(16).padStart(6, "0");
-      ctx.fillRect(0, 0, 576, 832);
+      ctx.fillRect(0, 0, 576, H);
       ctx.globalCompositeOperation = "destination-in";
       for (const k of layerKeys) ctx.drawImage(this.textures.get(k).getSourceImage(), 0, 0);
       ctx.globalCompositeOperation = "source-over";
     }
-    for (let i = 0; i < COLS * 13; i++) tex.add(i, 0, (i % COLS) * 64, Math.floor(i / COLS) * 64, 64, 64);
+    for (let i = 0; i < COLS * (H / 64); i++) tex.add(i, 0, (i % COLS) * 64, Math.floor(i / COLS) * 64, 64, 64);
     tex.refresh();
     const seq = (row, from, to) => { const f = []; for (let c = from; c <= to; c++) f.push({ key, frame: row * COLS + c }); return f; };
     for (const dir in DIR_ROW) {
@@ -560,7 +565,11 @@ class WorldScene extends Phaser.Scene {
       this.anims.create({ key: `${key}:walk:${dir}`, frames: seq(d, 1, 8), frameRate: 12, repeat: -1 });
       this.anims.create({ key: `${key}:slash:${dir}`, frames: seq(4 + d, 0, 5), frameRate: 16 });
       this.anims.create({ key: `${key}:cast:${dir}`, frames: seq(9 + d, 0, 6), frameRate: 14 });
-      this.anims.create({ key: `${key}:aim:${dir}`, frames: [...seq(d, 0, 0), ...seq(d, 0, 0), ...seq(d, 0, 0)], frameRate: 10 }); // ยิงธนู: ยืนเล็ง
+      if (H >= 1344) {
+        this.anims.create({ key: `${key}:shoot:${dir}`, frames: seq(13 + d, 0, 8), frameRate: 16 });  // น้าวธนูยิง
+        this.anims.create({ key: `${key}:thrust:${dir}`, frames: seq(17 + d, 0, 7), frameRate: 18 }); // ชี้คทา/คัมภีร์
+        this.anims.create({ key: `${key}:aim:${dir}`, frames: seq(13 + d, 0, 8), frameRate: 16 });
+      } else this.anims.create({ key: `${key}:aim:${dir}`, frames: seq(d, 0, 0), frameRate: 10 });
     }
     this.anims.create({ key: `${key}:die`, frames: seq(8, 0, 5), frameRate: 10 });
     return key;
@@ -742,6 +751,7 @@ class WorldScene extends Phaser.Scene {
     this.updateOnline();
   }
 
+  hasAnim(id, kind) { const v = this.views.get(id); return !!(v && this.anims.exists(`${v.key}:${kind}:down`)); }
   playOnce(id, kind, dir, ms, repeat = 0) {
     const v = this.views.get(id);
     if (!v || v.dead) return;
@@ -874,7 +884,7 @@ class WorldScene extends Phaser.Scene {
     const fx = f.fx || {};
     const wt = f.wt;
     if (self || fx.type === "proj" || fx.type === "aoe" || fx.type === "meteor") {
-      if (wt === "bow") this.playOnce(f.id, "aim", f.dir, 360); else this.playOnce(f.id, "cast", f.dir || v.dir, 520);
+      if (wt === "bow") this.playOnce(f.id, "aim", f.dir, 560); else this.playOnce(f.id, "cast", f.dir || v.dir, 520);
     } else this.playOnce(f.id, "slash", f.dir, 620, f.skill === "doublehit" ? 1 : 0);
     const tv = f.tgt && this.views.get(f.tgt);
     const S = gameData && gameData.skills[f.skill];
@@ -898,7 +908,7 @@ class WorldScene extends Phaser.Scene {
         if (f.combo && f.id === room.sessionId) this.floatText(v.root.x, v.root.y - 104, `คอมโบ ×${f.combo}`, "#ff9a5a", 13, 900);
         break;
       case "proj":
-        this.projectile(f.id, f.tgt, fx.proj, { x: f.x, y: f.y });
+        this.time.delayedCall(wt === "bow" ? SHOOT_RELEASE_MS : 0, () => this.projectile(f.id, f.tgt, fx.proj, { x: f.x, y: f.y }));
         break;
       case "aoe":
         this.groundAoe(f.x, f.y, f.r || 80, fx.color);
