@@ -639,3 +639,5 @@ html, body { overscroll-behavior: none; }
 .slot.skill b { padding-top: 16px !important; }
 @media (max-width: 640px) { .sk-wrap { grid-template-columns: 1fr; } .sk-cells { grid-template-columns: 1fr; } }
 @media (max-height: 540px) { #skillPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }
+.sk-ic img, .slot.skill .sb-ic { image-rendering: auto; }
+.slot.skill .sb-ic { width: 20px; height: 20px; border-radius: 4px; background: var(--sc); padding: 1px; }

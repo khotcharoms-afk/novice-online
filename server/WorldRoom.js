@@ -1288,7 +1288,7 @@ class WorldRoom extends Room {
     switch (key) {
       case "firstaid":
         this.broadcast("cast", fx);
-        heal(p, Math.max(20, Math.round(p.maxHp * sk.heal) + (p.healBonus || 0)));
+        heal(p, Math.max(5, Math.round(p.maxHp * sk.heal + p.int * 2)));
         break;
       case "heal": { // เพื่อน (หรือตัวเอง) ที่เลือดน้อยสุดในระยะ
         let best = p, bp = p.hp / p.maxHp;

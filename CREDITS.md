@@ -439,3 +439,8 @@
   - https://opengameart.org/content/lpc-shields
 - **shield/spartan** — bluecarrot16, Sander Frenken (castelonia); OGA-BY 3.0
   - https://opengameart.org/content/lpc-shields
+
+## ไอคอนสกิล — game-icons.net
+
+ไอคอนสกิลทั้งหมดมาจาก https://game-icons.net (ที่เก็บ https://github.com/game-icons/icons) สัญญาอนุญาต CC BY 3.0
+ผู้สร้าง: Lorc (https://lorcblog.blogspot.com) และ Delapouite (https://delapouite.com) — ปรับสีและเพิ่มเงาโดยโปรเจกต์นี้
