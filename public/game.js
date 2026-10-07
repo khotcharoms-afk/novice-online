@@ -867,6 +867,8 @@ class WorldScene extends Phaser.Scene {
       return;
     }
     const mine = src === room.sessionId, onMe = tgt === room.sessionId;
+    if (mine && v.isMob) { this.lastHitMob = tgt; this.lastHitAt = this.time.now; }
+    if (onMe && src && !this.myTarget) { const sv = this.views.get(src); if (sv && sv.isMob && !(this.lastHitMob && this.time.now - this.lastHitAt < 6000)) { this.lastHitMob = src; this.lastHitAt = this.time.now; } }
     if (!mine && !onMe && !v.isMob) return;
     const x = v.root.x + Phaser.Math.Between(-10, 10), y = v.root.y - 72;
     if (miss) { this.floatText(x, y, "MISS", "#c7cbe0", 12); return; }
@@ -1056,6 +1058,26 @@ class WorldScene extends Phaser.Scene {
     this.tweens.add({ targets: v.sprite, scale: (v.e.scale || 1) * 1.12, duration: 160, yoyo: true, repeat: 2 });
     this.cameras.main.flash(200, 120, 0, 0);
   }
+  // แถบเลือดมอนที่เรากำลังตี: มอนที่คลิกเลือก หรือมอนที่เราตีโดนล่าสุด (ภายใน 6 วิ เช่นตอน AUTO)
+  updateTargetBar(time) {
+    const el = $("tgtBar");
+    if (!el) return;
+    let v = this.myTarget && this.views.get(this.myTarget);
+    if (!v || v.dead) { const h = this.lastHitMob && this.views.get(this.lastHitMob); v = h && !h.dead && time - this.lastHitAt < 6000 ? h : null; }
+    if (!v || v.dead || !v.isMob || v.e.boss) { el.hidden = true; return; }
+    el.hidden = false;
+    el.classList.toggle("below-boss", !$("bossBar").hidden);
+    const e = v.e, me = room.state.players.get(room.sessionId), diff = me ? e.level - me.level : 0;
+    const col = diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ecebe4";
+    const key = `${e.name}|${e.level}|${e.hp}|${e.maxHp}|${e.rank}`;
+    if (el.dataset.k === key) return;
+    el.dataset.k = key;
+    $("tgtName").innerHTML = `${e.rank === 2 ? "👑 " : ""}${esc(e.name)}<span class="lv" style="color:${col}">Lv.${e.level}</span>`;
+    const pct = Math.max(0, (e.hp * 100) / e.maxHp);
+    $("tgtFill").style.width = pct + "%";
+    $("tgtFill").classList.toggle("elite", !!e.rank);
+    $("tgtHpTxt").textContent = `${e.hp.toLocaleString()} / ${e.maxHp.toLocaleString()}`;
+  }
   updateBossBar() {
     let b = null;
     this.views.forEach((v) => { if (v.isMob && v.e.boss && !v.dead) b = v; });
@@ -1196,6 +1218,7 @@ class WorldScene extends Phaser.Scene {
   update(time, dt) {
     if (this.petViews) this.updatePets(time);
     this.updateBossBar();
+    this.updateTargetBar(time);
     const k = Math.min(1, (dt / 1000) * 14);
     this.views.forEach((v) => {
       const r = v.root;

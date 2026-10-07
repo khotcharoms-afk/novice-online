@@ -669,3 +669,15 @@ html, body { overscroll-behavior: none; }
 .ap-pick { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; margin: 4px 0 6px 22px; color: var(--muted, #a7abc4); }
 .ap-pick > span { flex-basis: 100%; }
 .ap-pick select { background: #10152e; color: #ecebe4; border: 1px solid #2c3561; border-radius: 6px; padding: 2px 4px; font: inherit; }
+
+/* ---------- แถบเลือดมอนที่กำลังตี (กลางจอด้านบน) ---------- */
+#tgtBar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 39; width: min(320px, calc(100vw - 32px));
+  pointer-events: none; text-align: center; font-family: Mitr, sans-serif; }
+#tgtBar.below-boss { top: 58px; }
+#tgtName { color: #fff; font-size: 13px; text-shadow: 0 0 4px #000, 0 1px 2px #000; margin-bottom: 2px; }
+#tgtName .lv { margin-left: 6px; font-size: 12px; }
+#tgtBar .bb-track { position: relative; height: 12px; border: 1px solid #0d1124; border-radius: 6px; background: #1a0d10cc; overflow: hidden; box-shadow: 0 1px 4px #0008; }
+#tgtFill { height: 100%; width: 100%; background: linear-gradient(#ff7a6a, #c42a2a); transition: width .15s; }
+#tgtFill.elite { background: linear-gradient(#ffd36b, #d08a1a); }
+#tgtHpTxt { position: absolute; inset: 0; font-size: 10px; line-height: 11px; color: #fff; text-shadow: 0 0 3px #000; }
+@media (max-height: 540px) { #tgtBar { top: 4px; width: min(220px, 40vw); } #tgtBar.below-boss { top: 40px; } #tgtName { font-size: 11px; } }

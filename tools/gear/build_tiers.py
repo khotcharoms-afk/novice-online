@@ -129,3 +129,5 @@ if __name__ == "__main__":
         print("ok", iid, base, len(fl))
     man["equipLazy"] = sorted(lazy); man["atkLazy"] = atkl; man["icons"] = sorted(icons)
     json.dump(man, open(f"{A}/manifest.json", "w"), separators=(",", ":"))
+    # ดาบใหญ่: แบกบนหลังตอนเดิน (ต้องทำหลังย้อมสีทุกครั้ง)
+    subprocess.check_call(["python3", os.path.join(ROOT, "tools", "gear", "carry.py")], cwd=ROOT)
