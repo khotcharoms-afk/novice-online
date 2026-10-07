@@ -46,7 +46,7 @@ class Monster extends Schema {}
 defineTypes(Monster, {
   kind: "string", name: "string", level: "uint16", sprite: "string", tint: "uint32", scale: "number",
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean",
-  hp: "uint32", maxHp: "uint32",
+  hp: "uint32", maxHp: "uint32", boss: "boolean",
 });
 // สัตว์เลี้ยง (key = sessionId ของเจ้าของ) — บินได้ จึงไม่ชนสิ่งกีดขวาง
 class Pet extends Schema {}
@@ -70,6 +70,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const SAVE_EVERY_MS = 60000;
 const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
 const rooms = new Set();  // ห้องโลกเกมที่เปิดอยู่
+const pendingBoss = new Map(); // mapId -> bossKey (สั่งเรียกบอสตอนแผนที่ยังไม่มีคน → เกิดเมื่อมีคนเข้า)
 // ปิดปรับปรุง: แอดมินตั้งเวลานับถอยหลัง → ครบเวลา = บันทึกทุกคน + ให้ออกจากเกม + ปิดไม่ให้เข้า (จนแอดมินเปิดหรือเซิร์ฟรีสตาร์ท)
 const maint = { endAt: 0, msg: "", closed: false, timer: null };
 const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.loginId === "admin");
@@ -158,6 +159,7 @@ class WorldRoom extends Room {
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
     this.mobSeq = 0;
     this.spawnMonsters();
+    if (pendingBoss.has(this.mapId)) { const k = pendingBoss.get(this.mapId); pendingBoss.delete(this.mapId); this.spawnBoss(k); }
 
     this.onMessage("getMap", (client) => {
       const me = this.state.players.get(client.sessionId);
@@ -334,6 +336,7 @@ class WorldRoom extends Room {
     client.send("quest", p.quest);
     this.sendSkills(client.sessionId);
     if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
+    this.state.monsters.forEach((m) => { if (m.boss && !m.dead) client.send("system", `⚠️ World Boss ${m.name} อยู่ในแผนที่นี้! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`); });
   }
 
   // ใส่ข้อมูลที่บันทึกไว้ (เลเวล สเตตัส กระเป๋า) ลงตัวละครในเกม — ใช้ตอนเข้าเกม และตอนแอดมินแก้ข้อมูล
@@ -409,6 +412,13 @@ class WorldRoom extends Room {
     room.applyCharData(p, data);
     p.gear = Bag.gearString(p.bag);
     if (!data.heal && Number.isFinite(data.hp)) { p.hp = Math.max(1, Math.min(p.maxHp, data.hp)); p.sp = Math.max(0, Math.min(p.maxSp, data.sp)); }
+    if (data.warpTo) {
+      const to = data.warpTo; delete data.warpTo;
+      const client = room.clients.find((c) => c.sessionId === sessionId);
+      if (client && msg) client.send("system", "[แอดมิน] " + msg);
+      if (to !== room.mapId) { room.warpPlayer(sessionId, to, null); return true; }
+      data.x = null; // แผนที่เดิม → ไปจุดเกิดของแผนที่
+    }
     if (data.x == null) {
       if (room.mapId !== W.START_MAP) { room.warpPlayer(sessionId, W.START_MAP, null); return true; }
       const s = room.townSpawn(); p.x = s.x; p.y = s.y; const r = room.pr.get(sessionId); if (r) { r.nav = null; r.moveTarget = null; r.target = null; r.pick = null; }
@@ -455,6 +465,27 @@ class WorldRoom extends Room {
       // แอดมินอยู่ต่อได้ คนอื่นออก
       rm.clients.forEach((c) => { const r = rm.pr.get(c.sessionId); if (!(r && r.admin)) c.leave(4003); });
     }
+  }
+  // ---------- World Boss (แอดมิน) ----------
+  static spawnWorldBoss(key, mapId) {
+    if (!D.WORLD_BOSSES[key]) throw new Error("ไม่มีบอสนี้");
+    if (!W.MAPS[mapId] || W.MAPS[mapId].type === "town") throw new Error("เลือกแผนที่ล่ามอน (ไม่ใช่ในเมือง)");
+    const rm = [...rooms].find((x) => x.mapId === mapId);
+    if (rm) { if (rm.bossAlive()) throw new Error("แผนที่นี้มีบอสอยู่แล้ว"); rm.spawnBoss(key); return { msg: `เรียก ${D.WORLD_BOSSES[key].name} ที่ ${W.MAPS[mapId].name} แล้ว` }; }
+    pendingBoss.set(mapId, key);
+    WorldRoom.announce(`⚠️ World Boss ${D.WORLD_BOSSES[key].name} กำลังจะปรากฏที่ ${W.MAPS[mapId].name}!`);
+    return { msg: `ตอนนี้ยังไม่มีคนใน ${W.MAPS[mapId].name} — บอสจะเกิดทันทีที่มีคนเข้าแผนที่` };
+  }
+  static removeWorldBoss() {
+    let n = pendingBoss.size; pendingBoss.clear();
+    rooms.forEach((rm) => { n += rm.removeBosses(); });
+    return { msg: n ? `ลบบอส ${n} ตัวแล้ว` : "ไม่มีบอสอยู่" };
+  }
+  static bossStatus() {
+    const out = [];
+    rooms.forEach((rm) => rm.state.monsters.forEach((m, id) => { const r = rm.mr.get(id); if (r && r.boss && !m.dead) out.push({ map: rm.def.name, name: m.name, hp: m.hp, maxHp: m.maxHp }); }));
+    pendingBoss.forEach((k, mapId) => out.push({ map: W.MAPS[mapId].name, name: D.WORLD_BOSSES[k].name, pending: true }));
+    return out;
   }
   static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
 
@@ -782,6 +813,7 @@ class WorldRoom extends Room {
   }
 
   updateMob(m, r, id, dt, t) {
+    if (r.boss) return this.updateBoss(m, r, id, dt, t);
     if (m.dead) { if (t >= r.respawnAt) this.respawnMob(id); return; }
     if (r.stunUntil > t) { m.moving = false; return; } // มึนงง
     const step = (r.def.speed * (r.slowUntil > t ? 0.5 : 1) * dt) / 1000;
@@ -827,6 +859,114 @@ class WorldRoom extends Room {
         r.wander = null; m.moving = false; r.nextWander = t + rand(2000, 6000);
       }
     }
+  }
+
+  // ================= World Boss =================
+  bossAlive() { let a = false; this.mr.forEach((r, id) => { const m = this.state.monsters.get(id); if (r.boss && m && !m.dead) a = true; }); return a; }
+  removeBosses() {
+    let n = 0;
+    [...this.mr.entries()].forEach(([id, r]) => { if (r.boss || r.minion) { if (r.boss) n++; this.state.monsters.delete(id); this.mr.delete(id); } });
+    return n;
+  }
+  spawnBoss(key) {
+    const B = D.WORLD_BOSSES[key], base = D.monsterStats(B.level);
+    const id = "boss" + this.mobSeq++;
+    const m = new Monster();
+    m.kind = "boss_" + key; m.name = B.name; m.level = B.level; m.sprite = B.sprite; m.tint = B.tint; m.scale = B.scale; m.boss = true;
+    const spot = this.mobSpot();
+    m.x = spot.x; m.y = spot.y; m.dir = "down"; m.moving = false; m.dead = false;
+    const stats = { maxHp: base.maxHp * B.hpMul, atk: Math.round(base.atk * B.atkMul), def: Math.round(base.def * B.defMul), exp: base.exp * B.expMul };
+    m.maxHp = stats.maxHp; m.hp = m.maxHp;
+    this.state.monsters.set(id, m);
+    this.mr.set(id, { def: B, stats, boss: B, temp: true, home: { ...spot }, target: null, wander: null, nextWander: 0, atkReady: 0, respawnAt: Infinity,
+      dmgBy: new Map(), nextSlam: now() + 5000, cast: null, summoned: 0, enraged: false, idleSince: now() });
+    const tx = Math.floor(spot.x / this.map.tile), ty = Math.floor(spot.y / this.map.tile);
+    WorldRoom.announce(`⚠️ World Boss ${B.name} Lv.${B.level} ปรากฏตัวที่ ${this.def.name} (${tx}, ${ty})! รวมพลังกันไปปราบ`);
+  }
+  updateBoss(m, r, id, dt, t) {
+    if (m.dead) return;
+    const B = r.boss;
+    // หาเป้าหมาย: คนที่ใกล้ที่สุดในรัศมีกว้าง
+    let p = r.target && this.state.players.get(r.target);
+    if (!p || p.dead || dist(m, p) > 600) {
+      r.target = null; p = null;
+      let bd = 420;
+      this.state.players.forEach((pp, pid) => { if (!pp.dead) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
+    }
+    // ทุบพื้น: เตือนเป็นวงก่อน แล้วค่อยลงดาเมจทุกคนในวง
+    if (r.cast) {
+      m.moving = false;
+      if (t >= r.cast.at) {
+        const c = r.cast; r.cast = null;
+        this.broadcast("bossSlam", { id, x: c.x, y: c.y, r: B.slam.r });
+        this.state.players.forEach((pp, pid) => { if (!pp.dead && Math.hypot(pp.x - c.x, pp.y - c.y) <= B.slam.r) this.hitPlayer(id, m, r, pid, B.slam.mult); });
+        r.atkReady = t + 600;
+      }
+      return;
+    }
+    if (!p) { // ไม่มีใครอยู่ใกล้: ฟื้นเลือดช้า ๆ แล้วเดินวนแถวบ้าน
+      m.moving = false;
+      if (t - r.idleSince > 8000 && m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + Math.ceil(m.maxHp * 0.01 * dt / 1000));
+      return;
+    }
+    r.idleSince = t;
+    // เลือดลดถึงเกณฑ์ → เรียกลูกน้อง / คลั่ง
+    const frac = m.hp / m.maxHp;
+    if (B.summon && r.summoned < B.summon.at.length && frac <= B.summon.at[r.summoned]) { r.summoned++; this.bossSummon(m, B); }
+    if (B.enrage && !r.enraged && frac <= B.enrage) {
+      r.enraged = true; r.stats.atk = Math.round(r.stats.atk * 1.3);
+      this.broadcast("system", `🔥 ${m.name} คลั่ง! พลังโจมตีและความเร็วเพิ่มขึ้น`);
+      this.broadcast("bossRage", { id });
+    }
+    const d = dist(m, p);
+    if (B.slam && t >= r.nextSlam && d < B.slam.r + 60) {
+      r.nextSlam = t + B.slam.every * (r.enraged ? 0.7 : 1);
+      r.cast = { at: t + B.slam.cast, x: m.x, y: m.y };
+      m.moving = false;
+      this.broadcast("bossCast", { id, x: m.x, y: m.y, r: B.slam.r, ms: B.slam.cast });
+      return;
+    }
+    const step = (B.speed * (r.enraged ? 1.3 : 1) * dt) / 1000;
+    if (d > B.range) { if (!this.navTo(m, r, p, step, t)) this.stepToward(m, p, step); return; }
+    m.moving = false; m.dir = dirOf(p.x - m.x, p.y - m.y);
+    if (t >= r.atkReady) {
+      r.atkReady = t + MOB_ATK_MS * (r.enraged ? 0.65 : 1);
+      this.broadcast("atk", { id, dir: m.dir, mob: true });
+      this.hitPlayer(id, m, r, r.target);
+    }
+  }
+  bossSummon(m, B) {
+    const def = D.MONSTERS[B.summon.kind];
+    for (let i = 0; i < B.summon.n; i++) {
+      const id = "m" + this.mobSeq++, mm = new Monster();
+      mm.kind = B.summon.kind; mm.name = def.name; mm.level = def.level;
+      mm.sprite = def.sprite || B.summon.kind; mm.tint = def.tint || 0xffffff; mm.scale = def.scale || 1;
+      const a = (i / B.summon.n) * Math.PI * 2;
+      let x = m.x + Math.cos(a) * 60, y = m.y + Math.sin(a) * 40;
+      if (!this.canStand(x, y)) { x = m.x; y = m.y; }
+      mm.x = x; mm.y = y; mm.dir = "down"; mm.moving = false; mm.dead = false;
+      const stats = D.monsterStats(def.level);
+      mm.maxHp = stats.maxHp; mm.hp = mm.maxHp;
+      this.state.monsters.set(id, mm);
+      this.mr.set(id, { def, stats, temp: true, minion: true, home: { x, y }, target: null, wander: null, nextWander: 0, atkReady: 0, respawnAt: Infinity, dmgBy: new Map() });
+    }
+    this.broadcast("system", `📣 ${m.name} เรียกลูกน้องออกมา ${B.summon.n} ตัว!`);
+  }
+  bossLoot(m, r, mvp, total) {
+    const B = r.boss, L = B.loot, mp = mvp && this.state.players.get(mvp);
+    const at = (i, n) => { const a = (i / n) * Math.PI * 2; return [m.x + Math.cos(a) * 46, m.y + Math.sin(a) * 30]; };
+    const pool = [...L.pool].sort(() => Math.random() - 0.5);
+    const N = L.gear + L.items.length;
+    for (let i = 0; i < L.gear; i++) {
+      // ชิ้นแรก = รางวัล MVP: มหากาพย์ขึ้นไปแน่นอน · ชิ้นอื่นสุ่ม ดี–ตำนาน
+      const x = Math.random(), rar = i === 0 ? (x < 0.2 ? 4 : 3) : (x < 0.02 ? 4 : x < 0.15 ? 3 : x < 0.5 ? 2 : 1);
+      const [dx, dy] = at(i, N);
+      this.spawnDrop(pool[i % pool.length], 1, dx, dy, i === 0 ? mvp : null, I.makeGear(pool[i % pool.length], rar));
+    }
+    L.items.forEach(([id, lo, hi], k) => { const [dx, dy] = at(L.gear + k, N); this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), dx, dy, null, null); });
+    const rank = [...r.dmgBy.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([pid, dmg], i) => { const pp = this.state.players.get(pid); return `${i + 1}. ${pp ? pp.name : "?"} ${Math.round((dmg * 100) / total)}%`; });
+    WorldRoom.announce(`🏆 ${m.name} ถูกปราบแล้ว! MVP: ${mp ? mp.name : "-"} · ${rank.join(" · ")}`);
   }
 
   // ================= การต่อสู้ =================
@@ -895,7 +1035,9 @@ class WorldRoom extends Room {
 
   killMob(mid, m, r) {
     m.dead = true; m.moving = false;
-    r.respawnAt = now() + D.MONSTER_RESPAWN_MS;
+    r.respawnAt = r.temp ? Infinity : now() + D.MONSTER_RESPAWN_MS;
+    // บอส/ลูกน้องบอส: ไม่เกิดใหม่ ลบออกจากแผนที่หลังเล่นท่าตาย
+    if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); }, r.boss ? 15000 : 2500);
     r.target = null;
     // แบ่ง EXP ตามสัดส่วนดาเมจที่ทำ
     const total = [...r.dmgBy.values()].reduce((a, b) => a + b, 0) || 1;
@@ -909,7 +1051,7 @@ class WorldRoom extends Room {
       if (cl) { cl.send("quest", q); cl.send("toast", `เควส: ${m.name} ${q.kills}/${Q.kill[1]}`); }
     });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
-    const gold = I.goldDrop(m.level);
+    const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1);
     let top = null, topDmg = -1;
     r.dmgBy.forEach((dmg, pid) => {
       if (dmg > topDmg) { topDmg = dmg; top = pid; }
@@ -919,15 +1061,20 @@ class WorldRoom extends Room {
     const tp = top && this.state.players.get(top), dropMul = 1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100;
     for (const [id, chance, lo, hi] of I.DROPS[m.kind] || [])
       if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, I.makeGear(id));
+    if (r.boss) {
+      this.bossLoot(m, r, top, total);
+      // บอสตาย → ลูกน้องหายไปด้วย
+      this.clock.setTimeout(() => [...this.mr.entries()].forEach(([id, mr]) => { if (mr.minion) { this.state.monsters.delete(id); this.mr.delete(id); } }), 3000);
+    }
     r.dmgBy.clear();
     this.pr.forEach((pr) => { if (pr.target === mid) { pr.target = null; pr.pending = null; } });
   }
 
-  hitPlayer(mid, m, r, pid) {
+  hitPlayer(mid, m, r, pid, mult = 1) {
     const p = this.state.players.get(pid), pr = this.pr.get(pid);
     if (!p || p.dead || !pr) return;
     const md = this.mods(pr);
-    const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: p.flee + md.flee }, 1);
+    const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: mult > 1 ? 0 : p.flee + md.flee }, mult);
     if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
     if (!res.miss && p.sx && p.sx.dmgReduce) res.dmg = Math.max(1, Math.round(res.dmg * (1 - p.sx.dmgReduce / 100)));
     this.broadcast("hit", { tgt: pid, src: mid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });

@@ -339,6 +339,9 @@ function bindRoom(room) {
     room.onMessage("jobChanged", (d) => onJobChanged(d));
     room.onMessage("buff", (b) => onBuff(b));
     room.onMessage("skills", (d) => onSkills(d));
+    room.onMessage("bossCast", (c) => scene && scene.bossCast(c));
+    room.onMessage("bossSlam", (c) => scene && scene.bossSlam(c));
+    room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
@@ -708,6 +711,7 @@ class WorldScene extends Phaser.Scene {
       const diff = me ? lv - me.level : 0;
       v.label.setColor(diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ffffff");
       v.label.setText(`${e.name}  Lv.${lv}`);
+      if (e.boss) v.label.setColor("#ffb84a").setText(`👑 ${e.name}  Lv.${lv}`).setY(-58 * (e.scale || 1) + 4);
     } else {
       if ((e.gear || "") !== v.gear || e.job !== v.job) { // เปลี่ยนอุปกรณ์/อาชีพ → ประกอบภาพตัวละครใหม่
         v.gear = e.gear || ""; v.job = e.job;
@@ -861,6 +865,47 @@ class WorldScene extends Phaser.Scene {
     } });
   }
   // วงระเบิดสั้น ๆ
+  // ---------- World Boss ----------
+  bossCast({ id, x, y, r, ms }) {
+    const ring = this.add.circle(x, y, r, 0xff2a2a, 0.12).setStrokeStyle(3, 0xff4a4a, 0.95).setDepth(-8000);
+    const fill = this.add.circle(x, y, r, 0xff3a2a, 0.32).setDepth(-7999).setScale(0.05);
+    this.tweens.add({ targets: fill, scale: 1, duration: ms, ease: "Linear" });
+    this.tweens.add({ targets: ring, alpha: { from: 1, to: 0.55 }, duration: 160, yoyo: true, repeat: -1 });
+    (this.bossRings = this.bossRings || new Map()).set(id, [ring, fill]);
+    const v = this.views.get(id);
+    if (v) this.tweens.add({ targets: v.sprite, y: -14, duration: ms * 0.85, ease: "Quad.easeOut", yoyo: false }); // ยกตัวเตรียมทุบ
+    this.time.delayedCall(ms + 400, () => { ring.destroy(); fill.destroy(); });
+  }
+  bossSlam({ id, x, y, r }) {
+    const v = this.views.get(id);
+    if (v) { this.tweens.killTweensOf(v.sprite); this.tweens.add({ targets: v.sprite, y: 0, duration: 90, ease: "Quad.easeIn" }); }
+    const rs = this.bossRings && this.bossRings.get(id);
+    if (rs) { rs.forEach((o) => o.destroy()); this.bossRings.delete(id); }
+    const w = this.add.circle(x, y, r, 0xffd0a0, 0.45).setDepth(-7990).setScale(0.3);
+    this.tweens.add({ targets: w, scale: 1.08, alpha: 0, duration: 380, ease: "Quad.easeOut", onComplete: () => w.destroy() });
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; this.burst(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, 0xc8a070, 20); }
+    const me = this.views.get(room.sessionId);
+    if (me && Math.hypot(me.root.x - x, me.root.y - y) < r * 2.5) this.cameras.main.shake(260, 0.012);
+  }
+  bossRage({ id }) {
+    const v = this.views.get(id);
+    if (!v) return;
+    this.tweens.add({ targets: v.sprite, scale: (v.e.scale || 1) * 1.12, duration: 160, yoyo: true, repeat: 2 });
+    this.cameras.main.flash(200, 120, 0, 0);
+  }
+  updateBossBar() {
+    let b = null;
+    this.views.forEach((v) => { if (v.isMob && v.e.boss && !v.dead) b = v; });
+    const el = $("bossBar");
+    if (!b) { if (el) el.hidden = true; return; }
+    if (!el) return;
+    el.hidden = false;
+    const pct = Math.max(0, (b.e.hp * 100) / b.e.maxHp);
+    $("bossName").textContent = `👑 ${b.e.name}  Lv.${b.e.level}`;
+    $("bossHpTxt").textContent = `${b.e.hp.toLocaleString()} / ${b.e.maxHp.toLocaleString()} (${pct.toFixed(1)}%)`;
+    $("bossFill").style.width = pct + "%";
+  }
+
   burst(x, y, color, r = 30) {
     const c = this.add.circle(x, y, r, color, 0.45).setDepth(1e6 - 2).setScale(0.3);
     this.tweens.add({ targets: c, scale: 1, alpha: 0, duration: 320, onComplete: () => c.destroy() });
@@ -979,6 +1024,7 @@ class WorldScene extends Phaser.Scene {
   }
   update(time, dt) {
     if (this.petViews) this.updatePets(time);
+    this.updateBossBar();
     const k = Math.min(1, (dt / 1000) * 14);
     this.views.forEach((v) => {
       const r = v.root;
@@ -986,7 +1032,7 @@ class WorldScene extends Phaser.Scene {
       else { r.x += (v.tx - r.x) * k; r.y += (v.ty - r.y) * k; }
       r.setDepth(v.dead ? r.y - 40 : r.y);
       // ชื่อมอนแสดงเฉพาะตอนชี้เมาส์ / เป็นเป้าหมาย / โดนตี (จอจะได้ไม่รก)
-      if (v.isMob) v.label.setVisible(!v.dead && (v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
+      if (v.isMob) v.label.setVisible(!v.dead && (v.e.boss || v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
       if (v.dead) {
         if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
         return;

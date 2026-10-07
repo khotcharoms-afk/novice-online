@@ -1,4 +1,5 @@
 const JOBS_ADMIN = { villager: "ชาวบ้าน", guardian: "ผู้พิทักษ์", slayer: "นักดาบใหญ่", hunter: "นักล่า", mage: "นักเวทย์", healer: "หมอ" };
+const MAPS_ADMIN = { town: "เมืองอรุณรุ่ง", meadow: "ทุ่งหญ้าต้นกล้า (Lv.1–6)", pine: "ป่าสนเขียวขจี (Lv.5–12)", maple: "ป่าใบไม้แดง (Lv.10–18)", bones: "เนินกระดูก (Lv.14–22)", orcamp: "ค่ายออร์ค (Lv.18–28)", snow: "หุบเขาหิมะ (Lv.26–35)" };
 // =============================================================
 //  เมนูแอดมิน — ใช้ได้เฉพาะ ID ที่ตั้งไว้ใน ADMIN_IDS บน Render
 // =============================================================
@@ -93,7 +94,7 @@ $("logout").onclick = async () => {
 // ---------- แท็บ ----------
 function openTab(t) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === t));
-  ["ov", "pl", "an", "lg", "gd"].forEach((k) => ($("tab-" + k).hidden = k !== t));
+  ["ov", "pl", "an", "wb", "lg", "gd"].forEach((k) => ($("tab-" + k).hidden = k !== t));
   clearInterval(ovTimer);
   if (t === "ov") { loadOverview(); ovTimer = setInterval(loadOverview, 5000); }
   if (t === "pl" && !$("accList").children.length) search();
@@ -101,8 +102,28 @@ function openTab(t) {
   clearInterval(mtTimer);
   if (t === "an") { loadMaint(); mtTimer = setInterval(renderMaint, 500); }
   if (t === "gd") loadGameData();
+  clearInterval(wbTimer);
+  if (t === "wb") { loadBoss(); wbTimer = setInterval(loadBoss, 3000); }
 }
 document.querySelectorAll("nav.tabs button").forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
+
+// ---------- World Boss ----------
+let wbTimer = null, wbInit = false;
+async function loadBoss() {
+  let d;
+  try { d = await api("GET", "/api/admin/worldboss"); } catch (e) { return toast(e.message, true); }
+  if (!wbInit) {
+    wbInit = true;
+    $("wbBoss").innerHTML = Object.entries(d.bosses).map(([k, b]) => `<option value="${k}">${esc(b.name)} Lv.${b.level}</option>`).join("");
+    $("wbMap").innerHTML = Object.entries(d.maps).map(([k, n]) => `<option value="${k}" ${k === "orcamp" ? "selected" : ""}>${esc(n)}</option>`).join("");
+  }
+  $("wbStatus").innerHTML = d.status.length ? d.status.map((b) => b.pending
+    ? `<div>⏳ <b>${esc(b.name)}</b> รอเกิดที่ ${esc(b.map)} (ยังไม่มีผู้เล่นในแผนที่)</div>`
+    : `<div>🔥 <b>${esc(b.name)}</b> อยู่ที่ ${esc(b.map)} — HP ${fmt(b.hp)} / ${fmt(b.maxHp)} (${Math.round((b.hp * 100) / b.maxHp)}%)</div>`).join("")
+    : "ไม่มีบอสในเกมตอนนี้";
+}
+$("wbSpawn").onclick = async () => { await run(() => api("POST", "/api/admin/worldboss", { boss: $("wbBoss").value, map: $("wbMap").value })); loadBoss(); };
+$("wbRemove").onclick = async () => { if (!confirm("ลบ World Boss (และลูกน้อง) ออกจากเกมทั้งหมด?")) return; await run(() => api("POST", "/api/admin/worldboss", { action: "remove" })); loadBoss(); };
 
 // ---------- ภาพรวม ----------
 async function loadOverview() {
@@ -179,6 +200,8 @@ async function openAccount(uid) {
           <button class="btn" data-a="level">ตั้งเลเวล</button><button class="btn" data-a="resetStats">รีเซ็ตสเตตัส</button><button class="btn" data-a="resetSkills">รีเซ็ตสกิล</button></div>
         <div class="row"><label>อาชีพ</label><select data-f="job">${Object.entries(JOBS_ADMIN).map(([k, n]) => `<option value="${k}" ${c.job === k ? "selected" : ""}>${n}</option>`).join("")}</select>
           <button class="btn" data-a="job">เปลี่ยนอาชีพ</button></div>
+        <div class="row"><label>ย้ายแผนที่</label><select data-f="map">${Object.entries(MAPS_ADMIN).map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join("")}</select>
+          <button class="btn" data-a="warp">ส่งไปแผนที่นี้</button></div>
         <div class="row"><label>อื่น ๆ</label><button class="btn" data-a="town">ส่งกลับเมือง</button>
           <button class="btn" data-a="heal" ${c.online ? "" : "disabled"}>ฟื้นเลือดเต็ม</button>
           <button class="btn danger" data-a="kick" ${c.online ? "" : "disabled"}>เตะออกจากเกม</button></div>
@@ -237,6 +260,7 @@ async function openAccount(uid) {
       if (a2 === "spawn") return openSpawn(id, name, uid);
       if (a2 === "level") body = { action: "level", name, lv: Number(f("lv")) };
       if (a2 === "job") { if (!confirm(`เปลี่ยนอาชีพของ ${name}? (แต้มสเตตัสจะถูกคืนทั้งหมด)`)) return; body = { action: "job", name, job: f("job") }; }
+      if (a2 === "warp") body = { action: "warp", name, map: f("map") };
       if (a2 === "petSet") body = { action: "pet", name, id: f("pet") };
       if (a2 === "petRemove") { if (!confirm(`ลบสัตว์เลี้ยงของ ${name}?`)) return; body = { action: "pet", name, id: null }; }
       if (a2 === "resetSkills" && !confirm(`รีเซ็ตสกิลของ ${name}? (คืนแต้มสกิลทั้งหมด)`)) return;

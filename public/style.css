@@ -654,3 +654,13 @@ html, body { overscroll-behavior: none; }
 #spDerived .sx-head.set { color: #7dff9a; } #spDerived .sx.set b { color: #7dff9a; }
 #itemCard ul.hidden-st li.locked { color: #6f7590; } #itemCard ul.hidden-st li.locked small { font-size: 10.5px; }
 #itemCard .trait { color: #ffb86b; }
+
+/* ---------- World Boss HP bar ---------- */
+#bossBar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 40; width: min(460px, calc(100vw - 32px));
+  pointer-events: none; text-align: center; font-family: Mitr, sans-serif; }
+#bossName { color: #ffb84a; font-size: 15px; text-shadow: 0 0 4px #000, 0 1px 2px #000; margin-bottom: 3px; }
+#bossBar .bb-track { position: relative; height: 16px; border: 2px solid #c9a45c; border-radius: 8px; background: #1a0d10e6; overflow: hidden;
+  box-shadow: 0 0 12px #ff3a2a66; }
+#bossFill { height: 100%; width: 100%; background: linear-gradient(#ff6b5a, #b81f1f); transition: width .25s; }
+#bossHpTxt { position: absolute; inset: 0; font-size: 11px; line-height: 12px; color: #fff; text-shadow: 0 0 3px #000; }
+@media (max-height: 540px) { #bossBar { top: 4px; width: min(300px, 50vw); } #bossName { font-size: 12px; } #bossBar .bb-track { height: 12px; } #bossHpTxt { font-size: 9px; line-height: 9px; } }

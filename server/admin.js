@@ -7,6 +7,7 @@ const { WorldRoom } = require("./WorldRoom");
 const D = require("./data");
 const I = require("./items");
 const Bag = require("./inventory");
+const W = require("./maps");
 
 const fail = (m) => { throw new StoreError(m); };
 const startedAt = Date.now();
@@ -107,6 +108,12 @@ const ACTIONS = {
   },
   town(c) { c.x = null; c.y = null; c.map = require("./maps").START_MAP; return "ส่งกลับเมือง"; },
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
+  warp(c, a) {
+    const W = require("./maps");
+    if (!W.MAPS[a.map]) fail("ไม่รู้จักแผนที่");
+    c.map = a.map; c.x = null; c.y = null; c.warpTo = a.map;
+    return `ส่งไป ${W.MAPS[a.map].name}`;
+  },
 };
 
 async function editChar(charId, action, args) {
@@ -219,6 +226,20 @@ function mount(app, api) {
     audit(user, `ตั้งเวลาปิดปรับปรุงใน ${minutes} นาที${msg ? ": " + msg : ""}`);
     const info = WorldRoom.maintInfo();
     return { ...info, note: info.msg, msg: `เริ่มนับถอยหลัง ${minutes} นาที` };
+  }));
+  // World Boss: ดูสถานะ / เรียก / ลบ
+  app.get("/api/admin/worldboss", admin(async () => ({
+    bosses: Object.fromEntries(Object.entries(D.WORLD_BOSSES).map(([k, b]) => [k, { name: b.name, level: b.level }])),
+    maps: Object.fromEntries(Object.entries(W.MAPS).filter(([, m]) => m.type !== "town").map(([k, m]) => [k, m.name + (m.lv ? ` (Lv.${m.lv[0]}–${m.lv[1]})` : "")])),
+    status: WorldRoom.bossStatus(),
+  })));
+  app.post("/api/admin/worldboss", admin(async (user, req) => {
+    const b = req.body || {};
+    let r;
+    try { r = b.action === "remove" ? WorldRoom.removeWorldBoss() : WorldRoom.spawnWorldBoss(String(b.boss), String(b.map)); }
+    catch (e) { fail(e.message); }
+    audit(user, `World Boss: ${r.msg}`);
+    return r;
   }));
   app.get("/api/admin/logs", admin(async () => ({ logs })));
 }

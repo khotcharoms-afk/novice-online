@@ -125,6 +125,23 @@ const monsterStats = (lv) => ({
 });
 const MONSTER_RESPAWN_MS = 8000;
 
+// ---------- World Boss ----------
+// เรียกจากหน้า admin (ไม่เกิดใหม่เอง) · ค่าพลัง = มอนเลเวลเดียวกัน × ตัวคูณ
+// slam = ทุบพื้นเป็นวง (เตือนก่อน cast ms) · summon = เรียกลูกน้องเมื่อเลือดต่ำกว่า at · enrage = คลั่งเมื่อเลือดต่ำกว่า
+const WORLD_BOSSES = {
+  bloodking: {
+    name: "ราชันโลหิตมิโนทอร์", level: 32, sprite: "minotaur", tint: 0xff5a4a, scale: 2.1, speed: 80, aggressive: true,
+    hpMul: 30, atkMul: 1.5, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
+    slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
+    summon: { at: [0.6, 0.3], kind: "orcchief", n: 3 },
+    enrage: 0.3,
+    loot: { gear: 4, pool: ["goldhelm", "goldplate", "goldgaunt", "goldboots", "cape_shadow", "shades_hawk", "moonblade", "shield_spartan", "war_horn",
+      "quiver_wind", "orb_star", "relic_holy", "judgehammer", "shadow_kris", "titanaxe", "bow_shadow", "staff_crystal", "book_holy",
+      "shadow_vest", "arch_robe", "saint_robe", "cape_royal", "ring_dragon", "amulet_frost", "necklace_wind", "talisman_titan"],
+      items: [["stone_3", 3, 5], ["potion_m", 5, 8]] },
+  },
+};
+
 // ---------- อาชีพ ----------
 // armor = ประเภทเกราะที่ใส่ได้ (ของ Lv ต่ำกว่า 20 ใส่ได้ทุกอาชีพ) · weapons = ชนิดอาวุธที่ใช้ได้ · shield = ใช้โล่ได้
 // offhand = ชนิดมือรองประจำอาชีพ (โล่/ตรา/กระบอกธนู/ลูกแก้ว/เครื่องราง) · atk/hp/sp/def = ตัวคูณค่าพลัง · rec = สัดส่วนลงแต้มแนะนำ
@@ -324,7 +341,7 @@ const JOB_QUESTS = {
     story: "แสงแห่งการรักษาเผาผลาญความตาย จงไปชำระผีดิบที่เร่ร่อน แล้วนำผ้าเปื่อยของพวกมันมาเผาทำพิธี" },
 };
 
-module.exports = {
+module.exports = { WORLD_BOSSES,
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
