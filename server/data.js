@@ -304,7 +304,7 @@ const WEAPON_TYPES = {
   fist:       { name: "มือเปล่า", stat: "str", range: 44, delay: 1 },
   sword:      { name: "ดาบ", stat: "str", range: 44, delay: 1, trait: { critPct: 3, flee: 2 }, style: "สมดุล ตีแม่น หลบดี" },
   mace:       { name: "กระบอง/ค้อน", stat: "str", range: 44, delay: 1.1, trait: { ignoreDef: 30, undeadDmg: 10 }, style: "เจาะเกราะ แรงกับอันเดด ตีช้ากว่าดาบ" },
-  dagger:     { name: "มีดสั้น", stat: "agi", range: 44, delay: 0.8, trait: { critPct: 10, critDmg: 10 }, style: "ใช้ AGI · ตีเร็วมาก คริบ่อย" },
+  dagger:     { name: "มีดสั้น", stat: "agi", range: 44, delay: 0.8, trait: { critPct: 6 }, style: "ใช้ AGI · ตีเร็วมาก คริบ่อย" },
   greatsword: { name: "ดาบใหญ่", stat: "str", range: 50, delay: 1.15, twoHand: true, trait: { critPct: 5, critDmg: 15 }, style: "คริแรง" },
   axe:        { name: "ขวาน", stat: "str", range: 48, delay: 1.25, twoHand: true, trait: { atkPct: 12, ignoreDef: 10 }, style: "ตีหนักแต่ช้า" },
   bow:        { name: "ธนู", stat: "dex", range: 190, delay: 1.05, twoHand: true, fx: "arrow", trait: { critPct: 3 }, style: "ยิงไกล" },

@@ -29,6 +29,7 @@ const MINI_RESPAWN_MS = [8 * 60000, 12 * 60000]; // มินิบอสเก�
 const RESPAWN_PLAYER_MS = 4000;      // ตายแล้วต้องรออย่างน้อยเท่านี้ก่อนกดเกิด
 const RESPAWN_AUTO_MS = 30000;       // ไม่กดเลือก → เกิดที่คริสตัลใกล้สุดเอง
 const RESPAWN_SAFE_MS = 3000;        // เกิดที่คริสตัลแล้วมอนตีไม่เข้าชั่วครู่
+const CRYSTAL_SAFE = 160;            // เขตปลอดภัยรอบคริสตัล (5 ช่อง): มอนเข้าไม่ได้ · ข้างในโจมตีไม่ได้/โดนตีไม่ได้
 const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
 const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
 const AUTO_POTION_PCT = 35;    // ค่าเริ่มต้น: กินยาเมื่อ HP ต่ำกว่า 35%
@@ -175,14 +176,11 @@ class WorldRoom extends Room {
     this.pr = new Map(); // ข้อมูลภายในของผู้เล่น (ไม่ส่งให้ client)
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
     this.mobSeq = 0;
-    // คริสตัลจุดเกิด (แผนที่ล่ามอน): กลางแผนที่ + หน้าทางออกทุกทาง → ตายแล้วเลือกเกิดที่อันใกล้สุดได้
+    // คริสตัลจุดเกิด (แผนที่ล่ามอน): 1 อันกลางแผนที่ · มีเขตปลอดภัยรอบ ๆ
     this.crystals = [];
     if (this.def.type !== "town") {
       const T = this.map.tile, cx = (this.map.width / 2) * T, cy = (this.map.height / 2) * T;
-      const want = [{ x: cx, y: cy }, ...this.map.portals.map((pt) => {
-        const px = (pt.box.x0 + pt.box.x1) / 2, py = (pt.box.y0 + pt.box.y1) / 2, d = Math.hypot(cx - px, cy - py) || 1;
-        return { x: px + ((cx - px) / d) * T * 5, y: py + ((cy - py) / d) * T * 5 };
-      })];
+      const want = [{ x: cx, y: cy }];
       for (const w of want) {
         let best = null;
         for (let rr = 0; rr < 8 && !best; rr++)
@@ -732,6 +730,7 @@ class WorldRoom extends Room {
       const tx = 3 + Math.floor(Math.random() * (MW - 6)), ty = 3 + Math.floor(Math.random() * (MH - 6));
       const x = tx * tile + tile / 2, y = ty * tile + tile - 4;
       if (!this.canStand(x, y) || safe.some((q) => dist(q, { x, y }) < tile * 9)) continue;
+      if ((this.crystals || []).some((c) => dist(c, { x, y }) < CRYSTAL_SAFE + tile * 4)) continue;
       if (!this.reach || this.reach[ty * MW + tx]) return { x, y };
     }
     return this.townSpawn();
@@ -1112,7 +1111,17 @@ class WorldRoom extends Room {
     return moved;
   }
 
+  inSafe(pt) { return this.crystals.length > 0 && this.crystals.some((c) => Math.hypot(c.x - pt.x, c.y - pt.y) < CRYSTAL_SAFE); }
+  // มอนเดินเข้าเขตคริสตัลไม่ได้ (ก้าวที่ทำให้เข้าไป = ยกเลิก)
   updateMob(m, r, id, dt, t) {
+    const ox = m.x, oy = m.y;
+    this.updateMobInner(m, r, id, dt, t);
+    if ((m.x !== ox || m.y !== oy) && this.inSafe(m) && !this.inSafe({ x: ox, y: oy })) {
+      m.x = ox; m.y = oy; m.moving = false; r.nav = null; r.wander = null;
+      if (r.target) { const p = this.state.players.get(r.target); if (p && this.inSafe(p)) { r.target = null; r.returning = true; } }
+    }
+  }
+  updateMobInner(m, r, id, dt, t) {
     if (r.boss) return this.updateBoss(m, r, id, dt, t);
     if (m.dead) { if (t >= r.respawnAt) this.respawnMob(id); return; }
     if (r.stunUntil > t) { m.moving = false; return; } // มึนงง
@@ -1121,13 +1130,13 @@ class WorldRoom extends Room {
     // มอนดุ: มองหาผู้เล่นใกล้ ๆ
     if (!r.target && r.def.aggressive && !r.returning) {
       let best = null, bd = AGGRO_RADIUS;
-      this.state.players.forEach((p, pid) => { if (!p.dead) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
+      this.state.players.forEach((p, pid) => { if (!p.dead && !this.inSafe(p)) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
       if (best) r.target = best;
     }
 
     if (r.target) {
       const p = this.state.players.get(r.target);
-      if (!p || p.dead || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1)) { r.target = null; r.returning = true; r.dash = null; }
+      if (!p || p.dead || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1) || this.inSafe(p)) { r.target = null; r.returning = true; r.dash = null; }
       else {
         const B = r.def, d = dist(m, p);
         // หนี: เลือดต่ำ → วิ่งหนี 3 วิ (ครั้งเดียวต่อชีวิต) แล้วกลับมาสู้
@@ -1239,10 +1248,10 @@ class WorldRoom extends Room {
     const B = r.boss;
     // หาเป้าหมาย: คนที่ใกล้ที่สุดในรัศมีกว้าง
     let p = r.target && this.state.players.get(r.target);
-    if (!p || p.dead || dist(m, p) > 600) {
+    if (!p || p.dead || dist(m, p) > 600 || this.inSafe(p)) {
       r.target = null; p = null;
       let bd = 420;
-      this.state.players.forEach((pp, pid) => { if (!pp.dead) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
+      this.state.players.forEach((pp, pid) => { if (!pp.dead && !this.inSafe(pp)) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
     }
     // ทุบพื้น: เตือนเป็นวงก่อน แล้วค่อยลงดาเมจทุกคนในวง
     if (r.cast) {
@@ -1364,6 +1373,11 @@ class WorldRoom extends Room {
   hitMob(pid, p, mid, mult, opts = {}) {
     const m = this.state.monsters.get(mid), r = this.mr.get(mid), pr = this.pr.get(pid);
     if (!m || m.dead) return null;
+    if (this.inSafe(p)) { // ในเขตคริสตัลโจมตีไม่ได้ (กันยืนยิงจากที่ปลอดภัย)
+      if (pr && !opts.spirit && now() > (pr.safeToast || 0)) { pr.safeToast = now() + 3000; const cl = this.clients.find((c) => c.sessionId === pid); if (cl) cl.send("toast", "💎 ในเขตคริสตัลโจมตีไม่ได้ — ออกไปนอกวงก่อน"); }
+      if (pr && pr.target === mid) pr.target = null;
+      return null;
+    }
     const sx = p.sx || {};
     if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
     const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100, ignoreDef: (sx.ignoreDef || 0) / 100 },
@@ -1467,6 +1481,7 @@ class WorldRoom extends Room {
     const p = this.state.players.get(pid), pr = this.pr.get(pid);
     if (!p || p.dead || !pr) return;
     if (pr.safeUntil && now() < pr.safeUntil) return; // เพิ่งเกิดที่คริสตัล
+    if (this.inSafe(p)) return;                        // อยู่ในเขตคริสตัล
     const md = this.mods(pr);
     const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: mult > 1 ? 0 : p.flee + md.flee }, mult);
     if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
@@ -1991,7 +2006,7 @@ class WorldRoom extends Room {
     const cl = this.clients.find((c) => c.sessionId === id);
     if (where === "crystal" && this.crystals.length) {
       const c = this.crystals.reduce((a, b) => (dist(p, a) <= dist(p, b) ? a : b));
-      p.x = c.x; p.y = this.canStand(c.x, c.y + 26) ? c.y + 26 : c.y; p.dir = "down"; p.dead = false; r.poison = null;
+      p.x = c.x; p.y = this.canStand(c.x, c.y + 46) ? c.y + 46 : this.canStand(c.x, c.y + 26) ? c.y + 26 : c.y; p.dir = "down"; p.dead = false; r.poison = null;
       p.hp = Math.max(1, Math.floor(p.maxHp * 0.5)); p.sp = Math.max(p.sp, Math.floor(p.maxSp * 0.5));
       r.safeUntil = now() + RESPAWN_SAFE_MS; r.nav = null; r.moveTarget = null; r.target = null; r.pick = null;
       if (cl) cl.send("respawned", { where: "crystal", x: c.x, y: c.y });

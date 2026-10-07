@@ -735,12 +735,15 @@ class WorldScene extends Phaser.Scene {
   // คริสตัลจุดเกิด: ลอยขึ้นลง + แสงที่ฐาน
   buildCrystals(list) {
     for (const c of list) {
+      // วงเขตปลอดภัย (มอนเข้าไม่ได้)
+      const zone = this.add.circle(c.x, c.y, 160, 0x7fd1ff, 0.06).setStrokeStyle(2, 0x9fe3ff, 0.35).setDepth(-9000);
+      this.tweens.add({ targets: zone, alpha: { from: 1, to: 0.55 }, duration: 1600, yoyo: true, repeat: -1 });
       const base = this.add.ellipse(c.x, c.y + 6, 44, 16, 0x7fd1ff, 0.25).setStrokeStyle(2, 0x9fe3ff, 0.8).setDepth(c.y - 2);
       const glow = this.add.circle(c.x, c.y - 26, 18, 0x9fe3ff, 0.18).setDepth(c.y - 1).setBlendMode(Phaser.BlendModes.ADD);
       const img = this.add.image(c.x, c.y - 26, "crystal").setDepth(c.y);
       this.tweens.add({ targets: [img, glow], y: c.y - 32, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       this.tweens.add({ targets: [base, glow], alpha: { from: 1, to: 0.5 }, duration: 900, yoyo: true, repeat: -1 });
-      this.add.text(c.x, c.y - 58, "💎 จุดเกิด", { fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#bfeaff", stroke: "#0d1124", strokeThickness: 3, resolution: 2 }).setOrigin(0.5, 1).setDepth(c.y);
+      this.add.text(c.x, c.y - 58, "💎 จุดเกิด · เขตปลอดภัย", { fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#bfeaff", stroke: "#0d1124", strokeThickness: 3, resolution: 2 }).setOrigin(0.5, 1).setDepth(c.y);
     }
   }
   spawnFx({ x, y }) {
