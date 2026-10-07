@@ -52,7 +52,22 @@ function onInv(v) {
   INV = { inv: v.inv, equip: v.equip, gold: v.gold, pet: v.pet || null };
   renderInv(); renderPaperDoll(); renderShop(); renderItemBar(); renderSmith();
   if (typeof renderQuestTrack === "function") { renderQuestTrack(); renderJob(); }
-  hideCard();
+  refreshCard();
+}
+// กระเป๋าอัปเดต (ได้เงิน/เก็บของ/กินยา) → การ์ดที่เปิดอยู่ไม่ปิดเอง: แสดงข้อมูลใหม่ของชิ้นเดิม · ชิ้นนั้นย้ายไป/หายไปแล้วค่อยปิด
+let cardCtx = null;
+function refreshCard() {
+  const c = $("itemCard");
+  if (!c || c.hidden || !cardCtx) return;
+  const { g, ctx } = cardCtx;
+  let cur = null;
+  if (ctx.where === "inv") cur = INV.inv[ctx.idx];
+  else if (ctx.where === "eq") cur = INV.equip[ctx.slot];
+  else return; // ร้านค้า/สัตว์เลี้ยง: ข้อมูลไม่เปลี่ยน
+  if (!cur || cur.id !== g.id || (cur.up || 0) !== (g.up || 0) || (cur.r || 0) !== (g.r || 0)) return hideCard();
+  const left = c.style.left, top = c.style.top;
+  openCard(cur, ctx, null);
+  c.style.left = left; c.style.top = top;
 }
 
 // ---------- ลากวาง ----------
@@ -180,6 +195,7 @@ function openCard(g, ctx, ev) {
   const id = g.id, it = itemOf(id), card = $("itemCard"), me = myPlayer();
   if (!it) return;
   hideTip();
+  cardCtx = { g, ctx };
   const lines = [], extra = [];
   const rr = rarOf(g);
   if (g.st) {
@@ -248,6 +264,7 @@ function openCard(g, ctx, ev) {
     hideCard();
   }));
   card.hidden = false;
+  if (!ev) return; // รีเฟรชข้อมูล: คงตำแหน่งเดิม
   const r = card.getBoundingClientRect();
   // วางการ์ดข้างเคอร์เซอร์ โดยไม่ทับช่องที่คลิก (ไม่งั้นดับเบิลคลิกจะโดนการ์ดแทน)
   let x = ev.clientX + 16;
@@ -256,7 +273,7 @@ function openCard(g, ctx, ev) {
   const y = Math.min(window.innerHeight - r.height - 8, Math.max(8, ev.clientY - 10));
   card.style.left = x + "px"; card.style.top = y + "px";
 }
-function hideCard() { const c = $("itemCard"); if (c) c.hidden = true; }
+function hideCard() { const c = $("itemCard"); if (c) c.hidden = true; cardCtx = null; }
 document.addEventListener("pointerdown", (e) => {
   const c = $("itemCard");
   if (c && !c.hidden && !c.contains(e.target) && !e.target.closest(".inv-slot,.eq-slot")) hideCard();
