@@ -1030,7 +1030,21 @@ function syncGameSize() {
   sc.updateBounds();
 }
 ["resize", "orientationchange", "scroll"].forEach((ev) => window.addEventListener(ev, () => { syncGameSize(); setTimeout(syncGameSize, 300); }));
-if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(syncGameSize, 50));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => setTimeout(syncGameSize, 50));
+  window.visualViewport.addEventListener("scroll", () => setTimeout(syncGameSize, 50));
+}
+// iPhone (Safari): หน้าเว็บอาจถูกเลื่อนค้างไว้ (เช่นหลังคีย์บอร์ดแชทปิด) ทำให้จุดแตะเยื้องขึ้นบน
+// → เลื่อนหน้ากลับบนสุด และอัปเดตตำแหน่งจอเกมก่อนทุกครั้งที่แตะ
+function unshiftPage() {
+  if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  if (document.scrollingElement && document.scrollingElement.scrollTop) document.scrollingElement.scrollTop = 0;
+}
+const beforeTouch = () => { unshiftPage(); if (phaserGame && phaserGame.scale) phaserGame.scale.updateBounds(); };
+window.addEventListener("touchstart", beforeTouch, { capture: true, passive: true });
+window.addEventListener("pointerdown", beforeTouch, { capture: true, passive: true });
+document.addEventListener("focusout", () => setTimeout(() => { unshiftPage(); syncGameSize(); }, 100));
 setInterval(syncGameSize, 1000);
 
 // =============================================================

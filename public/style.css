@@ -596,3 +596,7 @@ img { -webkit-user-drag: none; user-drag: none; }
   #chat { zoom: .85; }
   #questTrack { top: 150px; zoom: .85; }
 }
+
+/* จอสัมผัส: กันหน้าเว็บเลื่อน/ซูมตอนแตะในเกม (iPhone) */
+html, body { overscroll-behavior: none; }
+#game, #game canvas { touch-action: none; -webkit-user-select: none; -webkit-touch-callout: none; }
