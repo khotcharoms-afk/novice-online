@@ -1038,7 +1038,7 @@ class WorldRoom extends Room {
     const N = L.gear + L.items.length;
     for (let i = 0; i < L.gear; i++) {
       // ชิ้นแรก = รางวัล MVP: มหากาพย์ขึ้นไปแน่นอน · ชิ้นอื่นสุ่ม ดี–ตำนาน
-      const x = Math.random(), rar = i === 0 ? (x < 0.2 ? 4 : 3) : (x < 0.02 ? 4 : x < 0.15 ? 3 : x < 0.5 ? 2 : 1);
+      const x = Math.random(), rar = i === 0 ? (x < 0.2 ? 4 : 3) : (x < 0.04 ? 4 : x < 0.25 ? 3 : 2); // ชิ้นแรกม่วงขึ้นไปแน่นอน · ที่เหลือน้ำเงินขึ้นไป
       const [dx, dy] = at(i, N);
       this.spawnDrop(pool[i % pool.length], 1, dx, dy, i === 0 ? mvp : null, I.makeGear(pool[i % pool.length], rar));
     }
@@ -1141,7 +1141,12 @@ class WorldRoom extends Room {
     const tp = top && this.state.players.get(top), rankMul = r.rank === 2 ? 6 : r.rank === 1 ? 3 : 1;
     const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul;
     // ชั้นยอด/มินิบอส: ของดีขึ้น (อุปกรณ์ระดับขั้นต่ำสูงขึ้น)
-    const gearOf = (id) => { const g = I.makeGear(id); if (g && r.rank) g.r = Math.max(g.r, r.rank === 2 ? 2 : 1); return g; };
+    // ระดับของอุปกรณ์ที่ดรอป: มอนธรรมดา = สูงสุดสีน้ำเงิน (หายาก) · ชั้นยอด = ดีขึ้นไป · มินิบอส = น้ำเงินขึ้นไป (ม่วง/ทองมีโอกาส)
+    const gearOf = (id) => {
+      const roll = I.rollRarity();
+      const rar = r.rank === 2 ? (Math.random() < 0.03 ? 4 : Math.random() < 0.18 ? 3 : 2) : r.rank === 1 ? Math.max(1, roll) : Math.min(2, roll);
+      return I.makeGear(id, rar);
+    };
     const table = I.DROPS[m.kind] || [];
     for (const [id, chance, lo, hi] of table)
       if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, gearOf(id));

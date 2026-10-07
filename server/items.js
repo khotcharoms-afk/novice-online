@@ -150,6 +150,10 @@ const ITEMS = {
   earring_pearl:  { name: "ต่างหูมุกทะเล", type: "equip", slot: "ear", lv: 8, bonus: { int: 2, maxSp: 15 }, price: 1200 },
   earring_ruby:   { name: "ต่างหูทับทิม", type: "equip", slot: "ear", lv: 22, bonus: { str: 3, atk: 8 }, price: 9000 },
   earring_star:   { special: { critPct: 3 }, name: "ต่างหูดาวตก", type: "equip", slot: "ear", lv: 30, bonus: { dex: 4, agi: 3 }, price: 20000 },
+  // ---------- ชุดเครื่องประดับค้างคาวราตรี (ดูดเลือด Lv.30) — ดรอปในเนินกระดูก (แวมไพร์ + มินิบอสเคานต์แวมไพร์) ----------
+  bat_ring:       { special: { lifesteal: 1 }, name: "แหวนค้างคาวราตรี", type: "equip", slot: "ring", lv: 30, bonus: { str: 3, atk: 12 }, price: 24000, set: "batnight" },
+  bat_necklace:   { special: { lifesteal: 1 }, name: "สร้อยเขี้ยวค้างคาว", type: "equip", slot: "neck", lv: 30, bonus: { vit: 3, maxHp: 90 }, price: 24000, set: "batnight" },
+  bat_earring:    { special: { critPct: 2 }, name: "ต่างหูน้ำค้างโลหิต", type: "equip", slot: "ear", lv: 30, bonus: { agi: 2, dex: 2, atk: 5 }, price: 24000, set: "batnight" },
   // ---------- ชุดเครื่องประดับโลหิต (ดูดเลือด) — ดรอปจากมอนสายแวมไพร์ ป่าต้องสาป ----------
   blood_ring:     { special: { lifesteal: 2 }, name: "แหวนโลหิตราตรี", type: "equip", slot: "ring", lv: 50, bonus: { str: 5, atk: 22 }, price: 60000, set: "blood" },
   blood_necklace: { special: { lifesteal: 2 }, name: "สร้อยค้างคาวโลหิต", type: "equip", slot: "neck", lv: 50, bonus: { vit: 5, maxHp: 180 }, price: 60000, set: "blood" },
@@ -226,6 +230,8 @@ const ITEMS = {
 //  pieces = รายการช่อง แต่ละช่องใส่ชิ้นไหนก็ได้ในกลุ่ม (เช่นอาวุธของเซ็ตเลือกได้หลายแบบ)
 // =============================================================
 const ITEM_SETS = {
+  batnight: { name: "ชุดเครื่องประดับค้างคาวราตรี", job: "ทุกอาชีพ", pieces: [["bat_ring"], ["bat_necklace"], ["bat_earring"]],
+    tiers: { 2: { sp: { lifesteal: 2 } }, 3: { b: { atk: 12, maxHp: 100 }, sp: { lifesteal: 2, atkPct: 2 } } } },
   blood: { name: "ชุดเครื่องประดับโลหิต", job: "ทุกอาชีพ", pieces: [["blood_ring"], ["blood_necklace"], ["blood_earring"]],
     tiers: { 2: { sp: { lifesteal: 3 } }, 3: { b: { atk: 25, maxHp: 200 }, sp: { lifesteal: 4, atkPct: 4 } } } },
   leather: { name: "ชุดหนัง", pieces: [["hood"], ["leather"], ["gloves"], ["boots"]],
@@ -510,6 +516,7 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
   add("orcchief", [["earring_ruby", 0.006, 1, 1]]); add("skelwarrior", [["earring_ruby", 0.006, 1, 1]]); add("vampire", [["earring_ruby", 0.005, 1, 1]]);
   add("snowwolf", [["earring_star", 0.004, 1, 1]]); add("frostskel", [["earring_star", 0.004, 1, 1]]); add("snoworc", [["earring_star", 0.004, 1, 1]]);
   add("sheep", [["earring_pearl", 0.012, 1, 1]]); add("lizard", [["earring_pearl", 0.012, 1, 1]]);
+  add("vampire", [["bat_ring", 0.004, 1, 1], ["bat_necklace", 0.004, 1, 1], ["bat_earring", 0.004, 1, 1]]);
   for (const [mob, ch] of [["vamplord", 0.006], ["bat_vampire", 0.004], ["cursedwolf", 0.002], ["dryad", 0.002]])
     add(mob, [["blood_ring", ch, 1, 1], ["blood_necklace", ch, 1, 1], ["blood_earring", ch, 1, 1]]);
 }
