@@ -325,6 +325,12 @@ function setupItemsUI() {
   $("apLoot").checked = autoCfg.loot !== false;
   $("apPotion").checked = autoCfg.potion !== false;
   $("apLoot").onchange = (e) => { autoCfg.loot = e.target.checked; sendAutoCfg(); };
+  // ตัวกรองการเก็บของ
+  const pk = autoCfg.pick && typeof autoCfg.pick === "object" ? autoCfg.pick : (autoCfg.pick = { equip: 0, use: true, stone: true, mat: true });
+  $("apPickEq").value = String(pk.equip ?? 0);
+  $("apPickUse").checked = pk.use !== false; $("apPickStone").checked = pk.stone !== false; $("apPickMat").checked = pk.mat !== false;
+  $("apPickEq").onchange = (e) => { pk.equip = Number(e.target.value); sendAutoCfg(); };
+  for (const [id, k] of [["apPickUse", "use"], ["apPickStone", "stone"], ["apPickMat", "mat"]]) $(id).onchange = (e) => { pk[k] = e.target.checked; sendAutoCfg(); };
   $("apPotion").onchange = (e) => { autoCfg.potion = e.target.checked; $("apPct").disabled = !e.target.checked; sendAutoCfg(); };
   $("apPct").value = autoCfg.potionPct;
   $("apPct").disabled = autoCfg.potion === false;

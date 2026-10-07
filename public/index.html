@@ -146,7 +146,7 @@
       <div class="ap-head"><b>กระเป๋า</b><span class="inv-tools"><button id="invSort" type="button" class="btn-ghost small" title="เรียงไอเทม: อุปกรณ์ → ของใช้ → สัตว์เลี้ยง → คริสตัล → วัตถุดิบ (รวมกองให้ด้วย)">เรียง</button>
         <button id="invClose" type="button" aria-label="ปิด">✕</button></span></div>
       <div id="invGrid" class="inv-grid"></div>
-      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="goldTxt">0</b> gold</span><span id="invCount">0/40</span></div>
+      <div class="inv-foot"><span><img src="/assets/icons/gold.png" alt="" width="16" height="16"> <b id="goldTxt">0</b> gold</span><span id="invCount">0/100</span></div>
     </section>
     <section id="shopPanel" class="frame" hidden aria-label="ร้านค้า">
       <div class="shop-head"><b id="shopTitle">ร้านค้า</b>
@@ -206,9 +206,18 @@
       <div class="ap-head"><b>ตั้งค่า AUTO</b><button id="apClose" type="button" aria-label="ปิด">✕</button></div>
       <div class="ap-row"><span>ขอบเขตการตี (รัศมีรอบจุดที่กดเปิด AUTO หรือทั้งแมพ)</span><div id="apRadius" class="chips"></div></div>
       <div class="ap-row"><span>มอนสเตอร์ที่จะตี</span><div id="apKinds" class="ap-kinds"></div>
-        <p class="ap-note">ไม่เลือกเลย = ตีทุกชนิดที่เลเวลไม่เกินเรา +2 · มอนที่มาตีเราจะสู้กลับเสมอ</p></div>
+        <p class="ap-note">ไม่เลือกเลย = ตีทุกชนิดในแผนที่ · เลือกแยกแต่ละแผนที่ · มอนที่มาตีเราจะสู้กลับเสมอ</p></div>
       <div class="ap-row ap-toggles">
         <label><input type="checkbox" id="apLoot" checked> เก็บของที่ดรอปอัตโนมัติ</label>
+        <div class="ap-pick" id="apPick">
+          <span>เลือกเก็บ (AUTO + สัตว์เลี้ยง):</span>
+          <label>อุปกรณ์ <select id="apPickEq">
+            <option value="-1">ไม่เก็บ</option><option value="0">ทุกระดับ</option><option value="1">ดี ขึ้นไป</option>
+            <option value="2">หายาก ขึ้นไป</option><option value="3">มหากาพย์ ขึ้นไป</option><option value="4">ตำนานเท่านั้น</option></select></label>
+          <label><input type="checkbox" id="apPickUse" checked> ยา</label>
+          <label><input type="checkbox" id="apPickStone" checked> คริสตัล</label>
+          <label><input type="checkbox" id="apPickMat" checked> วัตถุดิบ</label>
+        </div>
         <label><input type="checkbox" id="apPotion" checked> กินยาแดงเมื่อ HP ต่ำกว่า <b id="apPctTxt">35%</b></label>
         <input type="range" id="apPct" min="10" max="90" step="5" value="35" aria-label="เปอร์เซ็นต์ HP ที่จะกินยา">
         <p class="ap-note">AUTO กินยาได้ทุก 10 วินาที (กดเองไม่ติดคูลดาวน์นี้)</p>

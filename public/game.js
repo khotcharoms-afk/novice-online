@@ -1431,11 +1431,17 @@ function renderStats() {
 // ---------- ตั้งค่า AUTO ----------
 const WHOLE_MAP = 9999;
 const RADII = [[160, "5 ช่อง"], [360, "11 ช่อง"], [560, "17 ช่อง"], [WHOLE_MAP, "ทั้งแมพ"]];
+// ค่าเริ่มต้น: ตีมอนทุกชนิดทั้งแมพ · มอนที่เลือกจำแยกตามแผนที่ (เปลี่ยนแมพแล้วไม่ค้างชนิดของแมพเก่า)
 const autoCfg = (() => {
-  try { const c = JSON.parse(storeGet("pn_auto") || "{}"); return { radius: c.radius || 360, kinds: c.kinds || [], loot: c.loot !== false, potion: c.potion !== false, potionPct: c.potionPct || 35 }; }
-  catch { return { radius: 360, kinds: [], loot: true, potion: true, potionPct: 35 }; }
+  const def = { radius: WHOLE_MAP, byMap: {}, loot: true, potion: true, potionPct: 35, pick: { equip: 0, use: true, stone: true, mat: true }, v: 2 };
+  try {
+    const c = JSON.parse(storeGet("pn_auto") || "{}");
+    if (c.v !== 2) return { ...def, loot: c.loot !== false, potion: c.potion !== false, potionPct: c.potionPct || 35 };
+    return { ...def, ...c, byMap: c.byMap || {} };
+  } catch { return def; }
 })();
-function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", autoCfg); }
+const autoKinds = () => autoCfg.byMap[room && room.mapId] || [];
+function sendAutoCfg() { storeSet("pn_auto", JSON.stringify(autoCfg)); room.send("autoCfg", { ...autoCfg, kinds: autoKinds() }); }
 function toggleAutoPanel(force) {
   const p = $("autoPanel"), open = force ?? p.hidden;
   p.hidden = !open;
@@ -1462,9 +1468,10 @@ function buildAutoPanel() {
     const diff = me ? m.level - me.level : 0;
     const color = diff >= 6 ? "#ff6b6b" : diff >= 3 ? "#ffb86b" : diff <= -6 ? "#9aa0b4" : "#ecebe4";
     const lab = document.createElement("label");
-    lab.innerHTML = `<input type="checkbox" ${autoCfg.kinds.includes(k) ? "checked" : ""}> ${m.name}<span class="lv" style="color:${color}">Lv.${m.level}</span>`;
+    lab.innerHTML = `<input type="checkbox" ${autoKinds().includes(k) ? "checked" : ""}> ${m.name}<span class="lv" style="color:${color}">Lv.${m.level}</span>`;
     lab.querySelector("input").onchange = (e) => {
-      autoCfg.kinds = e.target.checked ? [...new Set([...autoCfg.kinds, k])] : autoCfg.kinds.filter((x) => x !== k);
+      const cur = autoKinds();
+      autoCfg.byMap[room.mapId] = e.target.checked ? [...new Set([...cur, k])] : cur.filter((x) => x !== k);
       sendAutoCfg();
       buildAutoPanel();
     };

@@ -160,6 +160,7 @@ class WorldRoom extends Room {
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
     this.mobSeq = 0;
     this.spawnMonsters();
+    this.mapKinds = new Set(this.def.spawns.map(([k]) => k));
     if (pendingBoss.has(this.mapId)) { const k = pendingBoss.get(this.mapId); pendingBoss.delete(this.mapId); this.spawnBoss(k); }
 
     this.onMessage("getMap", (client) => {
@@ -243,10 +244,12 @@ class WorldRoom extends Room {
     this.onMessage("autoCfg", (client, c) => {
       const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
       if (!r || !c) return;
-      const radius = AUTO_RADII.includes(Number(c.radius)) ? Number(c.radius) : AUTO_RADII[1];
+      const radius = AUTO_RADII.includes(Number(c.radius)) ? Number(c.radius) : WHOLE_MAP;
       const kinds = Array.isArray(c.kinds) ? c.kinds.filter((k) => D.MONSTERS[k]).slice(0, 10) : [];
       const pct = Math.round(Number(c.potionPct) / 5) * 5;
-      r.autoCfg = { radius, kinds, loot: c.loot !== false, potion: c.potion !== false,
+      const pk = c.pick && typeof c.pick === "object" ? c.pick : {};
+      const pick = { equip: Number.isInteger(pk.equip) && pk.equip >= -1 && pk.equip <= 4 ? pk.equip : 0, use: pk.use !== false, stone: pk.stone !== false, mat: pk.mat !== false };
+      r.autoCfg = { radius, kinds, pick, loot: c.loot !== false, potion: c.potion !== false,
         potionPct: pct >= 10 && pct <= 90 ? pct : AUTO_POTION_PCT };
       p.autoR = radius;
     });
@@ -314,7 +317,7 @@ class WorldRoom extends Room {
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
     p.quest = c.quest && D.JOB_QUESTS[c.quest.job] ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
-    p.autoX = 0; p.autoY = 0; p.autoR = AUTO_RADII[1];
+    p.autoX = 0; p.autoY = 0; p.autoR = WHOLE_MAP;
     this.applyCharData(p, c);
     // ของที่อาชีพนี้ใส่ไม่ได้ (เช่นชาวบ้านที่ใส่เกราะ Lv20+ ไว้ก่อนมีระบบล็อก) → ถอดเข้ากระเป๋า
     const stripped = Bag.stripInvalid(p.bag, p.job);
@@ -329,7 +332,7 @@ class WorldRoom extends Room {
     this.pr.set(client.sessionId, {
       charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user),
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
-      autoCfg: { radius: AUTO_RADII[1], kinds: [] },
+      autoCfg: { radius: WHOLE_MAP, kinds: [] },
       atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0,
     });
     this.syncPet(client.sessionId);
@@ -655,7 +658,7 @@ class WorldRoom extends Room {
       if (!r.petPick && t >= (r.petNext || 0)) {
         let best = null, bd = Infinity;
         this.state.drops.forEach((d, did) => {
-          if (dist(p, d) > info.range || !this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1)) return;
+          if (dist(p, d) > info.range || !this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1) || !this.wantLoot(r, d)) return;
           const dd = dist(pet, d);
           if (dd < bd) { bd = dd; best = did; }
         });
@@ -1283,6 +1286,16 @@ class WorldRoom extends Room {
       this.broadcast("system", `✨ ${who ? who.name : "มีคน"}ได้รับ ${I.ITEMS[item].name} ระดับ${I.RARITY[gear.r].name}!`);
     }
   }
+  // ตัวกรองการเก็บของ (AUTO เดินไปเก็บ + สัตว์เลี้ยงเก็บ) · คลิกเก็บเองได้ทุกชิ้นเสมอ
+  wantLoot(r, d) {
+    const pk = (r.autoCfg && r.autoCfg.pick) || {}, it = I.ITEMS[d.item];
+    if (!it) return false;
+    if (it.type === "equip") return (pk.equip ?? 0) >= 0 && (d.r || 0) >= (pk.equip ?? 0);
+    if (it.type === "use") return pk.use !== false;
+    if (/^stone_/.test(d.item)) return pk.stone !== false;
+    if (it.type === "material") return pk.mat !== false;
+    return true;
+  }
   canPick(pid, did) {
     const info = this.dr.get(did);
     return info && (!info.owner || info.owner === pid || now() >= info.until || !this.state.players.get(info.owner));
@@ -1334,7 +1347,10 @@ class WorldRoom extends Room {
     const potPct = (r.autoCfg.potionPct || AUTO_POTION_PCT) / 100;
     if (p.hp < p.maxHp * potPct && r.autoCfg.potion !== false && t >= r.useReady && t >= (r.autoPotionReady || 0)) {
       const miss = p.maxHp - p.hp;
-      const order = miss > 120 ? ["potion_m", "potion_s"] : ["potion_s", "potion_m"];
+      // ยาที่ฟื้นได้ใกล้กับเลือดที่หายไปที่สุดก่อน (ไม่เปลืองยาขวดใหญ่) แล้วค่อยขวดอื่น
+      const pots = ["potion_s", "potion_m", "potion_l", "potion_xl"].map((id) => [id, I.ITEMS[id].heal.hp]);
+      const fit = pots.filter(([, h]) => h <= miss * 1.2).sort((a, b) => b[1] - a[1]);
+      const order = [...fit, ...pots.filter((x) => !fit.includes(x)).sort((a, b) => a[1] - b[1])].map(([id]) => id);
       for (const id of order) {
         const idx = Bag.indexOf(p.bag, id);
         if (idx >= 0) { this.useItem(pid, p, p.bag, idx); this.sendInv(pid); r.autoPotionReady = t + AUTO_POTION_CD; break; }
@@ -1347,7 +1363,7 @@ class WorldRoom extends Room {
     if (!r.target && !r.pick && !underAttack && r.autoCfg.loot !== false && !p.bag.pet) {
       let best = null, bd = 260;
       this.state.drops.forEach((d, did) => {
-        if (!this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1)) return;
+        if (!this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1) || !this.wantLoot(r, d)) return;
         const dd = dist(p, d);
         if (dd < bd) { bd = dd; best = did; }
       });
@@ -1375,8 +1391,9 @@ class WorldRoom extends Room {
           // มอนอยู่ในวง หรือ "จุดเกิด" ของมอนอยู่ใกล้ขอบวง (มอนที่เกิดใหม่ตรงขอบวงจะถูกนับด้วย)
           const R = r.autoCfg.radius;
           if (dist(m, r.anchor) > R + 48 && dist(mr.home, r.anchor) > R + 96) return;
-          const picked = r.autoCfg.kinds;
-          if (picked.length ? !picked.includes(m.kind) : m.level > p.level + 2) return;
+          // เลือกชนิดไว้ = ตีเฉพาะชนิดนั้น (นับเฉพาะชนิดที่มีในแมพนี้) · ไม่ได้เลือก = ตีทุกตัว
+          const picked = r.autoCfg.kinds.filter((k) => this.mapKinds.has(k));
+          if (picked.length && !picked.includes(m.kind)) return;
           if (mr.target && mr.target !== pid) return;
         }
         const d = dist(m, p);

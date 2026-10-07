@@ -266,8 +266,8 @@ button { font: inherit; color: inherit; }
 .sp-row { grid-template-columns: 38px 1fr 58px 38px 28px 32px; gap: 5px; }
 
 /* ---------- กระเป๋า ---------- */
-#invPanel { right: 10px; top: 250px; width: 330px; padding: 10px 12px 10px; z-index: 8; }
-.inv-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+#invPanel { right: 10px; top: 250px; width: 372px; padding: 10px 12px 10px; z-index: 8; }
+.inv-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; max-height: min(372px, calc(100vh - 330px)); overflow-y: auto; padding-right: 2px; }
 .inv-slot { position: relative; aspect-ratio: 1; border-radius: 6px; border: 1px solid #2c3561; background: rgba(10, 13, 30, .75);
   display: grid; place-items: center; cursor: pointer; padding: 0; }
 .inv-slot img { width: 80%; height: 80%; image-rendering: pixelated; pointer-events: none; }
@@ -664,3 +664,8 @@ html, body { overscroll-behavior: none; }
 #bossFill { height: 100%; width: 100%; background: linear-gradient(#ff6b5a, #b81f1f); transition: width .25s; }
 #bossHpTxt { position: absolute; inset: 0; font-size: 11px; line-height: 12px; color: #fff; text-shadow: 0 0 3px #000; }
 @media (max-height: 540px) { #bossBar { top: 4px; width: min(300px, 50vw); } #bossName { font-size: 12px; } #bossBar .bb-track { height: 12px; } #bossHpTxt { font-size: 9px; line-height: 9px; } }
+
+/* ตัวกรองการเก็บของใน AUTO */
+.ap-pick { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; margin: 4px 0 6px 22px; color: var(--muted, #a7abc4); }
+.ap-pick > span { flex-basis: 100%; }
+.ap-pick select { background: #10152e; color: #ecebe4; border: 1px solid #2c3561; border-radius: 6px; padding: 2px 4px; font: inherit; }
