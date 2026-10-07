@@ -47,34 +47,34 @@ const ITEMS = {
   plateboots: { ac: "heavy", name: "รองเท้าเกราะเหล็ก", type: "equip", slot: "shoes", lv: 15, bonus: { def: 7, agi: 1 }, price: 3200, visual: true, sexed: true, set: "plate" },
   // ---------- ชุดเกราะทองคำ (Lv25) — ดรอปหายากจากมอนเลเวลสูง ----------
   goldhelm:   { ac: "heavy", name: "หมวกเกราะทองคำ", type: "equip", slot: "head", lv: 25, bonus: { def: 14, vit: 2, maxHp: 60 }, price: 9000, visual: true, sexed: true, set: "gold" },
-  goldplate:  { ac: "heavy", name: "เกราะทองคำ", type: "equip", slot: "armor", lv: 25, bonus: { def: 34, vit: 3 }, price: 14000, visual: true, sexed: true, set: "gold" },
+  goldplate:  { special: { dmgReduce: 3 }, ac: "heavy", name: "เกราะทองคำ", type: "equip", slot: "armor", lv: 25, bonus: { def: 34, vit: 3 }, price: 14000, visual: true, sexed: true, set: "gold" },
   goldgaunt:  { ac: "heavy", name: "ถุงมือเกราะทองคำ", type: "equip", slot: "gloves", lv: 25, bonus: { def: 9, str: 3 }, price: 8000, visual: true, sexed: true, set: "gold" },
   goldboots:  { ac: "heavy", name: "รองเท้าเกราะทองคำ", type: "equip", slot: "shoes", lv: 25, bonus: { def: 10, agi: 2 }, price: 8000, visual: true, sexed: true, set: "gold" },
   // =============== อุปกรณ์อาชีพ (Phase 6) — Lv20 ขายที่ร้าน · Lv30 ดรอปเท่านั้น ===============
   // ---------- ผู้พิทักษ์: ดาบมือเดียว + โล่ ----------
   saber:          { wt: "sword", name: "ดาบอัศวิน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 50, vit: 2 }, price: 7000, visual: true, back: true },
-  moonblade:      { wt: "sword", name: "ดาบแสงจันทร์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 78, vit: 3, def: 4 }, price: 18000, visual: true, back: true },
+  moonblade:      { special: { lifesteal: 3 }, wt: "sword", name: "ดาบแสงจันทร์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 78, vit: 3, def: 4 }, price: 18000, visual: true, back: true },
   shield_knight:  { wt: "shield", name: "โล่อัศวิน", type: "equip", slot: "offhand", lv: 20, bonus: { def: 12, vit: 1, maxHp: 40 }, price: 6000, visual: true, sexed: true },
-  shield_spartan: { wt: "shield", name: "โล่สัมฤทธิ์สปาร์ตัน", type: "equip", slot: "offhand", lv: 30, bonus: { def: 19, vit: 2, maxHp: 80 }, price: 15000, visual: true },
+  shield_spartan: { special: { dmgReduce: 4 }, wt: "shield", name: "โล่สัมฤทธิ์สปาร์ตัน", type: "equip", slot: "offhand", lv: 30, bonus: { def: 19, vit: 2, maxHp: 80 }, price: 15000, visual: true },
   // ---------- นักดาบใหญ่: อาวุธสองมือ ----------
   greatsword:     { wt: "greatsword", name: "ดาบใหญ่", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 62, str: 2 }, price: 7500, visual: true, back: true },
-  titanaxe:       { wt: "axe", name: "ขวานยักษ์โลหิต", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 96, str: 4 }, price: 19000, visual: true, back: true },
+  titanaxe:       { special: { critPct: 5 }, wt: "axe", name: "ขวานยักษ์โลหิต", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 96, str: 4 }, price: 19000, visual: true, back: true },
   // ---------- นักล่า: ธนู ----------
   bow_hunter:     { wt: "bow", name: "ธนูพราน", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 46, dex: 3 }, price: 7000, visual: true, back: true },
-  bow_shadow:     { wt: "bow", name: "ธนูโค้งเงา", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 72, dex: 5, agi: 2 }, price: 18000, visual: true, back: true },
+  bow_shadow:     { special: { aspd: 6 }, wt: "bow", name: "ธนูโค้งเงา", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 72, dex: 5, agi: 2 }, price: 18000, visual: true, back: true },
   // ---------- นักเวทย์: คทา ----------
   staff_oak:      { wt: "staff", name: "คทาไม้โอ๊ค", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 44, int: 3, maxSp: 30 }, price: 7000, visual: true, back: true },
-  staff_crystal:  { wt: "staff", name: "คทาคริสตัลม่วง", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 70, int: 6, maxSp: 60 }, price: 18000, visual: true, back: true },
+  staff_crystal:  { special: { spRegen: 20 }, wt: "staff", name: "คทาคริสตัลม่วง", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 70, int: 6, maxSp: 60 }, price: 18000, visual: true, back: true },
   // ---------- หมอ: คัมภีร์ลอย ----------
   book_light:     { wt: "book", name: "คัมภีร์แสง", type: "equip", slot: "weapon", lv: 20, bonus: { atk: 34, int: 3, maxSp: 40 }, price: 7000, visual: true, back: true },
-  book_holy:      { wt: "book", name: "คัมภีร์ศักดิ์สิทธิ์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 54, int: 6, vit: 2, maxSp: 70 }, price: 18000, visual: true, back: true },
+  book_holy:      { special: { healPct: 10 }, wt: "book", name: "คัมภีร์ศักดิ์สิทธิ์", type: "equip", slot: "weapon", lv: 30, bonus: { atk: 54, int: 6, vit: 2, maxSp: 70 }, price: 18000, visual: true, back: true },
   // ---------- เกราะเบา: ชุดนักพราน (Lv20) / ชุดพรานเงา (Lv30) ----------
   ranger_cap:     { ac: "light", set: "ranger", name: "หมวกพราน", type: "equip", slot: "head", lv: 20, bonus: { def: 6, dex: 2 }, price: 3800, visual: true },
   ranger_vest:    { ac: "light", set: "ranger", name: "เสื้อหนังพราน", type: "equip", slot: "armor", lv: 20, bonus: { def: 18, agi: 2 }, price: 6200, visual: true, sexed: true },
   ranger_gloves:  { ac: "light", set: "ranger", name: "ถุงมือพราน", type: "equip", slot: "gloves", lv: 20, bonus: { def: 4, dex: 2 }, price: 3400, visual: true, sexed: true },
   ranger_boots:   { ac: "light", set: "ranger", name: "รองเท้าพราน", type: "equip", slot: "shoes", lv: 20, bonus: { def: 5, agi: 2 }, price: 3400, visual: true, sexed: true },
   shadow_hood:    { ac: "light", set: "shadow", name: "ฮู้ดพรานเงา", type: "equip", slot: "head", lv: 30, bonus: { def: 10, dex: 3, agi: 1 }, price: 9000, visual: true },
-  shadow_vest:    { ac: "light", set: "shadow", name: "เสื้อหนังพรานเงา", type: "equip", slot: "armor", lv: 30, bonus: { def: 28, agi: 3, dex: 2 }, price: 14000, visual: true, sexed: true },
+  shadow_vest:    { special: { flee: 3 }, ac: "light", set: "shadow", name: "เสื้อหนังพรานเงา", type: "equip", slot: "armor", lv: 30, bonus: { def: 28, agi: 3, dex: 2 }, price: 14000, visual: true, sexed: true },
   shadow_gloves:  { ac: "light", set: "shadow", name: "ถุงมือพรานเงา", type: "equip", slot: "gloves", lv: 30, bonus: { def: 7, dex: 3 }, price: 8000, visual: true, sexed: true },
   shadow_boots:   { ac: "light", set: "shadow", name: "รองเท้าพรานเงา", type: "equip", slot: "shoes", lv: 30, bonus: { def: 8, agi: 3 }, price: 8000, visual: true, sexed: true },
   // ---------- ชุดผ้า: นักเวท / นักบวช (Lv20) · จอมเวท / นักบุญ (Lv30) ----------
@@ -87,11 +87,11 @@ const ITEMS = {
   priest_gloves:  { ac: "cloth", set: "priest", name: "ถุงมือนักบวช", type: "equip", slot: "gloves", lv: 20, bonus: { def: 3, int: 1, maxSp: 15 }, price: 3400, visual: true, sexed: true },
   priest_shoes:   { ac: "cloth", set: "priest", name: "รองเท้านักบวช", type: "equip", slot: "shoes", lv: 20, bonus: { def: 4, maxHp: 30 }, price: 3400, visual: true, sexed: true },
   arch_hat:       { ac: "cloth", set: "arch", name: "หมวกจอมเวท", type: "equip", slot: "head", lv: 30, bonus: { def: 7, int: 4, maxSp: 40 }, price: 9000, visual: true },
-  arch_robe:      { ac: "cloth", set: "arch", name: "ชุดคลุมจอมเวท", type: "equip", slot: "armor", lv: 30, bonus: { def: 20, int: 5, maxSp: 60 }, price: 14000, visual: true, sexed: true },
+  arch_robe:      { special: { spPct: 6 }, ac: "cloth", set: "arch", name: "ชุดคลุมจอมเวท", type: "equip", slot: "armor", lv: 30, bonus: { def: 20, int: 5, maxSp: 60 }, price: 14000, visual: true, sexed: true },
   arch_gloves:    { ac: "cloth", set: "arch", name: "ถุงมือจอมเวท", type: "equip", slot: "gloves", lv: 30, bonus: { def: 5, int: 3 }, price: 8000, visual: true, sexed: true },
   arch_shoes:     { ac: "cloth", set: "arch", name: "รองเท้าจอมเวท", type: "equip", slot: "shoes", lv: 30, bonus: { def: 5, dex: 3 }, price: 8000, visual: true, sexed: true },
   saint_crown:    { ac: "cloth", set: "saint", name: "มงกุฎนักบุญ", type: "equip", slot: "head", lv: 30, bonus: { def: 8, int: 3, vit: 2 }, price: 9000, visual: true },
-  saint_robe:     { ac: "cloth", set: "saint", name: "ชุดคลุมนักบุญ", type: "equip", slot: "armor", lv: 30, bonus: { def: 22, int: 4, vit: 3 }, price: 14000, visual: true, sexed: true },
+  saint_robe:     { special: { healPct: 6 }, ac: "cloth", set: "saint", name: "ชุดคลุมนักบุญ", type: "equip", slot: "armor", lv: 30, bonus: { def: 22, int: 4, vit: 3 }, price: 14000, visual: true, sexed: true },
   saint_gloves:   { ac: "cloth", set: "saint", name: "ถุงมือนักบุญ", type: "equip", slot: "gloves", lv: 30, bonus: { def: 5, int: 2, maxSp: 30 }, price: 8000, visual: true, sexed: true },
   saint_shoes:    { ac: "cloth", set: "saint", name: "รองเท้านักบุญ", type: "equip", slot: "shoes", lv: 30, bonus: { def: 6, maxHp: 60 }, price: 8000, visual: true, sexed: true },
   // ---------- เครื่องประดับ (ไม่มีภาพบนตัว) ----------
@@ -109,10 +109,10 @@ const ITEMS = {
   amulet_guard:  { name: "เครื่องรางผู้พิทักษ์", type: "equip", slot: "acc", lv: 22, bonus: { vit: 4, def: 6, maxHp: 80 }, price: 8500, desc: "เหมาะกับผู้พิทักษ์" },
   pendant_holy:  { name: "จี้แสงศักดิ์สิทธิ์", type: "equip", slot: "acc", lv: 22, bonus: { int: 3, vit: 3, maxSp: 30 }, price: 8500, desc: "เหมาะกับหมอ" },
   // Lv30 — ดรอปจากมอนเลเวลสูงเท่านั้น
-  ring_dragon:   { name: "แหวนเกล็ดมังกร", type: "equip", slot: "acc", lv: 30, bonus: { str: 6, dex: 3, atk: 18 }, price: 22000 },
-  amulet_frost:  { name: "เครื่องรางน้ำแข็งนิรันดร์", type: "equip", slot: "acc", lv: 30, bonus: { int: 7, maxSp: 80 }, price: 22000 },
-  necklace_wind: { name: "สร้อยวายุ", type: "equip", slot: "acc", lv: 30, bonus: { agi: 5, dex: 5 }, price: 22000 },
-  talisman_titan:{ name: "เครื่องรางไททัน", type: "equip", slot: "acc", lv: 30, bonus: { vit: 6, def: 10, maxHp: 150 }, price: 22000 },
+  ring_dragon:   { special: { critDmg: 15 }, name: "แหวนเกล็ดมังกร", type: "equip", slot: "acc", lv: 30, bonus: { str: 6, dex: 3, atk: 18 }, price: 22000 },
+  amulet_frost:  { special: { cdr: 5 }, name: "เครื่องรางน้ำแข็งนิรันดร์", type: "equip", slot: "acc", lv: 30, bonus: { int: 7, maxSp: 80 }, price: 22000 },
+  necklace_wind: { special: { moveSpd: 8 }, name: "สร้อยวายุ", type: "equip", slot: "acc", lv: 30, bonus: { agi: 5, dex: 5 }, price: 22000 },
+  talisman_titan:{ special: { dmgReduce: 5 }, name: "เครื่องรางไททัน", type: "equip", slot: "acc", lv: 30, bonus: { vit: 6, def: 10, maxHp: 150 }, price: 22000 },
   // ---------- ของใช้ ----------
   potion_s:  { name: "ยาแดงขวดเล็ก", type: "use", heal: { hp: 45 }, price: 12, desc: "ฟื้น HP 45" },
   potion_m:  { name: "ยาแดง", type: "use", heal: { hp: 150 }, price: 40, desc: "ฟื้น HP 150" },
@@ -203,6 +203,49 @@ function rollRarity() {
   for (let i = 0; i < RARITY.length; i++) { x -= RARITY[i].weight; if (x < 0) return i; }
   return 0;
 }
+// =============================================================
+//  สเตตัสแฝง (ค่าพิเศษเป็น %) — ติดมากับไอเทมบางชิ้น (special) หรือสุ่มได้เมื่อดรอประดับมหากาพย์ (1 ค่า) / ตำนาน (2 ค่า)
+//  max = ค่าสุ่มสูงสุดเมื่อไอเทม Lv30 (เลเวลต่ำกว่าได้น้อยลงตามสัดส่วน) · cap = เพดานรวมทุกชิ้น
+// =============================================================
+const SPECIAL = {
+  dmgReduce: { name: "ลดดาเมจที่ได้รับ", max: 6, cap: 50 },
+  atkPct:    { name: "พลังโจมตี", max: 8 },
+  critPct:   { name: "โอกาสคริติคอล", max: 6 },
+  critDmg:   { name: "ดาเมจคริติคอล", max: 20 },
+  aspd:      { name: "ความเร็วโจมตี", max: 8, cap: 50 },
+  moveSpd:   { name: "ความเร็วเดิน", max: 8, cap: 40 },
+  flee:      { name: "หลบหลีก", max: 5 },
+  hpPct:     { name: "HP สูงสุด", max: 8 },
+  spPct:     { name: "SP สูงสุด", max: 10 },
+  hpRegen:   { name: "ฟื้น HP เร็วขึ้น", max: 30 },
+  spRegen:   { name: "ฟื้น SP เร็วขึ้น", max: 30 },
+  lifesteal: { name: "ดูดเลือดจากดาเมจ", max: 3, cap: 15 },
+  healPct:   { name: "ฮีลแรงขึ้น", max: 12 },
+  undeadDmg: { name: "ดาเมจต่ออันเดด", max: 20 },
+  cdr:       { name: "ลดคูลดาวน์สกิล", max: 6, cap: 40 },
+  expPct:    { name: "EXP ที่ได้รับ", max: 6 },
+  dropPct:   { name: "โอกาสดรอปของ", max: 8 },
+};
+const rollSpecial = (lv, n, skip = []) => {
+  const out = {};
+  const keys = Object.keys(SPECIAL).filter((k) => !skip.includes(k)).sort(() => Math.random() - 0.5).slice(0, n);
+  for (const k of keys) out[k] = Math.max(1, Math.round(SPECIAL[k].max * Math.min(1, (lv || 1) / 30) * (0.4 + Math.random() * 0.6)));
+  return out;
+};
+const cleanSpecial = (o) => {
+  const out = {};
+  for (const [k, v] of Object.entries(o || {})) if (SPECIAL[k] && Number.isFinite(Number(v)) && Number(v) !== 0) out[k] = Math.max(-100, Math.min(100, Math.round(Number(v))));
+  return out;
+};
+// สเตตัสแฝงรวมของไอเทม 1 ชิ้น (ติดมากับไอเทม + สุ่มได้)
+function gearSpecial(g) {
+  const it = ITEMS[g && g.id];
+  if (!it) return {};
+  const out = { ...(it.special || {}) };
+  for (const [k, v] of Object.entries(g.s || {})) out[k] = (out[k] || 0) + v;
+  return out;
+}
+
 // ค่าพิเศษสุ่ม: ค่าที่ได้ขึ้นกับเลเวลของไอเทม
 const EXTRA_POOL = {
   str: (lv) => 1 + rnd(0, Math.floor(lv / 6)), agi: (lv) => 1 + rnd(0, Math.floor(lv / 6)), vit: (lv) => 1 + rnd(0, Math.floor(lv / 6)),
@@ -219,7 +262,9 @@ function makeGear(id, r) {
   const x = {};
   const keys = Object.keys(EXTRA_POOL).sort(() => Math.random() - 0.5).slice(0, RARITY[r].extras);
   for (const k of keys) x[k] = EXTRA_POOL[k](it.lv || 1);
-  return { id, n: 1, r, up: 0, x };
+  // มหากาพย์ = สเตตัสแฝง 1 ค่า · ตำนาน = 2 ค่า
+  const s = r >= 3 ? rollSpecial(it.lv, r - 2, Object.keys(it.special || {})) : {};
+  return { id, n: 1, r, up: 0, x, s };
 }
 
 // =============================================================
@@ -270,4 +315,4 @@ const sellPrice = (id, g) => {
 };
 const fitsSlot = (it, slot) => it && it.type === "equip" && (it.slot === slot || (it.slot === "acc" && (slot === "acc1" || slot === "acc2")));
 
-module.exports = { SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

@@ -34,6 +34,7 @@ const ACTIONS = {
         for (let i = 0; i < n; i++) {
           const g = I.makeGear(a.id, a.r === "rand" || a.r === undefined ? undefined : Number(a.r));
           g.up = Math.max(0, Math.min(I.MAX_REFINE, Math.floor(Number(a.up) || 0)));
+          if (a.s && typeof a.s === "object") g.s = I.cleanSpecial(a.s);
           if (Bag.addItem(b, a.id, 1, g)) left++;
           else if (n === 1) tag = ` [${I.RARITY[g.r].name}${g.up ? " +" + g.up : ""}]`;
         }
@@ -66,12 +67,16 @@ const ACTIONS = {
       const it = I.ITEMS[g.id], changes = [];
       if (a.r !== undefined && a.r !== "" && Number(a.r) !== g.r) {
         const ng = I.makeGear(g.id, Number(a.r));
-        g.r = ng.r; g.x = ng.x; changes.push(`ระดับ${I.RARITY[g.r].name}`);
+        g.r = ng.r; g.x = ng.x; g.s = ng.s; changes.push(`ระดับ${I.RARITY[g.r].name}`);
       } else if (a.reroll) { g.x = I.makeGear(g.id, g.r).x; changes.push("สุ่มค่าพิเศษใหม่"); }
       if (a.up !== undefined && a.up !== "") {
         const up = Math.max(0, Math.min(I.MAX_REFINE, Math.floor(Number(a.up) || 0)));
         if (up && !I.canRefine(it)) fail("ไอเทมนี้ตีบวกไม่ได้");
         if (up !== (g.up || 0)) { g.up = up; changes.push(`ตีบวก +${up}`); }
+      }
+      if (a.s && typeof a.s === "object") {
+        const ns = I.cleanSpecial(a.s);
+        if (JSON.stringify(ns) !== JSON.stringify(g.s || {})) { g.s = ns; changes.push("สเตตัสแฝง " + (Object.entries(ns).map(([k, v]) => `${I.SPECIAL[k].name} +${v}%`).join(", ") || "(ไม่มี)")); }
       }
       if (!changes.length) fail("ไม่มีอะไรเปลี่ยน");
       return `แก้ ${it.name}: ${changes.join(", ")}`;
@@ -139,7 +144,8 @@ function mount(app, api) {
   app.get("/api/admin/items", admin(async () => ({
     items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0, slot: it.slot || null,
       wt: it.wt || null, ac: it.ac || null, set: it.set || null, bonus: it.bonus || null, desc: it.desc || "", price: it.price || 0,
-      shop: I.SHOP.includes(id), jobs: it.type === "equip" ? require("./inventory").jobsFor(it) : [] })),
+      shop: I.SHOP.includes(id), special: it.special || null, jobs: it.type === "equip" ? require("./inventory").jobsFor(it) : [] })),
+    special: I.SPECIAL,
     jobs: Object.fromEntries(Object.entries(D.JOBS).map(([k, j]) => [k, { name: j.name, color: j.color }])),
     rarity: I.RARITY.map((r) => ({ name: r.name, color: r.color })),
     online: WorldRoom.onlineList().map((o) => o.charId),

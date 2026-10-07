@@ -641,3 +641,6 @@ html, body { overscroll-behavior: none; }
 @media (max-height: 540px) { #skillPanel { zoom: .72; max-height: calc(100vh / .72 - 16px); } }
 .sk-ic img, .slot.skill .sb-ic { image-rendering: auto; }
 .slot.skill .sb-ic { width: 20px; height: 20px; border-radius: 4px; background: var(--sc); padding: 1px; }
+#itemCard ul.hidden-st { color: #ffd84a; }
+#spDerived .sx-head { grid-column: 1 / -1; color: #ffd84a; font-size: 11.5px; margin-top: 6px; border-top: 1px solid #2c3561; padding-top: 4px; }
+#spDerived .sx b { color: #ffd84a; }

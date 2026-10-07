@@ -1248,7 +1248,10 @@ function renderStats() {
     ["คริติคอล", pc(derived.crit)], ["แม่นยำ", "+" + pc(derived.hitBonus)],
     ["ฮีลเพิ่ม", "+" + derived.healBonus],
   ];
-  $("spDerived").innerHTML = rows.map(([l, v]) => `<div>${l} <b>${v}</b></div>`).join("");
+  const SX = (gameData && gameData.special) || {};
+  const sxRows = Object.entries(derived.special || {}).map(([k, v]) => `<div class="sx">${(SX[k] || {}).name || k} <b>+${v}%</b></div>`).join("");
+  $("spDerived").innerHTML = rows.map(([l, v]) => `<div>${l} <b>${v}</b></div>`).join("") +
+    (sxRows ? `<div class="sx-head">สเตตัสแฝงจากอุปกรณ์</div>${sxRows}` : "");
 }
 
 // ---------- ตั้งค่า AUTO ----------

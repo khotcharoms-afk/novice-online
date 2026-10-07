@@ -16,10 +16,10 @@ function normGear(o) {
   if (!isGearId(o.id)) return null;
   const x = {};
   for (const [k, v] of Object.entries(o.x || {})) if (Number.isFinite(v)) x[k] = Math.round(v);
-  return { id: o.id, r: Math.max(0, Math.min(I.RARITY.length - 1, o.r | 0)), up: Math.max(0, Math.min(I.MAX_REFINE, o.up | 0)), x };
+  return { id: o.id, r: Math.max(0, Math.min(I.RARITY.length - 1, o.r | 0)), up: Math.max(0, Math.min(I.MAX_REFINE, o.up | 0)), x, s: I.cleanSpecial(o.s) };
 }
 const gearSlot = (g) => ({ ...g, n: 1 });
-const plain = (g) => ({ id: g.id, r: g.r, up: g.up, x: { ...g.x } });
+const plain = (g) => ({ id: g.id, r: g.r, up: g.up, x: { ...g.x }, s: { ...(g.s || {}) } });
 function emptyBag() { return { inv: new Array(I.INVENTORY_SIZE).fill(null), equip: {}, gold: 0, pet: null }; }
 
 // โหลดจากฐานข้อมูล — ตัดไอเทมที่ไม่รู้จักทิ้ง; ตัวละครเก่าที่ยังไม่มีกระเป๋าได้ของเริ่มต้น
@@ -86,6 +86,16 @@ function gearBonus(b, job) {
     const bonus = I.gearStats(g);
     for (const k in bonus) sum[k] = (sum[k] || 0) + bonus[k];
   }
+  return sum;
+}
+// สเตตัสแฝงรวมจากของที่สวม (ของที่อาชีพนี้ใส่ไม่ได้ไม่นับ) · มีเพดานบางค่า
+function gearSpecial(b, job) {
+  const sum = {};
+  for (const g of Object.values(b.equip)) {
+    if (job && wearError(job, I.ITEMS[g.id])) continue;
+    for (const [k, v] of Object.entries(I.gearSpecial(g))) sum[k] = (sum[k] || 0) + v;
+  }
+  for (const k in sum) if (I.SPECIAL[k].cap) sum[k] = Math.min(I.SPECIAL[k].cap, sum[k]);
   return sum;
 }
 // รายการของที่ต้องวาดบนตัวละคร (ตามลำดับชั้นภาพ) → ส่งให้ทุกคนเห็น
@@ -231,4 +241,4 @@ function moveSlot(b, from, to) {
 }
 
 module.exports = { sortBag, normGear, isGearId, emptyBag, loadBag, saveBag, addItem, canFit, removeAt, countOf, indexOf, gearBonus, gearString,
-  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid };
+  equipFrom, unequip, moveSlot, summonPet, recallPet, maxStack, STARTER, wearError, jobsFor, weaponType, stripInvalid, gearSpecial };

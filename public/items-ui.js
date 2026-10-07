@@ -178,6 +178,9 @@ function openCard(g, ctx, ev) {
     }
     for (const [k, v] of Object.entries(g.x || {})) extra.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
   } else for (const [k, v] of Object.entries(it.bonus || {})) lines.push(`<li>${BONUS_NAME[k] || k} +${v}</li>`);
+  // สเตตัสแฝง (สีเหลือง): ของในกระเป๋า = ค่าจริงของชิ้นนั้น · ของในร้าน = ค่าที่ติดมากับไอเทม
+  const SX = gameData.special || {}, spc = g.sp || (g.st ? null : it.special) || {};
+  const hidden = Object.entries(spc).map(([k, v]) => `<li>${(SX[k] || {}).name || k} +${v}%</li>`);
   if (it.pet) lines.push(`<li>ระยะเก็บของ ${Math.round(it.pet.range / 32)} ช่อง</li>`, `<li>ความเร็วบิน ${Math.round(it.pet.speed / 1.7)}%</li>`);
   const SET_NAME = { leather: "ชุดหนัง", chain: "ชุดโซ่", plate: "ชุดเกราะเหล็ก", gold: "ชุดเกราะทองคำ",
     ranger: "ชุดนักพราน", shadow: "ชุดพรานเงา", mage: "ชุดนักเวท", priest: "ชุดนักบวช", arch: "ชุดจอมเวท", saint: "ชุดนักบุญ" };
@@ -201,6 +204,7 @@ function openCard(g, ctx, ev) {
   const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
   card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}${it.type === "equip" ? wearHtml(id, it) : ""}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
+    (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") +
     (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
   card.querySelectorAll("button").forEach((b) => (b.onclick = () => {

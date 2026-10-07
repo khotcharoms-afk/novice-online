@@ -169,7 +169,7 @@ class WorldRoom extends Room {
     });
     const sendMap = (client) =>
       client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
-        statInfo: D.STAT_INFO, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
+        statInfo: D.STAT_INFO, special: I.SPECIAL, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
@@ -488,8 +488,12 @@ class WorldRoom extends Room {
     // สกิลติดตัว
     const pb = D.passiveBonus(p.skills || {}, p.job, p.wt);
     s.atk += pb.atk; s.def += pb.def; s.crit = Math.min(0.6, s.crit + pb.crit); s.hitBonus += pb.hit; s.range += pb.range;
-    s.maxHp = Math.round(s.maxHp * (1 + pb.hpPct / 100)); s.maxSp = Math.round(s.maxSp * (1 + pb.spPct / 100));
-    p.pb = pb;
+    // สเตตัสแฝงจากอุปกรณ์ (%)
+    const sx = Bag.gearSpecial(bag, p.job), X = (k) => (sx[k] || 0) / 100;
+    s.maxHp = Math.round(s.maxHp * (1 + pb.hpPct / 100 + X("hpPct"))); s.maxSp = Math.round(s.maxSp * (1 + pb.spPct / 100 + X("spPct")));
+    s.atk = Math.round(s.atk * (1 + X("atkPct"))); s.crit = Math.min(0.6, s.crit + X("critPct"));
+    s.flee = Math.min(0.6, s.flee + X("flee")); s.atkDelay = Math.round(s.atkDelay / (1 + X("aspd")));
+    p.pb = pb; p.sx = sx;
     p.gearBonus = gb;
     const dHp = s.maxHp - (p.maxHp || 0), dSp = s.maxSp - (p.maxSp || 0);
     p.maxHp = s.maxHp; p.maxSp = s.maxSp;
@@ -510,7 +514,7 @@ class WorldRoom extends Room {
     const client = id && this.clients.find((c) => c.sessionId === id);
     if (client) client.send("derived", { atk: p.atk, def: Math.round(p.def * 10) / 10, atkDelay: p.atkDelay,
       flee: p.flee, hitBonus: p.hitBonus, crit: p.crit, healBonus: p.healBonus, bonus: p.gearBonus || {},
-      range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat });
+      range: p.range, wt: p.wt, atkType: (D.WEAPON_TYPES[p.wt || "fist"] || {}).stat, special: p.sx || {} });
   }
 
   // ================= ลงแต้มสเตตัส =================
@@ -660,7 +664,7 @@ class WorldRoom extends Room {
     }
     if (p.warp) return; // กำลังย้ายแผนที่
     this.checkPortals(id, p);
-    const step = (SPEED * this.mods(r).speed * dt) / 1000;
+    const step = (SPEED * this.mods(r).speed * (1 + ((p.sx && p.sx.moveSpd) || 0) / 100) * dt) / 1000;
     if (p.auto) this.autoThink(id, p, r);
 
     // เดินไปเก็บของบนพื้น
@@ -831,7 +835,7 @@ class WorldRoom extends Room {
     if (d.flee && Math.random() < d.flee) return { dmg: 0, miss: true };
     const crit = Math.random() < (a.crit ?? 0.05);
     let dmg = a.atk * rand(0.9, 1.1) * mult - d.def * 0.5;
-    if (crit) dmg *= 1.5;
+    if (crit) dmg *= 1.5 + (a.critDmg || 0);
     return { dmg: Math.max(1, Math.round(dmg)), crit };
   }
 
@@ -861,13 +865,19 @@ class WorldRoom extends Room {
   hitMob(pid, p, mid, mult, opts = {}) {
     const m = this.state.monsters.get(mid), r = this.mr.get(mid), pr = this.pr.get(pid);
     if (!m || m.dead) return null;
-    if (opts.undead && D.UNDEAD.includes(m.kind)) mult *= opts.undead;
-    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus },
+    const sx = p.sx || {};
+    if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
+    const res = this.calcDamage({ atk: p.atk * this.mods(pr).atk, lv: p.level, crit: p.crit, hitBonus: p.hitBonus, critDmg: (sx.critDmg || 0) / 100 },
       { def: r.stats.def, lv: m.level }, mult);
     this.broadcast("hit", { tgt: mid, mob: true, src: pid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return res;
     m.hp = Math.max(0, m.hp - res.dmg);
     r.dmgBy.set(pid, (r.dmgBy.get(pid) || 0) + res.dmg);
+    // ดูดเลือด
+    if (sx.lifesteal && !p.dead && p.hp < p.maxHp) {
+      const hl = Math.min(p.maxHp - p.hp, Math.floor((res.dmg * sx.lifesteal) / 100));
+      if (hl > 0) { p.hp += hl; if (hl >= 5) this.broadcast("heal", { id: pid, amount: hl }); }
+    }
     if (!r.target) { r.target = pid; r.returning = false; }
     if (opts.stun) r.stunUntil = now() + opts.stun;
     if (opts.slow) r.slowUntil = now() + opts.slow;
@@ -904,8 +914,9 @@ class WorldRoom extends Room {
       const pp = this.state.players.get(pid), g = Math.max(1, Math.round((gold * dmg) / total));
       if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { goldGain: g, at: { x: m.x, y: m.y } }); }
     });
+    const tp = top && this.state.players.get(top), dropMul = 1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100;
     for (const [id, chance, lo, hi] of I.DROPS[m.kind] || [])
-      if (Math.random() < chance) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, I.makeGear(id));
+      if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, I.makeGear(id));
     r.dmgBy.clear();
     this.pr.forEach((pr) => { if (pr.target === mid) { pr.target = null; pr.pending = null; } });
   }
@@ -916,6 +927,7 @@ class WorldRoom extends Room {
     const md = this.mods(pr);
     const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: p.flee + md.flee }, 1);
     if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
+    if (!res.miss && p.sx && p.sx.dmgReduce) res.dmg = Math.max(1, Math.round(res.dmg * (1 - p.sx.dmgReduce / 100)));
     this.broadcast("hit", { tgt: pid, src: mid, dmg: res.dmg, crit: !!res.crit, miss: !!res.miss });
     if (res.miss) return;
     p.hp = Math.max(0, p.hp - res.dmg);
@@ -936,6 +948,7 @@ class WorldRoom extends Room {
   gainExp(pid, amount) {
     const p = this.state.players.get(pid);
     if (!p || p.level >= D.MAX_LEVEL) return;
+    if (p.sx && p.sx.expPct) amount = Math.round(amount * (1 + p.sx.expPct / 100));
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("exp", amount);
     p.exp += amount;
@@ -979,7 +992,7 @@ class WorldRoom extends Room {
     // แนบค่าที่คำนวณแล้วให้อุปกรณ์แต่ละชิ้น: st = ค่าพลังรวม, nx = ข้อมูลตีบวกขั้นถัดไป, sell = ราคาขาย
     const deco = (g) => {
       if (!g || !Bag.isGearId(g.id)) return g;
-      const it = I.ITEMS[g.id], to = (g.up || 0) + 1, out = { ...g, st: I.gearStats(g), sell: I.sellPrice(g.id, g) };
+      const it = I.ITEMS[g.id], to = (g.up || 0) + 1, out = { ...g, st: I.gearStats(g), sp: I.gearSpecial(g), sell: I.sellPrice(g.id, g) };
       if (I.canRefine(it) && to <= I.MAX_REFINE)
         out.nx = { to, gold: I.refineGold(it, to), rate: I.REFINE[to].rate, mats: I.REFINE[to].mats, add: I.refineBonus(it, 1) };
       return out;
@@ -1272,15 +1285,17 @@ class WorldRoom extends Room {
     const mob = tid && this.state.monsters.get(tid);
     if (sk.target === "mob" && (!mob || mob.dead)) return;
     p.sp -= sk.sp;
-    r.cds[key] = now() + sk.cooldown;
+    const cd = Math.round(sk.cooldown * (1 - ((p.sx && p.sx.cdr) || 0) / 100));
+    r.cds[key] = now() + cd;
     r.lastAct = now();
     const client = this.clients.find((c) => c.sessionId === pid);
-    if (client) client.send("cd", { skill: key, until: sk.cooldown });
+    if (client) client.send("cd", { skill: key, until: cd });
     if (mob) p.dir = dirOf(mob.x - p.x, mob.y - p.y);
     const fx = { id: pid, skill: key, dir: p.dir, fx: sk.fx || null, wt: p.wt };
     if (mob) { fx.tgt = tid; fx.x = mob.x; fx.y = mob.y; }
     if (sk.area) fx.r = sk.area;
     const heal = (who, amt) => {
+      amt = Math.round(amt * (1 + ((p.sx && p.sx.healPct) || 0) / 100));
       amt = Math.min(amt, who.maxHp - who.hp);
       who.hp += amt;
       this.state.players.forEach((pp, sid) => { if (pp === who) this.broadcast("heal", { id: sid, amount: amt }); });
@@ -1404,11 +1419,11 @@ class WorldRoom extends Room {
     this.state.players.forEach((p, id) => {
       const r = this.pr.get(id);
       if (!r || p.dead) return;
-      if (t - r.lastHurt > 6000 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.03));
+      if (t - r.lastHurt > 6000 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.03 * (1 + ((p.sx && p.sx.hpRegen) || 0) / 100)));
       // SP ฟื้นช้าลงตอนสู้: กำลังสู้ (โดนตีหรือตี/ใช้สกิลใน 6 วิ) 0.6%/วิ · พักอยู่ 1.5%/วิ (+INT เล็กน้อย)
       if (p.sp < p.maxSp) {
         const fighting = t - r.lastHurt < 6000 || t - (r.lastAct || 0) < 6000;
-        const rate = ((fighting ? 0.006 : 0.015) + p.int * 0.00005) * (1 + ((p.pb && p.pb.spRegen) || 0));
+        const rate = ((fighting ? 0.006 : 0.015) + p.int * 0.00005) * (1 + ((p.pb && p.pb.spRegen) || 0) + ((p.sx && p.sx.spRegen) || 0) / 100);
         r.spAcc = (r.spAcc || 0) + p.maxSp * rate;
         const add = Math.floor(r.spAcc);
         if (add > 0) { r.spAcc -= add; p.sp = Math.min(p.maxSp, p.sp + add); }

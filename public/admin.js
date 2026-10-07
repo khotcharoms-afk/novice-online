@@ -6,7 +6,24 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString();
 const when = (t) => (t ? new Date(t).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "-");
-let JOBS_INFO = {};
+let JOBS_INFO = {}, SPECIAL = {};
+// ตัวแก้สเตตัสแฝง: แถว [ค่า ▾][ตัวเลข]% ✕ + ปุ่มเพิ่ม → คืนฟังก์ชันอ่านค่า (null = ไม่ได้แก้)
+function sxEditor(box, init, fixed) {
+  let rows = Object.entries(init || {}), edited = false;
+  const draw = () => {
+    box.innerHTML = (fixed && Object.keys(fixed).length ? `<div class="muted">ติดมากับไอเทม (แก้ไม่ได้): <span class="sx-fixed">${Object.entries(fixed).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</span></div>` : "") +
+      rows.map(([k, v], i) => `<div class="row sx-row"><select data-i="${i}" class="sxk">${Object.entries(SPECIAL).map(([kk, d]) => `<option value="${kk}" ${kk === k ? "selected" : ""}>${d.name}</option>`).join("")}</select>
+        <input type="number" class="sxv" data-i="${i}" value="${v}" min="1" max="100" style="width:70px">%<button type="button" class="btn danger" data-del="${i}">✕</button></div>`).join("") +
+      `<div class="row"><button type="button" class="btn" data-add>+ เพิ่มสเตตัสแฝง</button>${rows.length ? '<button type="button" class="btn" data-clear>ล้างทั้งหมด</button>' : ""}</div>`;
+    box.querySelectorAll(".sxk").forEach((e) => (e.onchange = () => { rows[e.dataset.i][0] = e.value; edited = true; }));
+    box.querySelectorAll(".sxv").forEach((e) => (e.oninput = () => { rows[e.dataset.i][1] = Number(e.value) || 0; edited = true; }));
+    box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { rows.splice(Number(b.dataset.del), 1); edited = true; draw(); }));
+    box.querySelector("[data-add]").onclick = () => { const used = rows.map((r) => r[0]); const k = Object.keys(SPECIAL).find((x) => !used.includes(x)) || "atkPct"; rows.push([k, 5]); edited = true; draw(); };
+    const c = box.querySelector("[data-clear]"); if (c) c.onclick = () => { rows = []; edited = true; draw(); };
+  };
+  draw();
+  return () => (edited ? Object.fromEntries(rows.filter(([, v]) => v)) : null);
+}
 let cfg = null, fbAuth = null, ITEMS = [], ITEM_BY = {}, RAR = [], curUid = null, ovTimer = null;
 const gName = (g) => { const it = ITEM_BY[g.id] || {}; return (g.up ? `+${g.up} ` : "") + (it.name || g.id); };
 const gCol = (g) => (ITEM_BY[g.id] || {}).type === "equip" && g.r > 0 && RAR[g.r] ? RAR[g.r].color : "";
@@ -53,6 +70,7 @@ async function checkAdmin() {
     $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
     $("who").textContent = `แอดมิน: ${me.loginId}` + (me.mode === "dev" ? " · โหมดทดสอบ" : "");
     const it = await api("GET", "/api/admin/items");
+    SPECIAL = it.special || {};
     ITEMS = it.items; ITEM_BY = Object.fromEntries(ITEMS.map((i) => [i.id, i])); RAR = it.rarity || []; JOBS_INFO = it.jobs || {};
     openTab("ov");
   } catch (e) { showLogin(e.message); }
@@ -240,6 +258,7 @@ function openGearEditor(charId, where, key) {
         <span class="muted">เปลี่ยนระดับ = สุ่มค่าพิเศษใหม่ตามจำนวนของระดับนั้น</span></div>
       <div class="row"><label style="min-width:90px">ตีบวก</label><input type="number" id="gdUp" min="0" max="10" value="${g.up || 0}" style="width:70px"></div>
       <div class="row"><label style="min-width:90px"></label><label><input type="checkbox" id="gdReroll"> สุ่มค่าพิเศษใหม่ (ระดับเดิม)</label></div>
+      <div class="sx-box"><b class="sx-title">สเตตัสแฝง</b><div id="gdSx"></div></div>
       <div class="row" style="margin-top:12px"><button class="btn gold" type="button" id="gdSave">บันทึก</button>` :
       `<div class="row">${g.n > 1 ? `<label>ลบจำนวน</label><input type="number" id="gdN" min="1" max="${g.n}" value="${g.n}" style="width:80px">` : ""}`}
       <button class="btn danger" type="button" id="gdDel">${where === "eq" ? "ลบของที่สวม" : "ลบออกจากกระเป๋า"}</button>
@@ -247,9 +266,10 @@ function openGearEditor(charId, where, key) {
   </form>`;
   const post = async (body) => { const r = await run(() => api("POST", "/api/admin/char/" + charId, { name: c.name, ...body })); if (r) { dlg.close(); openAccount(curUid); } };
   const save = $("gdSave");
+  const getSx = gear ? sxEditor($("gdSx"), g.s, it.special) : () => null;
   if (save) save.onclick = () => {
-    const r = $("gdR").value, up = $("gdUp").value;
-    post({ action: "editGear", where, idx: Number(key), slot: key, r: Number(r) === (g.r || 0) ? "" : Number(r), up: Number(up), reroll: $("gdReroll").checked });
+    const r = $("gdR").value, up = $("gdUp").value, sx = getSx();
+    post({ action: "editGear", where, idx: Number(key), slot: key, r: Number(r) === (g.r || 0) ? "" : Number(r), up: Number(up), reroll: $("gdReroll").checked, ...(sx ? { s: sx } : {}) });
   };
   $("gdDel").onclick = () => {
     if (!confirm(`ลบ ${gName(g)} ของ ${c.name}?`)) return;
@@ -411,18 +431,22 @@ function renderSpawnFoot() {
   const jobs = gear ? (i.jobs.length >= 5 ? "ทุกอาชีพ" : i.jobs.map((j) => `<b style="color:${JOBS_INFO[j].color}">${JOBS_INFO[j].name}</b>`).join(" / ")) : "";
   foot.innerHTML = `<div class="sp-sel"><img src="/assets/icons/${esc(i.id)}.png" alt="">
       <div><h3>${esc(i.name)}</h3><div class="muted">${[i.lv ? "Lv." + i.lv : "", i.wt ? WT_TH[i.wt] : "", i.ac ? AC_TH[i.ac] : "", bonus, i.desc].filter(Boolean).join(" · ")}</div>
-      ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (ชาวบ้านใช้ได้ด้วย)" : ""}</div>` : ""}</div></div>
+      ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (ชาวบ้านใช้ได้ด้วย)" : ""}</div>` : ""}
+      ${i.special ? `<div class="sx-fixed">สเตตัสแฝงติดตัว: ${Object.entries(i.special).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</div>` : ""}</div></div>
     <div class="row">
       ${stack ? `<label>จำนวน</label><input type="number" id="spN" value="${i.type === "use" ? 10 : 1}" min="1" max="999" style="width:80px">
         ${[1, 10, 50, 99].map((n) => `<button class="btn" data-n="${n}">${n}</button>`).join("")}` : ""}
       ${gear ? `<label>ระดับ</label><select id="spR"><option value="0">ธรรมดา</option>${RAR.slice(1).map((r, k) => `<option value="${k + 1}" style="color:${r.color}">${r.name}</option>`).join("")}<option value="rand">สุ่มแบบดรอป</option></select>
         <label>ตีบวก +</label><input type="number" id="spUp" value="0" min="0" max="10" style="width:60px">` : ""}
       <button class="btn btn-give" id="spGive">เสกให้ ${esc(SP.name)}</button>
-    </div>`;
+    </div>
+    ${gear ? `<div class="sx-box"><b class="sx-title">สเตตัสแฝง</b> <span class="muted">ไม่ใส่ = ใช้ตามระดับ (มหากาพย์สุ่ม 1 ค่า · ตำนานสุ่ม 2 ค่า) · ใส่เอง = ใช้ค่าที่ตั้งแทน</span><div id="spSx"></div></div>` : ""}`;
+  const getSx = gear ? sxEditor($("spSx"), {}, i.special) : () => null;
   foot.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => ($("spN").value = b.dataset.n)));
   $("spGive").onclick = async () => {
+    const sx = getSx();
     const body = { action: "item", name: SP.name, id: i.id, n: stack ? Number($("spN").value) || 1 : 1,
-      r: gear ? $("spR").value : 0, up: gear ? Number($("spUp").value) || 0 : 0 };
+      r: gear ? $("spR").value : 0, up: gear ? Number($("spUp").value) || 0 : 0, ...(sx ? { s: sx } : {}) };
     const r = await run(() => api("POST", "/api/admin/char/" + SP.charId, body));
     if (r) SP.given++;
   };
