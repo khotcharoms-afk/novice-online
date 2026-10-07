@@ -346,6 +346,9 @@ function bindRoom(room) {
     room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
     room.onMessage("bossBoard", (d) => onBossBoard(d));
+    room.onMessage("died", (d) => showDeath(d));
+    room.onMessage("respawned", () => hideDeath());
+    room.onMessage("spawnFx", (d) => scene && scene.spawnFx(d));
     room.onMessage("spiritFx", (c) => scene && scene.spiritFx(c));
     room.onMessage("spq", (q) => { INV.spq = q; renderSpiritTrack(); renderSpirit(); });
     room.onMessage("spiritGot", ({ id }) => { const it = itemOf(id); toast(`✨ ได้รับ ${it ? it.name : id}! ภูติลอยตามคุณแล้ว (ถ้ามีภูติอยู่แล้ว ตัวใหม่จะอยู่ในกระเป๋า)`); });
@@ -398,6 +401,7 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_smith", "/assets/npc_smith.png");
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
     this.load.image("npcsrc_spiritkeeper", "/assets/npc_spiritkeeper.png");
+    this.load.image("crystal", "/assets/crystal.png");
     (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 40, frameHeight: 40 })); // แถว = ร่าง 0–4
     for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
   }
@@ -721,12 +725,29 @@ class WorldScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, W * T, H * T);
     this.buildNpcs(map.npcs || []);
     this.buildPortals(map.portals || []);
+    this.buildCrystals(map.crystals || []);
     $("mapName").textContent = map.name + (map.lv ? ` Lv.${map.lv[0]}–${map.lv[1]}` : " · ปลอดภัย");
     if (map.online) $("online").textContent = map.online;
     buildMinimap(map);
   }
 
   // ทางออกไปแผนที่อื่น: วงเวทเรืองแสง + ป้ายชื่อปลายทาง
+  // คริสตัลจุดเกิด: ลอยขึ้นลง + แสงที่ฐาน
+  buildCrystals(list) {
+    for (const c of list) {
+      const base = this.add.ellipse(c.x, c.y + 6, 44, 16, 0x7fd1ff, 0.25).setStrokeStyle(2, 0x9fe3ff, 0.8).setDepth(c.y - 2);
+      const glow = this.add.circle(c.x, c.y - 26, 18, 0x9fe3ff, 0.18).setDepth(c.y - 1).setBlendMode(Phaser.BlendModes.ADD);
+      const img = this.add.image(c.x, c.y - 26, "crystal").setDepth(c.y);
+      this.tweens.add({ targets: [img, glow], y: c.y - 32, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      this.tweens.add({ targets: [base, glow], alpha: { from: 1, to: 0.5 }, duration: 900, yoyo: true, repeat: -1 });
+      this.add.text(c.x, c.y - 58, "💎 จุดเกิด", { fontFamily: "Mitr, sans-serif", fontSize: "11px", color: "#bfeaff", stroke: "#0d1124", strokeThickness: 3, resolution: 2 }).setOrigin(0.5, 1).setDepth(c.y);
+    }
+  }
+  spawnFx({ x, y }) {
+    const pil = this.add.rectangle(x, y - 40, 30, 100, 0x9fe3ff, 0.45).setDepth(1e6 - 3).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: pil, scaleX: 0.1, alpha: 0, duration: 800, onComplete: () => pil.destroy() });
+    this.sparkle(x, y - 30, 0x9fe3ff);
+  }
   buildPortals(list) {
     for (const p of list) {
       const x = (p.box.x0 + p.box.x1) / 2, y = (p.box.y0 + p.box.y1) / 2;
@@ -780,9 +801,9 @@ class WorldScene extends Phaser.Scene {
       if (!v.dead) { v.deadShown = false; v.root.setAlpha(1); if (v.isMob) v.sprite.setInteractive(); }
       else {
         if (v.isMob) { v.sprite.disableInteractive(); if (this.myTarget === v.id) this.myTarget = null; }
-        if (v.isMe) { $("deathMsg").hidden = false; stopTravel(); }
+        if (v.isMe) { showDeath(); stopTravel(); }
       }
-      if (v.isMe && !v.dead) $("deathMsg").hidden = true;
+      if (v.isMe && !v.dead) hideDeath();
     }
     const lv = e.level;
     if (v.isMob) {
@@ -1409,7 +1430,7 @@ class WorldScene extends Phaser.Scene {
     });
 
     // วงขอบเขต AUTO
-    const meP = room.state.players.get(room.sessionId);
+    const meP = room.state.players && room.state.players.get(room.sessionId);
     // เปิด AUTO อยู่ → วงที่จุดเปิด AUTO; ยังไม่เปิดแต่เปิดหน้าตั้งค่าอยู่ → วงตัวอย่างรอบตัวเรา
     let ring = null;
     if (meP && meP.auto && meP.autoR < WHOLE_MAP) ring = { x: meP.autoX, y: meP.autoY, r: meP.autoR };
@@ -1871,6 +1892,11 @@ function buildMinimap(map) {
     ctx.fillStyle = /oak|pine|dead/.test(o.k) ? (map.season === "autumn" ? "#9a4a1c" : map.season === "winter" ? "#6c8c9a" : "#24502a") : /rock/.test(o.k) ? "#9a9a9a" : "#3c7a33";
     ctx.fillRect((o.x / T) * sx - 1, (o.y / T) * sy - 2, 3, 3);
   }
+  for (const c of map.crystals || []) { // คริสตัลจุดเกิด = รูปเพชรสีฟ้า
+    const x = (c.x / T) * sx, y = (c.y / T) * sy;
+    ctx.fillStyle = "#7fe0ff"; ctx.strokeStyle = "#0d1124"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 3.5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 3.5, y); ctx.closePath(); ctx.stroke(); ctx.fill();
+  }
   for (const p of map.portals || []) {
     const x = ((p.box.x0 + p.box.x1) / 2 / T) * sx, y = ((p.box.y0 + p.box.y1) / 2 / T) * sy;
     ctx.fillStyle = "#9fe3ff"; ctx.strokeStyle = "#0d1124"; ctx.lineWidth = 2;
@@ -1886,6 +1912,34 @@ function buildMinimap(map) {
   };
   if (!window._miniTimer) window._miniTimer = setInterval(drawMinimap, 100);
 }
+// ---------- ตาย: เลือกเกิดที่คริสตัลใกล้สุด หรือกลับเมือง ----------
+let deathInfo = null, deathTimer = null;
+function showDeath(d) {
+  const el = $("deathMsg");
+  if (!el) return;
+  if (d) deathInfo = { ...d, at: performance.now() };
+  el.hidden = false;
+  clearInterval(deathTimer);
+  if (!deathInfo) { el.innerHTML = `<b>คุณถูกล้ม</b><div>กำลังฟื้นที่ลานกลางเมือง…</div>`; return; }
+  const hasC = deathInfo.crystals > 0;
+  // สร้างปุ่มครั้งเดียว แล้วอัปเดตแค่ข้อความ/สถานะ (สร้างใหม่ทุกครั้งจะทำให้คลิกหลุด)
+  el.innerHTML = `<b>คุณถูกล้ม</b><div class="death-sub" id="dsSub"></div>
+    <div class="death-acts">${hasC ? `<button type="button" class="btn-gold" id="rsCrystal" disabled>💎 เกิดที่คริสตัลใกล้สุด<small>HP/SP 50%</small></button>` : ""}
+    <button type="button" class="btn-ghost" id="rsTown" disabled>🏠 กลับเมือง<small>HP เต็ม</small></button></div>`;
+  const pick = (where) => { if (!deathInfo || deathInfo.picked) return; room.send("respawn", { where }); deathInfo.picked = true; draw(); };
+  if ($("rsCrystal")) $("rsCrystal").onclick = () => pick("crystal");
+  $("rsTown").onclick = () => pick("town");
+  const draw = () => {
+    if (!deathInfo) return;
+    const t = performance.now() - deathInfo.at, wait = Math.max(0, deathInfo.wait - t), auto = Math.max(0, deathInfo.auto - t), can = wait <= 0 && !deathInfo.picked;
+    $("dsSub").textContent = deathInfo.picked ? "กำลังเกิด…" : wait > 0 ? `รอ ${Math.ceil(wait / 1000)} วิ…` : `เลือกจุดเกิด · ไม่เลือกภายใน ${Math.ceil(auto / 1000)} วิ จะเกิดที่${hasC ? "คริสตัลใกล้สุด" : "เมือง"}`;
+    for (const id of ["rsCrystal", "rsTown"]) { const btn = $(id); if (btn && btn.disabled === can) btn.disabled = !can; }
+  };
+  draw();
+  deathTimer = setInterval(() => { if (el.hidden) return clearInterval(deathTimer); draw(); }, 250);
+}
+function hideDeath() { const el = $("deathMsg"); if (el) el.hidden = true; deathInfo = null; clearInterval(deathTimer); }
+
 function drawMinimap() {
   if (!scene || !scene.map) return;
   const cv = $("miniCanvas"), ctx = cv.getContext("2d"), m = scene.map;

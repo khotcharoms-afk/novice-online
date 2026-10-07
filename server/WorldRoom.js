@@ -26,7 +26,9 @@ const AGGRO_RADIUS = 150;
 const LEASH = 420;
 const ELITE_CHANCE = 0.04;      // โอกาสมอนเกิดเป็นชั้นยอด
 const MINI_RESPAWN_MS = [8 * 60000, 12 * 60000]; // มินิบอสเกิดใหม่ 8–12 นาทีหลังตาย           // มอนไล่ไกลเกินนี้จะกลับบ้าน
-const RESPAWN_PLAYER_MS = 4000;
+const RESPAWN_PLAYER_MS = 4000;      // ตายแล้วต้องรออย่างน้อยเท่านี้ก่อนกดเกิด
+const RESPAWN_AUTO_MS = 30000;       // ไม่กดเลือก → เกิดที่คริสตัลใกล้สุดเอง
+const RESPAWN_SAFE_MS = 3000;        // เกิดที่คริสตัลแล้วมอนตีไม่เข้าชั่วครู่
 const WHOLE_MAP = 9999;              // ค่าพิเศษ = ตีได้ทั้งแมพ
 const AUTO_RADII = [160, 360, 560, WHOLE_MAP]; // ขอบเขต AUTO: 5 / 11 / 17 ช่อง รอบจุดที่เปิด AUTO หรือทั้งแมพ
 const AUTO_POTION_PCT = 35;    // ค่าเริ่มต้น: กินยาเมื่อ HP ต่ำกว่า 35%
@@ -173,6 +175,25 @@ class WorldRoom extends Room {
     this.pr = new Map(); // ข้อมูลภายในของผู้เล่น (ไม่ส่งให้ client)
     this.mr = new Map(); // ข้อมูลภายในของมอนสเตอร์
     this.mobSeq = 0;
+    // คริสตัลจุดเกิด (แผนที่ล่ามอน): กลางแผนที่ + หน้าทางออกทุกทาง → ตายแล้วเลือกเกิดที่อันใกล้สุดได้
+    this.crystals = [];
+    if (this.def.type !== "town") {
+      const T = this.map.tile, cx = (this.map.width / 2) * T, cy = (this.map.height / 2) * T;
+      const want = [{ x: cx, y: cy }, ...this.map.portals.map((pt) => {
+        const px = (pt.box.x0 + pt.box.x1) / 2, py = (pt.box.y0 + pt.box.y1) / 2, d = Math.hypot(cx - px, cy - py) || 1;
+        return { x: px + ((cx - px) / d) * T * 5, y: py + ((cy - py) / d) * T * 5 };
+      })];
+      for (const w of want) {
+        let best = null;
+        for (let rr = 0; rr < 8 && !best; rr++)
+          for (let dy = -rr; dy <= rr && !best; dy++)
+            for (let dx = -rr; dx <= rr && !best; dx++) {
+              const x = Math.floor(w.x / T + dx) * T + T / 2, y = Math.floor(w.y / T + dy) * T + T / 2, tx = Math.floor(x / T), ty = Math.floor(y / T);
+              if (this.canStand(x, y) && this.canStand(x, y + T) && (!this.reach || this.reach[ty * this.map.width + tx])) best = { x, y };
+            }
+        if (best && !this.crystals.some((c) => Math.hypot(c.x - best.x, c.y - best.y) < T * 6)) this.crystals.push(best);
+      }
+    }
     this.spawnMonsters();
     this.mapKinds = new Set(this.def.spawns.map(([k]) => k));
     this.spawnMini();
@@ -190,7 +211,7 @@ class WorldRoom extends Room {
       client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
         statInfo: D.STAT_INFO, special: I.SPECIAL, specialMinRarity: I.SPECIAL_MIN_RARITY, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
-        npcs: this.npcs, online: online.size,
+        npcs: this.npcs, crystals: this.crystals, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
         spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritStages: SP.STAGE_NAME, spiritBreak: SP.BREAK, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
@@ -250,6 +271,11 @@ class WorldRoom extends Room {
     }));
     this.onMessage("sortBag", (client, m) => this.withBag(client, m || {}, (p, b) => Bag.sortBag(b)));
     this.onMessage("petOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallPet(b)));
+    this.onMessage("respawn", (client, m) => {
+      const p = this.state.players.get(client.sessionId), r = this.pr.get(client.sessionId);
+      if (!p || !r || !p.dead) return;
+      r.respawnPick = m && m.where === "town" ? "town" : "crystal";
+    });
     this.onMessage("bossBoard", (client) => client.send("bossBoard", { at: Date.now(), list: WorldRoom.bossBoard() }));
     this.onMessage("spiritOff", (client) => this.withBag(client, {}, (p, b) => Bag.recallSpirit(b)));
     this.onMessage("spiritQuest", (client, m) => this.withBag(client, m || {}, (p, b) => this.spiritQuest(client, p, b, m || {})));
@@ -955,13 +981,12 @@ class WorldRoom extends Room {
   updatePlayer(p, r, id, dt, t) {
     if (!r) return;
     if (p.dead) {
+      // นอกเมือง: รอผู้เล่นเลือก (คริสตัลใกล้สุด / กลับเมือง) · ไม่เลือกภายใน 30 วิ → คริสตัลใกล้สุด
+      if (this.mapId !== W.START_MAP && !p.warp) {
+        if (t >= r.deadUntil && (r.respawnPick || t >= r.deadUntil - RESPAWN_PLAYER_MS + RESPAWN_AUTO_MS)) this.respawnAt(id, p, r, r.respawnPick || "crystal");
+        return;
+      }
       if (t >= r.deadUntil) {
-        // ตายนอกเมือง → ฟื้นที่เมือง (เหมือนกลับจุดเซฟ)
-        if (this.mapId !== W.START_MAP && !p.warp) {
-          p.dead = false; p.hp = p.maxHp; p.sp = Math.max(p.sp, Math.floor(p.maxSp / 2));
-          this.warpPlayer(id, W.START_MAP, null);
-          return;
-        }
         if (p.warp) return;
         const s = this.townSpawn();
         p.x = s.x; p.y = s.y; p.dead = false; p.hp = p.maxHp; p.sp = Math.max(p.sp, Math.floor(p.maxSp / 2));
@@ -1441,6 +1466,7 @@ class WorldRoom extends Room {
   hitPlayer(mid, m, r, pid, mult = 1) {
     const p = this.state.players.get(pid), pr = this.pr.get(pid);
     if (!p || p.dead || !pr) return;
+    if (pr.safeUntil && now() < pr.safeUntil) return; // เพิ่งเกิดที่คริสตัล
     const md = this.mods(pr);
     const res = this.calcDamage({ atk: r.stats.atk, lv: m.level }, { def: p.def * md.def, lv: p.level, flee: mult > 1 ? 0 : p.flee + md.flee }, mult);
     if (!res.miss && md.taken !== 1) res.dmg = Math.max(1, Math.round(res.dmg * md.taken));
@@ -1456,13 +1482,16 @@ class WorldRoom extends Room {
       if (cl) cl.send("toast", `☠ ติดพิษจาก${m.name}!`);
     }
     if (p.hp <= 0) {
+      const wasAuto = p.auto;
       p.dead = true; p.moving = false; p.auto = false; p.autoState = "";
       pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0; pr.buffs = {}; pr.combo = 0;
-      pr.deadUntil = now() + RESPAWN_PLAYER_MS;
+      pr.deadUntil = now() + RESPAWN_PLAYER_MS; pr.respawnPick = null; pr.autoWas = wasAuto;
+      const cl0 = this.clients.find((c) => c.sessionId === pid);
+      if (cl0 && this.mapId !== W.START_MAP) cl0.send("died", { wait: RESPAWN_PLAYER_MS, auto: RESPAWN_AUTO_MS, crystals: this.crystals.length });
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
       const loss = Math.min(p.exp, Math.floor(p.expNext * 0.01));
       p.exp -= loss;
-      this.broadcast("system", `${p.name} ถูก${m.name}ล้ม — จะฟื้นที่ลานกลางเมือง`);
+      this.broadcast("system", `${p.name} ถูก${m.name}ล้ม`);
       const cl = this.clients.find((c) => c.sessionId === pid);
       if (cl && loss > 0) cl.send("system", `เสีย EXP ${loss} (1%)`);
     }
@@ -1954,6 +1983,25 @@ class WorldRoom extends Room {
     this.broadcast("lvup", { id: pid, level: p.level, job: true });
     rooms.forEach((rm) => rm.broadcast("system", `🎉 ${p.name} เปลี่ยนอาชีพเป็น${p.jobName}แล้ว!`));
     this.save(pid);
+  }
+
+  // เกิดใหม่หลังตาย: where = "crystal" (คริสตัลใกล้จุดตายที่สุด · HP/SP 50%) หรือ "town" (กลับเมือง · HP เต็ม)
+  respawnAt(id, p, r, where) {
+    r.respawnPick = null;
+    const cl = this.clients.find((c) => c.sessionId === id);
+    if (where === "crystal" && this.crystals.length) {
+      const c = this.crystals.reduce((a, b) => (dist(p, a) <= dist(p, b) ? a : b));
+      p.x = c.x; p.y = this.canStand(c.x, c.y + 26) ? c.y + 26 : c.y; p.dir = "down"; p.dead = false; r.poison = null;
+      p.hp = Math.max(1, Math.floor(p.maxHp * 0.5)); p.sp = Math.max(p.sp, Math.floor(p.maxSp * 0.5));
+      r.safeUntil = now() + RESPAWN_SAFE_MS; r.nav = null; r.moveTarget = null; r.target = null; r.pick = null;
+      if (cl) cl.send("respawned", { where: "crystal", x: c.x, y: c.y });
+      this.broadcast("spawnFx", { id, x: p.x, y: p.y });
+      if (r.autoWas) { this.setAuto(id, true); r.autoWas = false; }
+      return;
+    }
+    p.dead = false; p.hp = p.maxHp; p.sp = Math.max(p.sp, Math.floor(p.maxSp / 2));
+    if (cl) cl.send("respawned", { where: "town" });
+    this.warpPlayer(id, W.START_MAP, null);
   }
 
   regen() {
