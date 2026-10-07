@@ -59,6 +59,12 @@
     .grid2 { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: start; }
     .chars { display: grid; gap: 12px; }
     .char { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #111733; }
+    .char-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+    .char-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 9px; background: #111733; color: inherit; font: inherit; cursor: pointer; position: relative; min-width: 120px; }
+    .char-tab span { font-size: 12px; opacity: .7; }
+    .char-tab .on { position: absolute; top: 5px; right: 8px; color: #5fd47a; font-style: normal; font-size: 10px; }
+    .char-tab:hover { border-color: #6b7bd6; }
+    .char-tab.sel { border-color: #ffd36b; background: #1d2550; box-shadow: 0 0 0 1px #ffd36b inset; }
     .char h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .char .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
     .char .acts { display: grid; gap: 8px; }

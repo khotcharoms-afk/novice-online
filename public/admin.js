@@ -154,6 +154,11 @@ async function openAccount(uid) {
   const itemOpts = ITEMS.map((i) => `<option value="${i.id}">${esc(i.name)}${i.lv ? " (Lv" + i.lv + ")" : ""}</option>`).join("");
   CHARS = Object.fromEntries(a.chars.map((c) => [c.id, c]));
   const petOpts = ITEMS.filter((i) => i.type === "pet").map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+  // เลือกตัวละครทีละตัว (จำตัวที่เลือกไว้ต่อบัญชี)
+  let pickChar = CHAR_PICK[uid];
+  if (!a.chars.some((c) => c.id === pickChar)) pickChar = (a.chars.find((c) => c.online) || a.chars[0] || {}).id;
+  const charTabs = a.chars.length ? `<div class="char-tabs">${a.chars.map((c) => `<button class="char-tab${c.id === pickChar ? " sel" : ""}" data-pick="${c.id}">
+      <b>${esc(c.name)}</b><span>${esc(c.jobName)} Lv.${c.level}</span>${c.online ? '<i class="on">●</i>' : ""}</button>`).join("")}</div>` : "";
   const chars = a.chars.map((c) => {
     const st = c.stats ? Object.entries(c.stats).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ") : "สเตตัสเริ่มต้น";
     const inv = (c.inv || []).map((s, i) => s ? `<button title="${esc(gName(s))}${gCol(s) ? " [" + RAR[s.r].name + "]" : ""} ×${s.n} — คลิกเพื่อแก้/ลบ" data-ed="inv" data-i="${i}" data-char="${c.id}"
@@ -162,7 +167,7 @@ async function openAccount(uid) {
     const eq = Object.entries(c.equip || {}).map(([sl, g0]) => { const g = typeof g0 === "string" ? { id: g0 } : g0;
       return `<button title="${esc(SLOT_TH[sl] || sl)}: ${esc(gName(g))}${gCol(g) ? " [" + RAR[g.r].name + "]" : ""} — คลิกเพื่อแก้/ลบ" data-ed="eq" data-i="${sl}" data-char="${c.id}"
         ${gCol(g) ? `style="border-color:${gCol(g)}"` : ""}><img src="/assets/icons/${esc(g.id)}.png" alt="">${g.up ? `<span class="upb">+${g.up}</span>` : ""}</button>`; }).join("");
-    return `<div class="char" data-id="${c.id}" data-name="${esc(c.name)}">
+    return `<div class="char" data-id="${c.id}" data-name="${esc(c.name)}" ${c.id === pickChar ? "" : "hidden"}>
       <h3>${esc(c.name)} <span class="pill">${esc(c.jobName)} Lv.${c.level}</span>
         ${c.online ? '<span class="pill on">ออนไลน์</span>' : '<span class="pill">ออฟไลน์</span>'}</h3>
       <div class="meta">gold ${fmt(c.gold)} · ${st} · บันทึกล่าสุด ${when(c.updatedAt)}</div>
@@ -200,6 +205,7 @@ async function openAccount(uid) {
       <div class="row"><span style="min-width:110px">สถานะ</span>
         ${a.banned ? '<button class="btn" data-ban="0">ยกเลิกการระงับ</button>' : '<button class="btn danger" data-ban="1">ระงับบัญชี (แบน)</button>'}</div>
     </div>
+    ${charTabs}
     <div class="chars">${chars || '<div class="card empty">บัญชีนี้ยังไม่มีตัวละคร</div>'}</div>`;
   const d = $("accDetail");
   d.querySelectorAll("[data-slots]").forEach((b) => (b.onclick = async () => {
@@ -216,6 +222,11 @@ async function openAccount(uid) {
     const ban = b.dataset.ban === "1";
     if (ban && !confirm(`ระงับบัญชี ${a.loginId}? ผู้เล่นจะถูกเตะออกและล็อกอินไม่ได้`)) return;
     await run(() => api("POST", "/api/admin/account/" + uid, { banned: ban })); openAccount(uid); search();
+  }));
+  d.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => {
+    CHAR_PICK[uid] = b.dataset.pick;
+    d.querySelectorAll("[data-pick]").forEach((x) => x.classList.toggle("sel", x === b));
+    d.querySelectorAll(".char").forEach((box) => (box.hidden = box.dataset.id !== b.dataset.pick));
   }));
   d.querySelectorAll(".char").forEach((box) => {
     const id = box.dataset.id, name = box.dataset.name, f = (k) => box.querySelector(`[data-f="${k}"]`).value;
@@ -240,6 +251,7 @@ async function openAccount(uid) {
 
 // ---------- หน้าต่างแก้ไอเทม (ระดับ / ตีบวก / ค่าพิเศษ / ลบ) ----------
 let CHARS = {};
+const CHAR_PICK = {};
 const SLOT_TH = { head: "หมวก", face: "หน้า", armor: "เสื้อ/เกราะ", gloves: "ถุงมือ", acc1: "เครื่องประดับ 1", weapon: "อาวุธ",
   offhand: "มือรอง", cape: "ผ้าคลุม", shoes: "รองเท้า", acc2: "เครื่องประดับ 2" };
 const STAT_TH = { atk: "ATK", def: "DEF", str: "STR", agi: "AGI", vit: "VIT", int: "INT", dex: "DEX", maxHp: "HP", maxSp: "SP" };
