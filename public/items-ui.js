@@ -211,6 +211,33 @@ function drawDoll() {
   ctx.drawImage(scene.textures.get(v.key).getSourceImage(), 0, 2 * 64, 64, 64, 0, 0, 64, 64);
 }
 
+// ---------- เทียบกับของที่ใส่อยู่ (ช่องเดียวกัน) ----------
+const gearStatOf = (g) => { const it = itemOf(g.id); return g.st ? { ...g.st } : { ...((it && it.bonus) || {}) }; };
+const gearSpOf = (g) => { const it = itemOf(g.id), minR = gameData.specialMinRarity ?? 3; return g.sp ? { ...g.sp } : it && it.special && (g.r || 0) >= minR ? { ...it.special } : {}; };
+function compareHtml(g, it) {
+  if (!it || it.type !== "equip" || !INV.equip) return "";
+  const cur = INV.equip[it.slot];
+  // อาวุธสองมือ: มือรองที่ใส่อยู่จะถูกถอดด้วย
+  const twoHand = it.slot === "weapon" && gameData.weaponTypes && (gameData.weaponTypes[it.wt] || {}).twoHand;
+  const lost = [cur, twoHand ? INV.equip.offhand : null].filter((x) => x && x.id);
+  if (!lost.length) return `<div class="cmp"><div class="cmp-h">เทียบกับที่ใส่อยู่</div><div class="cmp-none">ช่องนี้ยังว่าง — ใส่แล้วได้ค่าพลังเพิ่มทั้งหมด</div></div>`;
+  const a = gearStatOf(g), b = {}, sa = gearSpOf(g), sb = {};
+  for (const x of lost) { for (const [k, v] of Object.entries(gearStatOf(x))) b[k] = (b[k] || 0) + v; for (const [k, v] of Object.entries(gearSpOf(x))) sb[k] = (sb[k] || 0) + v; }
+  const SX = gameData.special || {}, rows = [];
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const d = (a[k] || 0) - (b[k] || 0);
+    if (d) rows.push(`<li class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${BONUS_NAME[k] || k} ${d > 0 ? "+" : ""}${d}</li>`);
+  }
+  for (const k of new Set([...Object.keys(sa), ...Object.keys(sb)])) {
+    const d = +(((sa[k] || 0) - (sb[k] || 0)).toFixed(1));
+    if (d) rows.push(`<li class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${(SX[k] || {}).name || k} ${d > 0 ? "+" : ""}${d}%</li>`);
+  }
+  const names = lost.map((x) => `<b>${nameHtml(x)}</b>`).join(" + ");
+  return `<div class="cmp"><div class="cmp-h">เทียบกับที่ใส่อยู่: ${names}</div>` +
+    (rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="cmp-none">ค่าพลังเท่าเดิม</div>`) +
+    (twoHand && INV.equip.offhand && INV.equip.offhand.id ? `<div class="cmp-note">⚠ อาวุธสองมือ — มือรองจะถูกถอด</div>` : "") + `</div>`;
+}
+
 // ---------- การ์ดรายละเอียดไอเทม ----------
 function openCard(g, ctx, ev) {
   const id = g.id, it = itemOf(id), card = $("itemCard"), me = myPlayer();
@@ -274,7 +301,7 @@ function openCard(g, ctx, ev) {
   const rarTxt = rr ? `<div class="rar" style="color:${rr.color}">ระดับ${rr.name}${g.up ? ` · <span class="refl">ตีบวก +${g.up}</span>` : ""}</div>` : "";
   card.innerHTML = `<h4>${nameHtml(g)}</h4>${rarTxt}<div class="meta">${TYPE_NAME[it.type] || ""}${slotTxt}</div>${need}${it.type === "equip" ? wearHtml(id, it) : ""}` +
     (lines.length ? `<ul>${lines.join("")}</ul>` : "") + (extra.length ? `<div class="meta">ค่าพิเศษ</div><ul class="extra">${extra.join("")}</ul>` : "") +
-    (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") + refineHtml + setHtml +
+    (hidden.length ? `<div class="meta">สเตตัสแฝง</div><ul class="hidden-st">${hidden.join("")}</ul>` : "") + (ctx.where !== "eq" ? compareHtml(g, it) : "") + refineHtml + setHtml +
     spiritHtml + (it.desc ? `<div>${it.desc}</div>` : "") +
     `<div class="meta">ขายได้ ${sell} gold</div><div class="acts">${acts.join("")}</div>`;
   card.querySelectorAll("button").forEach((b) => (b.onclick = () => {
