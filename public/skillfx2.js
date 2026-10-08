@@ -9,9 +9,16 @@ const FX2 = {
   add(sc, o, depth) { return o.setDepth(depth ?? FX2.TOP); },
   // แสงวงพุ่งออก (บนพื้น = ellipse แบน)
   shock(sc, x, y, r, color, ms = 420, width = 4, ground = true) {
-    const e = sc.add.ellipse(x, y, 20, ground ? 12 : 20).setStrokeStyle(width, color, 0.95).setDepth(ground ? FX2.GROUND : FX2.TOP).setBlendMode(Phaser.BlendModes.ADD);
-    sc.tweens.add({ targets: e, scaleX: r / 10, scaleY: r / 10, alpha: 0, duration: ms, ease: "Quad.easeOut", onComplete: () => e.destroy() });
-    return e;
+    // วาดใหม่ทุกเฟรม (เส้นหนาคงที่ ไม่บวมตามการขยาย)
+    const g = sc.add.graphics().setDepth(ground ? FX2.GROUND : FX2.TOP).setBlendMode(Phaser.BlendModes.ADD);
+    const st = { k: 0.1 }, sy = ground ? 0.6 : 1;
+    sc.tweens.add({ targets: st, k: 1, duration: ms, ease: "Quad.easeOut", onUpdate: () => {
+      const a = 1 - st.k * st.k, rr = r * st.k;
+      g.clear();
+      g.lineStyle(width * 2.2, color, 0.25 * a); g.strokeEllipse(x, y, rr * 2, rr * 2 * sy);
+      g.lineStyle(width, color, 0.95 * a); g.strokeEllipse(x, y, rr * 2, rr * 2 * sy);
+    }, onComplete: () => g.destroy() });
+    return g;
   },
   // วงเต็มสีจาง ๆ บนพื้น
   disc(sc, x, y, r, color, ms = 600, alpha = 0.3) {
