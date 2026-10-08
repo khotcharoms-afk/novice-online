@@ -494,13 +494,13 @@ function renderFuse() {
 // ของมีค่า = อุปกรณ์ระดับหายากขึ้นไป หรือที่ตีบวกแล้ว
 const precious = (s) => isGear(s) && ((s.r || 0) >= 2 || (s.up || 0) > 0);
 // กล่องยืนยันในเกม (แทน confirm ของเบราว์เซอร์) → คืนจำนวนที่เลือก หรือ 0 ถ้ายกเลิก
-function askConfirm(html, { okText = "ยืนยัน", max = 1, danger = false } = {}) {
+function askConfirm(html, { okText = "ยืนยัน", max = 1, danger = false, noCancel = false } = {}) {
   return new Promise((resolve) => {
     let box = $("confirmBox");
     if (!box) { box = document.createElement("div"); box.id = "confirmBox"; box.className = "frame"; box.setAttribute("role", "dialog"); document.body.appendChild(box); }
     box.innerHTML = `<div class="cb-msg">${html}</div>` +
       (max > 1 ? `<label class="cb-qty">จำนวน <input type="number" id="cbN" min="1" max="${max}" value="${max}"> / ${max}</label>` : "") +
-      `<div class="cb-acts"><button type="button" class="btn-ghost" id="cbNo">ยกเลิก</button>
+      `<div class="cb-acts"><button type="button" class="btn-ghost" id="cbNo"${noCancel ? " hidden" : ""}>ยกเลิก</button>
        <button type="button" class="${danger ? "btn-ghost danger" : "btn-gold"}" id="cbYes">${okText}</button></div>`;
     box.hidden = false;
     const done = (v) => { box.hidden = true; document.removeEventListener("keydown", onKey, true); resolve(v); };

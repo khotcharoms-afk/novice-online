@@ -19,6 +19,7 @@ function renderSpirit() {
   if (!panel || panel.hidden || !gameData || !gameData.spirits) return;
   const me = myPlayer();
   if (!me) return;
+  if (typeof renderSpiritMode === "function" && renderSpiritMode()) return renderDungeon(); // แท็บดันเจี้ยนภูติ (dungeon-ui.js)
   const S = gameData.spirits, Q = gameData.spiritQuests, spq = INV.spq || {};
   $("spiritTabs").innerHTML = SP_ORDER.map((id) => {
     const cls = ["sp-tab", id === spSel && "sel", spOwned(id) && "own", id in spq && "active", me.level < S[id].lv && "lock"].filter(Boolean).join(" ");
@@ -74,7 +75,7 @@ function renderSpirit() {
       <span class="${INV.gold >= U.gold ? "" : "need"}">${U.gold.toLocaleString()} gold</span>
       <button type="button" class="btn-gold" id="spUp" ${ok ? "" : "disabled"}>อัประดับ</button></div>`;
   if ($("spBrk")) $("spBrk").onclick = async () => {
-    const B = gameData.spiritBreak[cur.st || 0], nm = gameData.spiritStages[(cur.st || 0) + 1];
+    const B = spBreakOf(cur)[cur.st || 0], nm = gameData.spiritStages[(cur.st || 0) + 1];
     if (await askConfirm(`ข้ามขีดจำกัด <b>${itemOf(cur.id).name}</b> → <b>${nm}</b>?<br><small>ใช้ ${B.items.map(([id, n]) => `${itemOf(id).name} ×${n}`).join(", ")} + ${B.gold.toLocaleString()} gold</small>`, { okText: "ข้ามขีดจำกัด" })) room.send("spiritBreak", {});
   };
   if ($("spUp")) $("spUp").onclick = async () => {
@@ -82,10 +83,12 @@ function renderSpirit() {
   };
 }
 
+// ของที่ใช้ข้ามขีดจำกัด (ตามธาตุของภูติ)
+const spBreakOf = (cur) => (gameData.spiritBreakBy && gameData.spiritBreakBy[cur.id]) || gameData.spiritBreak;
 // ส่วนข้ามขีดจำกัด (ทุก 10 เลเวล) ของภูติที่เรียกอยู่
 function breakHtml(cur) {
   const st = cur.st || 0, names = gameData.spiritStages, ci = itemOf(cur.id);
-  const B = gameData.spiritBreak[st];
+  const B = spBreakOf(cur)[st];
   const stages = names.map((n, i) => `<span class="${i === st ? "sp-stage" : i < st ? "ok" : "muted"}">${n}</span>`).join(" → ");
   if (!B) return `<div class="sp-brk"><b>ข้ามขีดจำกัด</b><div class="row"><img src="${ICON(cur.id)}" alt=""><span>${ci.name} — ${names[st]} (ร่างสุดท้ายแล้ว) 🌟</span></div><div class="row"><small>${stages}</small></div></div>`;
   const cap = (st + 1) * 10, ready = cur.lv >= cap;

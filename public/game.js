@@ -294,9 +294,11 @@ $("createBtn").onclick = async () => {
 //  เข้าเกม
 // =============================================================
 // เข้าห้องของแผนที่ที่ตัวละครอยู่ (ถ้าเซิร์ฟเวอร์บอกว่าอยู่แผนที่อื่น → เข้าห้องนั้นแทน)
-async function joinMap(client, c, mapId, tries = 0, warp = false, ticket = null) {
-  try { const r = await client.joinOrCreate("world", { token: ticket ? "" : await getToken(), charId: c.id, mapId, warp, ticket }); r.mapId = mapId; return r; }
-  catch (e) {
+async function joinMap(client, c, mapId, tries = 0, warp = false, ticket = null, inst = null) {
+  try {
+    const r = await client.joinOrCreate("world", { token: ticket ? "" : await getToken(), charId: c.id, mapId, warp, ticket, ...(inst ? { inst } : {}) });
+    r.mapId = mapId; r.inst = inst; return r;
+  } catch (e) {
     const m = /MAP:(\w+)/.exec(e.message || "");
     if (m && tries < 2) return joinMap(client, c, m[1], tries + 1, warp);
     throw e;
@@ -339,6 +341,11 @@ function bindRoom(room) {
     room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
     room.onMessage("restartSoon", (d) => onRestartSoon(d));
     room.onMessage("expEvent", (d) => onExpEvent(d));
+    room.onMessage("dungeon", (d) => onDungeonState(d));
+    room.onMessage("dungeonInvite", (d) => onDungeonInvite(d));
+    room.onMessage("dungeonClear", (d) => onDungeonClear(d));
+    if (typeof hideDungeonHud === "function") hideDungeonHud();
+    if (typeof closeSpirit === "function") closeSpirit(); // หน้าต่างลูน่าใช้ได้แค่ในเมือง // ห้องใหม่: ถ้าเป็นดัน เซิร์ฟเวอร์จะส่งสถานะมาเอง
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text, party }) => {
       addChat(party ? "chat party" : "chat", `${party ? "[ปาร์ตี้] " : ""}<span class="cname">${esc(name)}:</span> ${esc(text)}`);
@@ -392,6 +399,8 @@ function bindRoom(room) {
 }
 
 initAuth();
+// ข้อมูลแผนที่ (รวมดันเจี้ยนภูติที่ไม่อยู่ในแผนที่โลก)
+const mapInfoOf = (id) => WORLD && (WORLD.maps.find((m) => m.id === id) || (WORLD.dungeonMaps || []).find((m) => m.id === id));
 // ---------- heartbeat ----------
 // ส่ง "hb" ทุก 5 วิ ให้เซิร์ฟเวอร์รู้ว่ายังอยู่ · ถ้าไม่ได้ข้อความจากเซิร์ฟเวอร์เลยเกิน 25 วิ (เซิร์ฟส่ง "online" ทุก 5 วิ) = สายตายเงียบ → ต่อใหม่เอง
 const curRoom = () => room;
@@ -420,7 +429,7 @@ class WorldScene extends Phaser.Scene {
   constructor() { super("world"); }
 
   preload() {
-    const mapInfo = (WORLD && WORLD.maps.find((m) => m.id === room.mapId)) || {};
+    const mapInfo = mapInfoOf(room.mapId) || {};
     const season = mapInfo.season || "summer";
     SAFE_ZONE = !mapInfo.type || mapInfo.type === "town";
     this.tKey = "terrain_" + season; this.oKey = "obj_" + season;
@@ -2155,7 +2164,7 @@ async function reconnectGame(kind) {
   clearInterval(maintTick); restartSoon = false; maintEnd = 0;
   const b = $("maintBar"); if (b) b.hidden = true;
   const ub = $("updBox"); if (ub) ub.hidden = true;
-  const mapId = (room && room.mapId) || (myChar && myChar.map) || "town";
+  const mapId = (room && room.mapId) || (myChar && myChar.map) || "town", inst = (room && room.inst) || null;
   let o = $("reconBox");
   if (!o) { o = document.createElement("div"); o.id = "reconBox"; document.body.appendChild(o); }
   const say = (t) => { o.innerHTML = `<b>${kind === "restart" ? "🔄 กำลังอัปเดตเกม" : "📡 หลุดการเชื่อมต่อ"}</b><small>${t}</small><p class="dots"><span></span><span></span><span></span></p>`; };
@@ -2169,7 +2178,7 @@ async function reconnectGame(kind) {
       const nv = await serverVersion();
       if (nv && GAME_VERSION && nv !== GAME_VERSION) { say("มีเวอร์ชันใหม่ — กำลังโหลดเกมใหม่…"); autoReenter(); location.reload(); return; }
       say(`กำลังเข้าเกม… (ครั้งที่ ${i + 1})`);
-      const r = await joinMap(gameClient, myChar, mapId, 0, true);
+      const r = await joinMap(gameClient, myChar, mapId, 0, true, null, inst);
       room = r; bindRoom(room);
       leavingForWarp = false; reconnecting = false; o.hidden = true;
       if (scene && scene.scene) scene.scene.restart();
@@ -2221,7 +2230,7 @@ async function travelTo(c, w) {
   setTravelProgress(20, "เชื่อมต่อแผนที่ใหม่…");
   for (let i = 0; i < 4; i++) {
     try {
-      room = await joinMap(gameClient, c, w.map, 0, true, i === 0 ? w.ticket : null); // ครั้งแรกใช้ตั๋ว (เร็ว) · ลองใหม่ = ล็อกอินปกติ
+      room = await joinMap(gameClient, c, w.map, 0, true, i === 0 ? w.ticket : null, w.inst || null); // ครั้งแรกใช้ตั๋ว (เร็ว) · ลองใหม่ = ล็อกอินปกติ
       setTravelProgress(35, "โหลดภาพแผนที่…");
       bindRoom(room);
       leavingForWarp = false;
@@ -2240,7 +2249,7 @@ async function travelTo(c, w) {
 function showTravel(mapId, name) {
   let o = $("travel");
   if (!o) { o = document.createElement("div"); o.id = "travel"; document.body.appendChild(o); }
-  const m = WORLD && WORLD.maps.find((x) => x.id === mapId);
+  const m = mapInfoOf(mapId);
   const nm = name || (m && m.name) || "";
   o.innerHTML = `<div><small>กำลังเดินทางไป</small><b>${esc(nm)}</b>${m && m.lv ? `<span>Lv.${m.lv[0]}–${m.lv[1]}</span>` : ""}
     <div class="tv-bar"><i id="tvFill"></i></div><div class="tv-pct"><em id="tvStep">เตรียมตัว…</em><b id="tvPct">0%</b></div></div>`;

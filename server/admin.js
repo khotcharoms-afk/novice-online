@@ -123,7 +123,7 @@ const ACTIONS = {
   heal(c) { c.heal = true; return "ฟื้น HP/SP เต็ม"; },
   warp(c, a) {
     const W = require("./maps");
-    if (!W.MAPS[a.map]) fail("ไม่รู้จักแผนที่");
+    if (!W.MAPS[a.map] || W.MAPS[a.map].type === "dungeon") fail("ไม่รู้จักแผนที่ (ดันเจี้ยนวาปเข้าไม่ได้)");
     c.map = a.map; c.x = null; c.y = null; c.warpTo = a.map;
     return `ส่งไป ${W.MAPS[a.map].name}`;
   },
@@ -254,7 +254,7 @@ function mount(app, api) {
   // World Boss: ดูสถานะ / เรียก / ลบ
   app.get("/api/admin/worldboss", admin(async () => ({
     bosses: Object.fromEntries(Object.entries(D.WORLD_BOSSES).map(([k, b]) => [k, { name: b.name, level: b.level }])),
-    maps: Object.fromEntries(Object.entries(W.MAPS).filter(([, m]) => m.type !== "town").map(([k, m]) => [k, m.name + (m.lv ? ` (Lv.${m.lv[0]}–${m.lv[1]})` : "")])),
+    maps: Object.fromEntries(Object.entries(W.MAPS).filter(([, m]) => m.type === "field").map(([k, m]) => [k, m.name + (m.lv ? ` (Lv.${m.lv[0]}–${m.lv[1]})` : "")])),
     status: WorldRoom.bossStatus(),
   })));
   app.post("/api/admin/worldboss", admin(async (user, req) => {

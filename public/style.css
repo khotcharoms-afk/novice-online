@@ -873,3 +873,43 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 #updBox.urgent { border-color: #ff9a7a; animation: maintPulse 1s infinite; }
 #updBox.urgent b { color: #ffd0b0; }
 @media (max-width: 700px) { #updBox { top: 9%; padding: 8px 16px 10px; } #updBox b { font-size: 34px; } }
+
+/* ---------- ดันเจี้ยนภูติ ---------- */
+.sp-mode { display: flex; gap: 6px; margin: 0 0 8px; }
+.sp-mode button { flex: 1; padding: 7px 8px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .04); color: #cfd6ee; cursor: pointer; font: inherit; font-size: 13px; }
+.sp-mode button.sel { background: linear-gradient(180deg, rgba(120, 90, 200, .45), rgba(60, 40, 120, .45)); border-color: #b49aff; color: #fff; }
+.dg-wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.dg-wrap h4 { margin: 6px 0 2px; font-size: 13px; color: var(--name, #ffd76a); font-weight: 500; }
+.dg-intro { margin: 0; font-size: 12.5px; color: #aab4d6; line-height: 1.55; }
+.dg-els { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.dg-el { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 9px; cursor: pointer; font: inherit; color: #dfe6ff;
+  background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .12); }
+.dg-el img { width: 34px; height: 34px; image-rendering: pixelated; filter: drop-shadow(0 0 5px var(--sc)); }
+.dg-el b { font-size: 12.5px; font-weight: 500; color: var(--sc); }
+.dg-el small { font-size: 10.5px; color: #98a2c4; text-align: center; line-height: 1.2; }
+.dg-el.sel { border-color: var(--sc); background: color-mix(in srgb, var(--sc) 18%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--sc) 45%, transparent); }
+.dg-diffs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dg-diff { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; border-radius: 9px; cursor: pointer; font: inherit; color: #dfe6ff;
+  background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .12); }
+.dg-diff b { font-size: 13px; font-weight: 500; } .dg-diff small { font-size: 10.5px; color: #98a2c4; }
+.dg-diff.sel { border-color: #ffd76a; background: rgba(255, 215, 106, .12); }
+.dg-diff.lock { opacity: .5; }
+.dg-sum { margin-top: 4px; padding: 8px 10px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--sc) 55%, transparent); background: color-mix(in srgb, var(--sc) 9%, rgba(10, 12, 30, .6)); font-size: 13px; }
+.dg-sum b { color: var(--sc); font-weight: 500; } .dg-sum small { color: #98a2c4; }
+.dg-rw { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; align-items: center; font-size: 12.5px; }
+.dg-rw span { display: inline-flex; align-items: center; gap: 3px; } .dg-rw img { width: 20px; height: 20px; image-rendering: pixelated; }
+.dg-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.dg-tk { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin-right: auto; } .dg-tk img { width: 22px; height: 22px; image-rendering: pixelated; }
+.dg-acts .need { width: 100%; text-align: right; }
+@media (max-width: 700px) { .dg-els { grid-template-columns: repeat(3, 1fr); } .dg-diffs { grid-template-columns: repeat(2, 1fr); } }
+#dgHud { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 44; padding: 6px 12px 8px; min-width: 230px; text-align: center;
+  border-color: color-mix(in srgb, var(--sc) 60%, transparent) !important; box-shadow: 0 0 14px color-mix(in srgb, var(--sc) 30%, transparent); }
+#dgHud .dg-h { display: flex; justify-content: space-between; gap: 10px; align-items: center; font-size: 13px; }
+#dgHud .dg-h b { color: var(--sc); font-weight: 500; }
+#dgHud .dg-time { font-variant-numeric: tabular-nums; color: #dfe6ff; } #dgHud .dg-time.urgent { color: #ff9a8a; }
+#dgHud .dg-step { font-size: 14px; margin: 3px 0 5px; color: #fff; } #dgHud .dg-step b { color: #ffd76a; }
+#dgHud button { font-size: 11.5px; padding: 2px 10px; }
+.dg-clear h3 { margin: 0 0 2px; color: #ffd76a; font-weight: 500; }
+.dg-clear small { color: #98a2c4; display: block; margin-bottom: 6px; }
+.dg-get { display: flex; align-items: center; gap: 8px; padding: 3px 0; } .dg-get img { width: 26px; height: 26px; image-rendering: pixelated; } .dg-get span { flex: 1; text-align: left; } .dg-get b { color: #7dff9a; font-weight: 500; }
+.job-body.dg-mode { display: block; }

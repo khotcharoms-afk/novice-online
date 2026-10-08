@@ -569,7 +569,8 @@ let LEGACY_TIER = {}, migrateLegacy = (id) => id; // อุปกรณ์รว
   const SP = require("./spirits");
   for (const [id, S] of Object.entries(SP.SPIRITS))
     ITEMS[id] = { name: S.name, type: "spirit", qlv: S.lv, sell: 500, desc: S.desc, spirit: { role: S.role, color: S.color, skill: S.skill } };
-  ITEMS.spirit_shard = { name: "ผลึกวิญญาณ", type: "material", sell: 300, desc: "ใช้อัประดับสีของภูติที่ลูน่า (ผู้ผนึกภูติ) · ดรอปจากมอนชั้นยอด มินิบอส และ World Boss" };
+  Object.assign(ITEMS, require("./sdungeon").items()); // ตั๋ว + แก่นธาตุ (ดันเจี้ยนภูติ)
+  ITEMS.spirit_shard = { name: "ผลึกวิญญาณ", type: "material", sell: 300, desc: "ใช้อัประดับสีและข้ามขีดจำกัดภูติที่ลูน่า (ผู้ผนึกภูติ) · ได้จากดันเจี้ยนภูติ มอนชั้นยอด มินิบอส และ World Boss" };
 }
 // ---------- ลดของดรอปที่เยอะเกิน: วัตถุดิบมอน + คริสตัลตีบวก ----------
 // วัตถุดิบ: โอกาส ×0.5 และครั้งละ 1 ชิ้น (~28-30% ต่อตัว · เคยลด ×0.25 แล้วหายากเกินไป) · ราคาขาย ×2.5 รายได้ใกล้เดิม

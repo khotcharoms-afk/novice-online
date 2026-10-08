@@ -68,7 +68,7 @@ const gameServer = new Server({
   // ใช้ heartbeat ระดับเกมแทน (ข้อความ "hb" จาก client ทุก 5 วิ · ไม่ได้ยินเกิน 90 วิ ค่อยตัด — ดู WorldRoom)
   transport: new WebSocketTransport({ server: http.createServer(app), pingInterval: 0 }),
 });
-gameServer.define("world", WorldRoom).filterBy(["mapId"]); // 1 ห้องต่อ 1 แผนที่
+gameServer.define("world", WorldRoom).filterBy(["mapId", "inst"]); // 1 ห้องต่อ 1 แผนที่ (ดันเจี้ยนภูติ: 1 ห้องต่อ 1 รอบ = inst)
 
 gameServer.listen(PORT).then(() => {
   console.log(`🎮 Game server running on http://localhost:${PORT}`);

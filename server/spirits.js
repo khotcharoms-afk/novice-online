@@ -49,12 +49,10 @@ const SPIRIT_QUESTS = {
 
 // ข้ามขีดจำกัด (ทุก 10 เลเวล) → พัฒนาร่าง · index = ร่างปัจจุบัน (0 = ร่างแรก) · ต้องเลเวลภูติเต็มเพดานก่อน
 const STAGE_NAME = ["ร่างแรกเกิด", "ร่างเติบโต", "ร่างตื่นรู้", "ร่างจ้าว", "ร่างสมบูรณ์"];
-const BREAK = [
-  { items: [["wolf_fang", 10], ["slime_gel", 10]], gold: 3000 },                            // Lv.10 → ร่างเติบโต
-  { items: [["old_bone", 15], ["bat_wing", 10]], gold: 15000 },                             // Lv.20 → ร่างตื่นรู้
-  { items: [["troll_hide", 15], ["ice_gel", 15]], gold: 50000 },                            // Lv.30 → ร่างจ้าว
-  { items: [["frost_essence", 20], ["wraith_veil", 15], ["spirit_shard", 10]], gold: 150000 }, // Lv.40 → ร่างสมบูรณ์
-];
+// ของที่ใช้ = แก่นธาตุของภูติตัวนั้น (จากดันเจี้ยนภูติ) + ผลึกวิญญาณ + gold — ดู server/sdungeon.js
+const SD = require("./sdungeon");
+const breakFor = (id) => SD.breakFor(id);
+const BREAK = SD.breakFor("sp_ember"); // (ค่าเดิม เผื่อโค้ดเก่าเรียกใช้)
 const STAGE_POWER = 0.1;  // แต่ละร่างแรงขึ้น 10%
 const STAGE_CD = 0.06;    // และใช้สกิลถี่ขึ้น 6%
 const capOf = (st) => Math.min(SPIRIT_MAX_LV, ((st | 0) + 1) * 10);
@@ -93,9 +91,9 @@ function info(s) {
   if (k.below) out.below = k.below;
   if (k.drain) out.drain = k.drain;
   out.up = UPGRADE[s.r] || null;
-  out.brk = (s.st | 0) < 4 ? BREAK[s.st | 0] : null;   // ของที่ต้องใช้ข้ามขีดจำกัดครั้งถัดไป
+  out.brk = (s.st | 0) < 4 ? breakFor(s.id)[s.st | 0] : null;   // ของที่ต้องใช้ข้ามขีดจำกัดครั้งถัดไป
   out.capped = s.lv >= cap && (s.st | 0) < 4;          // เลเวลเต็มเพดาน รอข้ามขีดจำกัด
   return out;
 }
 
-module.exports = { healPower, SPIRITS, SPIRIT_QUESTS, SPIRIT_MAX_LV, RAR_MUL, EXP_SHARE, UPGRADE, QUEST_RARITY, STAGE_NAME, BREAK, STAGE_POWER, STAGE_CD, capOf, cooldown, expNeed, power, norm, info };
+module.exports = { healPower, SPIRITS, SPIRIT_QUESTS, SPIRIT_MAX_LV, RAR_MUL, EXP_SHARE, UPGRADE, QUEST_RARITY, STAGE_NAME, BREAK, breakFor, STAGE_POWER, STAGE_CD, capOf, cooldown, expNeed, power, norm, info };

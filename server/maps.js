@@ -99,6 +99,8 @@ const MAPS = {
     spawns: [["deathknight", 6], ["shadowdemon", 9], ["darkcyclops", 7], ["abysslord", 4], ["eye_abyss", 5], ["ghost_abyss", 5], ["slime_abyss", 4]], style: { ponds: 3, forest: 20, dead: 40, rocks: 55, bushes: 10, dirt: 18 },
   },
 };
+// ดันเจี้ยนภูติ (แผนที่ส่วนตัว ไม่มีทางเชื่อม · ดู server/sdungeon.js)
+Object.assign(MAPS, require("./sdungeon").maps());
 const START_MAP = "town";
 const OPPOSITE = { N: "S", S: "N", E: "W", W: "E" };
 
