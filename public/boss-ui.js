@@ -43,7 +43,7 @@ function renderBoss() {
       state = `<span>${left <= 0 ? "กำลังเกิด…" : "เกิดในอีก"}</span><b>${left <= 0 ? "เร็ว ๆ นี้" : fmtLeft(left)}</b><small>${b.map ? `ที่ ${b.map}` : "สุ่มแมพ"}</small>`;
     }
     return `<div class="boss-row ${cls}"><canvas width="64" height="64" data-sprite="${b.sprite}"></canvas>
-      <div><h5>${b.name} <small>Lv.${b.level}</small></h5><div class="bmeta">เกิดที่: ${b.maps.join(" / ")}</div></div>
+      <div><h5>${b.name} <small>Lv.${b.level}</small></h5><div class="bmeta">เกิดที่: ${b.maps.join(" / ")}</div>${b.skills && b.skills.length ? `<div class="bmeta bskills">⚔ ${b.skills.join(" · ")}</div>` : ""}</div>
       <div class="bstate">${state}</div></div>`;
   }).join("");
   el.querySelectorAll("canvas").forEach((cv) => drawBossIcon(cv, cv.dataset.sprite));

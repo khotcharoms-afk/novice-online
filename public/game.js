@@ -153,6 +153,10 @@ const layersFor = (lk, job = "villager", gear = "") => {
   return [...back, `look/base_${sex}_${skin}`, `look/outfit_${job}_${sex}`, ...pre, `look/hair_${hair}_${color}`, ...post];
 };
 // วาดตัวละครลง canvas (frame 0 = ยืน, 1–8 = เดิน; row 0–3 = ขึ้น/ซ้าย/ลง/ขวา)
+// สีเตือนพื้นที่ของสกิลบอส / สีออร่าตามร่างบอส
+const BOSS_SK = { bullrush: { c: 0xff5a2a }, bloodroar: { c: 0xc01020 }, frostrain: { c: 0x6fd0ff }, deathmark: { c: 0xa040ff }, soulnova: { c: 0x50e0a0 },
+  breath: { c: 0xff3ad0 }, meteor: { c: 0xff6a1a }, wingstorm: { c: 0xc890ff } };
+const BOSS_AURA = { minotaur: 0xc01020, lich: 0x7a4aff, dragon_abyss: 0xff3ad0, wyvern: 0xff3ad0 };
 function drawLook(cv, lk, job, frame, row, gear) {
   const ctx = cv.getContext("2d");
   ctx.imageSmoothingEnabled = false;
@@ -366,6 +370,8 @@ function bindRoom(room) {
     room.onMessage("spiritUpOk", ({ id, r }) => { const it = itemOf(id), R = gameData.rarity[r]; toast(`✨ ${it ? it.name : id} อัปเป็นระดับ${R.name}แล้ว!`); });
     room.onMessage("bossSlam", (c) => scene && scene.bossSlam(c));
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
+    room.onMessage("bossSkill", (c) => scene && scene.bossSkill(c));
+    room.onMessage("bossSkillHit", (c) => scene && scene.bossSkillHit(c));
     room.onLeave((code) => {
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
@@ -1137,6 +1143,122 @@ class WorldScene extends Phaser.Scene {
     const me = this.views.get(room.sessionId);
     if (me && Math.hypot(me.root.x - x, me.root.y - y) < r * 2.5) this.cameras.main.shake(260, 0.012);
   }
+  // ---------- สกิลเฉพาะตัว World Boss: เตือนพื้นที่ → ลงดาเมจ ----------
+  bossSkill({ id, key, name, shapes }) {
+    const C = BOSS_SK[key] || { c: 0xff4a4a };
+    const v = this.views.get(id);
+    if (v) {
+      this.floatText(v.root.x, v.root.y - 70 * (v.e.scale || 1), `⚠ ${name}`, "#ff8a6a", 15, 1400);
+      this.playOnce(id, "cast", v.dir, Math.min(1400, Math.max(...shapes.map((s) => s.at))));
+      if (key === "bloodroar" || key === "wingstorm") this.tweens.add({ targets: v.sprite, scale: (v.e.scale || 1) * 1.1, duration: shapes[0].at * 0.8, yoyo: true });
+    }
+    this.bossWarn = this.bossWarn || new Map();
+    const objs = [];
+    shapes.forEach((s) => {
+      const g = this.add.graphics().setDepth(-7999), fill = this.add.graphics().setDepth(-7998);
+      const draw = (gr, k, alpha, line) => {
+        gr.clear();
+        if (line) gr.lineStyle(3, C.c, 0.95); gr.fillStyle(C.c, alpha);
+        if (s.t === "c") { gr.fillCircle(s.x, s.y, s.r * k); if (line) gr.strokeCircle(s.x, s.y, s.r); }
+        else if (s.t === "ring") {
+          const ro = s.r0 + (s.r - s.r0) * k, pts = []; // วงแหวน (ด้านในใกล้บอสปลอดภัย) = รูปกุญแจ: วงนอกตามเข็ม → วงในทวนเข็ม
+          for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2; pts.push({ x: s.x + Math.cos(a) * ro, y: s.y + Math.sin(a) * ro }); }
+          for (let i = 48; i >= 0; i--) { const a = (i / 48) * Math.PI * 2; pts.push({ x: s.x + Math.cos(a) * s.r0, y: s.y + Math.sin(a) * s.r0 }); }
+          gr.fillPoints(pts, true);
+          if (line) { gr.lineStyle(3, C.c, 0.95); gr.strokeCircle(s.x, s.y, s.r); gr.lineStyle(2, 0x9dffb0, 0.9); gr.strokeCircle(s.x, s.y, s.r0); }
+        } else if (s.t === "cone") {
+          gr.slice(s.x, s.y, s.r * k, s.a - s.arc / 2, s.a + s.arc / 2, false); gr.fillPath();
+          if (line) { gr.beginPath(); gr.slice(s.x, s.y, s.r, s.a - s.arc / 2, s.a + s.arc / 2, false); gr.strokePath(); }
+        } else if (s.t === "rect") {
+          const a = Math.atan2(s.y2 - s.y1, s.x2 - s.x1), L = Math.hypot(s.x2 - s.x1, s.y2 - s.y1) * k, px = -Math.sin(a) * s.w / 2, py = Math.cos(a) * s.w / 2;
+          const ex = s.x1 + Math.cos(a) * L, ey = s.y1 + Math.sin(a) * L;
+          const pts = [{ x: s.x1 + px, y: s.y1 + py }, { x: ex + px, y: ey + py }, { x: ex - px, y: ey - py }, { x: s.x1 - px, y: s.y1 - py }];
+          gr.fillPoints(pts, true); if (line) { const L1 = Math.hypot(s.x2 - s.x1, s.y2 - s.y1); const fx = s.x1 + Math.cos(a) * L1, fy = s.y1 + Math.sin(a) * L1; gr.strokePoints([{ x: s.x1 + px, y: s.y1 + py }, { x: fx + px, y: fy + py }, { x: fx - px, y: fy - py }, { x: s.x1 - px, y: s.y1 - py }], true); }
+        }
+      };
+      draw(g, 1, 0.1, true);
+      const st = { k: 0.05 };
+      this.tweens.add({ targets: st, k: 1, duration: s.at, onUpdate: () => draw(fill, st.k, 0.3, false) });
+      this.tweens.add({ targets: g, alpha: { from: 1, to: 0.5 }, duration: 150, yoyo: true, repeat: -1 });
+      s._o = [g, fill]; objs.push(g, fill);
+      // อุกกาบาต/หอกน้ำแข็ง: เห็นของตกลงมาก่อนกระทบ
+      if (key === "meteor" || key === "frostrain") this.time.delayedCall(Math.max(0, s.at - 380), () => {
+        const o = key === "meteor"
+          ? this.add.container(s.x + 90, s.y - 260, [this.add.circle(0, 0, 14, 0xff5a1a, 0.5), this.add.circle(0, 0, 8, 0xffd27a, 1)]).setDepth(1e6 - 1)
+          : this.add.container(s.x, s.y - 240, [this.add.triangle(0, 0, -6, -22, 6, -22, 0, 18, 0xbff0ff, 1).setStrokeStyle(1, 0xffffff)]).setDepth(1e6 - 1);
+        if (key === "meteor") o.list[0].setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: o, x: s.x, y: s.y, duration: 380, ease: "Quad.easeIn", onComplete: () => o.destroy() });
+      });
+      this.time.delayedCall(s.at + 300, () => { g.destroy(); fill.destroy(); });
+    });
+    this.bossWarn.set(id, objs);
+  }
+  bossSkillHit({ id, key, s }) {
+    const C = BOSS_SK[key] || { c: 0xff4a4a }, v = this.views.get(id);
+    const me = this.views.get(room.sessionId);
+    const near = me && Math.hypot(me.root.x - (s.x ?? s.x1), me.root.y - (s.y ?? s.y1)) < 500;
+    const ring = (x, y, r, col, ms = 420) => { const w = this.add.circle(x, y, r, col, 0.45).setDepth(-7990).setScale(0.2).setBlendMode(Phaser.BlendModes.ADD); this.tweens.add({ targets: w, scale: 1.05, alpha: 0, duration: ms, ease: "Quad.easeOut", onComplete: () => w.destroy() }); };
+    const sparks = (x, y, col, n, spread, up = 0) => { for (let i = 0; i < n; i++) { const p = this.add.circle(x, y, 2 + Math.random() * 3, col, 1).setDepth(1e6 - 1).setBlendMode(Phaser.BlendModes.ADD); const a = Math.random() * Math.PI * 2, d = spread * (0.4 + Math.random() * 0.6); this.tweens.add({ targets: p, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.6 - up * Math.random(), alpha: 0, scale: 0.3, duration: 400 + Math.random() * 300, onComplete: () => p.destroy() }); } };
+    switch (key) {
+      case "bullrush": {
+        if (v) { v.root.x = s.x1; v.root.y = s.y1; this.tweens.add({ targets: v.root, x: s.x2, y: s.y2, duration: 220, ease: "Quad.easeIn" }); }
+        const n = 8; for (let i = 0; i <= n; i++) this.time.delayedCall(i * 25, () => { const x = s.x1 + (s.x2 - s.x1) * i / n, y = s.y1 + (s.y2 - s.y1) * i / n; sparks(x, y, 0xc8a070, 4, 40, 20); });
+        this.time.delayedCall(220, () => { ring(s.x2, s.y2, 90, 0xff6a3a); if (near) this.cameras.main.shake(260, 0.014); });
+        break;
+      }
+      case "bloodroar":
+        for (let i = 0; i < 3; i++) this.time.delayedCall(i * 120, () => ring(s.x, s.y, s.r, 0xb01020, 520));
+        if (near) { this.cameras.main.flash(180, 140, 0, 0); this.cameras.main.shake(300, 0.01); }
+        break;
+      case "frostrain": ring(s.x, s.y, s.r, 0x9fe3ff, 360); sparks(s.x, s.y, 0xdff6ff, 12, s.r, 30); break;
+      case "deathmark":
+        ring(s.x, s.y, s.r, 0xa040ff, 600); sparks(s.x, s.y, 0xd090ff, 18, s.r, 60);
+        for (let i = 0; i < 6; i++) { const sk = this.add.text(s.x + (Math.random() - 0.5) * s.r, s.y, "☠", { fontSize: "18px", color: "#c890ff" }).setOrigin(0.5).setDepth(1e6 - 1); this.tweens.add({ targets: sk, y: sk.y - 60, alpha: 0, duration: 900, delay: i * 50, onComplete: () => sk.destroy() }); }
+        if (near) this.cameras.main.shake(200, 0.01);
+        break;
+      case "soulnova": {
+        const w = this.add.circle(s.x, s.y, s.r0, 0x7dffb0, 0).setStrokeStyle(10, 0x9dffc8, 0.8).setDepth(-7990).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: w, radius: s.r, alpha: 0, duration: 520, ease: "Quad.easeOut", onComplete: () => w.destroy() });
+        for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; sparks(s.x + Math.cos(a) * (s.r0 + s.r) / 2, s.y + Math.sin(a) * (s.r0 + s.r) / 2 * 0.8, 0xb0ffd8, 2, 30, 40); }
+        if (near) this.cameras.main.shake(220, 0.008);
+        break;
+      }
+      case "breath": {
+        for (let i = 0; i < 26; i++) this.time.delayedCall(i * 14, () => {
+          const a = s.a + (Math.random() - 0.5) * s.arc, d = s.r * (0.15 + Math.random() * 0.85);
+          const f = this.add.circle(s.x, s.y - 20, 6 + Math.random() * 8, [0xff3ad0, 0xb04aff, 0xffb0f0][i % 3], 0.9).setDepth(1e6 - 1).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: f, x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d - 10, scale: 2.2, alpha: 0, duration: 420, onComplete: () => f.destroy() });
+        });
+        if (near) this.cameras.main.shake(320, 0.01);
+        break;
+      }
+      case "meteor": ring(s.x, s.y, s.r, 0xff6a1a, 420); sparks(s.x, s.y, 0xffb04a, 14, s.r, 40); if (near) this.cameras.main.shake(120, 0.008); break;
+      case "wingstorm": {
+        for (let i = 0; i < 3; i++) this.time.delayedCall(i * 90, () => { const w = this.add.circle(s.x, s.y, 30, 0xc890ff, 0).setStrokeStyle(4, 0xe0c0ff, 0.9).setDepth(1e6 - 2); this.tweens.add({ targets: w, radius: s.r + 40, alpha: 0, duration: 450, onComplete: () => w.destroy() }); });
+        if (near) this.cameras.main.shake(260, 0.012);
+        break;
+      }
+    }
+  }
+  // ออร่าบอส: ควันดำแดงลอยรอบตัว · วงเงามืดใต้เท้าเต้นช้า ๆ · ตอนคลั่งเป็นเปลวไฟ
+  bossAura(v, time) {
+    const sc = v.e.scale || 1, col = (BOSS_AURA[v.e.sprite] || 0xb01020);
+    if (!v.bossShadow) {
+      v.bossShadow = this.add.ellipse(0, 0, 70 * sc, 22 * sc, 0x000000, 0.45);
+      v.bossRing = this.add.ellipse(0, 0, 80 * sc, 26 * sc, col, 0.22).setStrokeStyle(2, col, 0.7).setBlendMode(Phaser.BlendModes.ADD);
+      v.root.addAt(v.bossRing, 0); v.root.addAt(v.bossShadow, 0);
+      this.tweens.add({ targets: v.bossRing, scaleX: 1.15, scaleY: 1.15, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+      if (this.game.renderer.type === Phaser.WEBGL && v.sprite.preFX) v.bossGlow = v.sprite.preFX.addGlow(col, 3, 0, false, 0.1, 12);
+    }
+    const rage = v.e.hp / v.e.maxHp <= 0.35;
+    if (rage && !v.bossRaged) { v.bossRaged = true; v.bossRing.setFillStyle(0xff3a10, 0.3).setStrokeStyle(3, 0xffa040, 0.9); if (v.bossGlow) v.bossGlow.color = 0xff4a10; }
+    if (time < (v.nextSmoke || 0)) return;
+    v.nextSmoke = time + (rage ? 70 : 140);
+    const x = v.root.x + (Math.random() - 0.5) * 50 * sc, y = v.root.y - Math.random() * 40 * sc;
+    const p = this.add.circle(x, y, (4 + Math.random() * 5) * sc * 0.6, rage ? (Math.random() < 0.5 ? 0xff5a10 : 0xffb040) : (Math.random() < 0.6 ? 0x1a0a14 : col), rage ? 0.8 : 0.5).setDepth(v.root.depth + (Math.random() < 0.5 ? 1 : -1));
+    if (rage) p.setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: p, y: y - 40 - Math.random() * 30, x: x + (Math.random() - 0.5) * 20, alpha: 0, scale: 1.8, duration: 900 + Math.random() * 500, onComplete: () => p.destroy() });
+  }
   bossRage({ id }) {
     const v = this.views.get(id);
     if (!v) return;
@@ -1534,6 +1656,7 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       if (!v.isMob && gameData && (v.e.glow || "") !== v.glowStr && !(this.lazyPending && this.lazyPending.size) && time >= (v.glowRetry || 0)) { v.glowRetry = time + 500; this.buildGlow(v, v.e); }
+      if (v.isMob && v.e.boss) this.bossAura(v, time);
       if (!v.isMob) { this.weaponAura(v, time); if (v.glows && v.glows.length) for (const g of v.glows) if (g.frame.name !== v.sprite.frame.name && g.texture.has(v.sprite.frame.name)) g.setFrame(v.sprite.frame.name); }
       if (time < v.busyUntil) return;
       if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);

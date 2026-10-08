@@ -194,7 +194,7 @@ function renderBuffs() {
   if (!el) return;
   const t = performance.now(), B = (gameData && gameData.buffs) || {};
   const live = Object.entries(myBuffs).filter(([, u]) => u > t);
-  el.innerHTML = live.map(([k, u]) => `<span class="buff">${(B[k] && B[k].name) || k} <b>${Math.ceil((u - t) / 1000)}</b></span>`).join("");
+  el.innerHTML = live.map(([k, u]) => `<span class="buff${B[k] && B[k].debuff ? " debuff" : ""}">${(B[k] && B[k].name) || k} <b>${Math.ceil((u - t) / 1000)}</b></span>`).join("");
   el.hidden = !live.length;
 }
 setInterval(renderBuffs, 500);

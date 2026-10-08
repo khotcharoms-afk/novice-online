@@ -895,7 +895,8 @@ class WorldRoom extends Room {
   static bossBoard() {
     const t = Date.now();
     return Object.entries(D.WORLD_BOSSES).map(([key, B]) => {
-      const s = bossSched[key], o = { key, name: B.name, level: B.level, sprite: B.sprite, maps: (B.maps || []).map((m) => W.MAPS[m].name) };
+      const s = bossSched[key], o = { key, name: B.name, level: B.level, sprite: B.sprite, maps: (B.maps || []).map((m) => W.MAPS[m].name),
+        skills: [...(B.skills || []).map((s) => s.name), ...(B.slam ? ["ทุบพื้น"] : []), ...(B.summon ? ["เรียกลูกน้อง"] : []), ...(B.enrage ? ["คลั่ง"] : [])] };
       if (s.alive) {
         o.state = "alive"; o.endsIn = Math.max(0, BOSS_LIFE_MS - (t - s.since)); o.map = s.map && W.MAPS[s.map] ? W.MAPS[s.map].name : null;
         rooms.forEach((rm) => rm.mr.forEach((r, id) => { const m = rm.state.monsters.get(id); if (r.boss && r.bossKey === key && m && !m.dead) { o.map = rm.def.name; o.hp = m.hp; o.maxHp = m.maxHp; o.tx = Math.floor(m.x / rm.map.tile); o.ty = Math.floor(m.y / rm.map.tile); } }));
@@ -1562,7 +1563,8 @@ class WorldRoom extends Room {
     m.maxHp = stats.maxHp; m.hp = m.maxHp;
     this.state.monsters.set(id, m);
     this.mr.set(id, { def: B, stats, boss: B, temp: true, home: { ...spot }, target: null, wander: null, nextWander: 0, atkReady: 0, respawnAt: Infinity,
-      dmgBy: new Map(), nextSlam: now() + 5000, cast: null, summoned: 0, enraged: false, idleSince: now(), bossKey: key });
+      dmgBy: new Map(), nextSlam: now() + 5000, cast: null, summoned: 0, enraged: false, idleSince: now(), bossKey: key,
+      skCd: Object.fromEntries((B.skills || []).map((s, i) => [s.key, now() + 4000 + i * 3500])), sk: null, nextAny: 0 });
     this.autoDispose = false;
     const tx = Math.floor(spot.x / this.map.tile), ty = Math.floor(spot.y / this.map.tile);
     WorldRoom.announce(`⚠️ World Boss ${B.name} Lv.${B.level} ปรากฏตัวที่ ${this.def.name} (${tx}, ${ty})! รวมพลังกันไปปราบ`);
@@ -1577,6 +1579,8 @@ class WorldRoom extends Room {
       let bd = 420;
       this.state.players.forEach((pp, pid) => { if (!pp.dead && !pp.stealth && !this.inSafe(pp)) { const d = dist(m, pp); if (d < bd) { bd = d; r.target = pid; p = pp; } } });
     }
+    // สกิลเฉพาะตัวที่กำลังร่าย: ลงดาเมจทีละพื้นที่ตามเวลา
+    if (r.sk) { m.moving = false; this.bossSkillTick(m, r, id, t); return; }
     // ทุบพื้น: เตือนเป็นวงก่อน แล้วค่อยลงดาเมจทุกคนในวง
     if (r.cast) {
       m.moving = false;
@@ -1603,6 +1607,10 @@ class WorldRoom extends Room {
       this.broadcast("bossRage", { id });
     }
     const d = dist(m, p);
+    if (B.skills && t >= r.nextAny) {
+      const sk = B.skills.find((s) => t >= r.skCd[s.key] && d <= s.range);
+      if (sk) { this.bossSkillStart(m, r, id, sk, p, t); return; }
+    }
     if (B.slam && t >= r.nextSlam && d < B.slam.r + 60) {
       r.nextSlam = t + B.slam.every * (r.enraged ? 0.7 : 1);
       r.cast = { at: t + B.slam.cast, x: m.x, y: m.y };
@@ -1618,6 +1626,75 @@ class WorldRoom extends Room {
       this.broadcast("atk", { id, dir: m.dir, mob: true });
       this.hitPlayer(id, m, r, r.target);
     }
+  }
+  // ---------- สกิลเฉพาะตัวของ World Boss ----------
+  // พื้นที่: c = วงกลม {x,y,r} · ring = วงแหวน {x,y,r0,r} · rect = แนวยาว {x1,y1,x2,y2,w} · cone = กรวย {x,y,a,arc,r} · at = เวลาที่ลงดาเมจ
+  bossSkillStart(m, r, id, sk, p, t) {
+    const rage = r.enraged ? 0.75 : 1;
+    r.skCd[sk.key] = t + sk.every * rage;
+    const players = [...this.state.players.entries()].filter(([, pp]) => !pp.dead && !this.inSafe(pp) && dist(m, pp) <= sk.range + 200);
+    const shapes = [];
+    const ang = Math.atan2(p.y - m.y, p.x - m.x);
+    m.dir = dirOf(p.x - m.x, p.y - m.y);
+    switch (sk.key) {
+      case "bullrush": { // แนวพุ่งจากบอสผ่านเป้าหมาย
+        let len = sk.len;
+        while (len > 60 && !this.canStand(m.x + Math.cos(ang) * len, m.y + Math.sin(ang) * len)) len -= 20;
+        shapes.push({ t: "rect", x1: m.x, y1: m.y, x2: m.x + Math.cos(ang) * len, y2: m.y + Math.sin(ang) * len, w: sk.w, at: sk.cast });
+        break;
+      }
+      case "bloodroar": case "wingstorm": shapes.push({ t: "c", x: m.x, y: m.y, r: sk.r, at: sk.cast }); break;
+      case "soulnova": shapes.push({ t: "ring", x: m.x, y: m.y, r0: sk.r0, r: sk.r, at: sk.cast }); break;
+      case "breath": shapes.push({ t: "cone", x: m.x, y: m.y, a: ang, arc: sk.arc, r: sk.r, at: sk.cast }); break;
+      case "deathmark": { // ตราใต้เท้าผู้เล่น 1–2 คน
+        const tg = players.sort(() => Math.random() - 0.5).slice(0, players.length >= 4 ? 2 : 1);
+        for (const [, pp] of tg) shapes.push({ t: "c", x: pp.x, y: pp.y, r: sk.r, at: sk.cast });
+        break;
+      }
+      case "frostrain": case "meteor": { // ตกใส่ทุกคน + จุดสุ่มรอบบอส · ทยอยลงทีละลูก
+        const pts = players.map(([, pp]) => ({ x: pp.x + (Math.random() - 0.5) * 30, y: pp.y + (Math.random() - 0.5) * 30 }));
+        while (pts.length < sk.n) { const a = Math.random() * Math.PI * 2, rr = 60 + Math.random() * (sk.range - 80); pts.push({ x: m.x + Math.cos(a) * rr, y: m.y + Math.sin(a) * rr }); }
+        pts.slice(0, sk.n + 2).forEach((q, i) => shapes.push({ t: "c", x: q.x, y: q.y, r: sk.r, at: sk.cast + i * 160 }));
+        break;
+      }
+    }
+    if (!shapes.length) return;
+    r.sk = { key: sk.key, def: sk, t0: t, shapes };
+    this.broadcast("bossSkill", { id, key: sk.key, name: sk.name, shapes });
+  }
+  inShape(q, s) {
+    const dx = q.x - (s.x ?? s.x1), dy = q.y - (s.y ?? s.y1);
+    if (s.t === "c") return dx * dx + dy * dy <= s.r * s.r;
+    if (s.t === "ring") { const d = Math.hypot(dx, dy); return d >= s.r0 && d <= s.r; }
+    if (s.t === "cone") { const d = Math.hypot(dx, dy); if (d > s.r) return false; let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); return Math.abs(da) <= s.arc / 2 || d < 30; }
+    if (s.t === "rect") { const lx = s.x2 - s.x1, ly = s.y2 - s.y1, L2 = lx * lx + ly * ly || 1; const u = Math.max(0, Math.min(1, (dx * lx + dy * ly) / L2)); return Math.hypot(dx - u * lx, dy - u * ly) <= s.w / 2; }
+    return false;
+  }
+  bossSkillTick(m, r, id, t) {
+    const S = r.sk, sk = S.def;
+    for (const s of S.shapes) {
+      if (s.done || t < S.t0 + s.at) continue;
+      s.done = true;
+      if (sk.key === "bullrush") { m.x = s.x2; m.y = s.y2; } // พุ่งไปปลายแนว
+      let hits = 0;
+      this.state.players.forEach((pp, pid) => {
+        if (pp.dead || this.inSafe(pp) || !this.inShape(pp, s)) return;
+        hits++;
+        this.hitPlayer(id, m, r, pid, sk.mult);
+        if (pp.dead) return;
+        const pr = this.pr.get(pid);
+        if (sk.debuff) this.addBuff(pid, sk.debuff);
+        if (sk.dot && pr && !this.mods(pr).immune) pr.poison = { until: now() + sk.dot.ms, dmg: Math.max(1, Math.round(r.stats.atk * sk.dot.pct / 100)) };
+        if (sk.knock) { // ผลักออกจากบอส
+          const a = Math.atan2(pp.y - m.y, pp.x - m.x);
+          for (let k = sk.knock; k > 0; k -= 15) { const nx = pp.x + Math.cos(a) * k, ny = pp.y + Math.sin(a) * k; if (this.canStand(nx, ny)) { pp.x = nx; pp.y = ny; break; } }
+          if (pr) { pr.nav = null; pr.moveTarget = null; }
+        }
+      });
+      if (sk.heal && hits) m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * sk.heal * hits));
+      this.broadcast("bossSkillHit", { id, key: sk.key, s, hits });
+    }
+    if (S.shapes.every((s) => s.done)) { r.sk = null; r.nextAny = t + 1800; r.atkReady = t + 700; }
   }
   bossSummon(m, B) {
     const def = D.MONSTERS[B.summon.kind];

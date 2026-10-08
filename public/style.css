@@ -831,3 +831,5 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 .rb-job.sel { border-color: var(--jc); box-shadow: 0 0 0 1px var(--jc) inset; background: #ffffff14; }
 .rb-job.cur { opacity: .45; cursor: default; }
 .rb-sec .btn-gold { width: 100%; margin-top: 4px; }
+.buff.debuff { background: #5a101888 !important; border-color: #ff5a5a !important; color: #ffb0b0; }
+.bmeta.bskills { color: #ffb0a0; }

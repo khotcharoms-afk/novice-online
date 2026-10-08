@@ -250,6 +250,11 @@ const WORLD_BOSSES = {
     slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
     summon: { at: [0.6, 0.3], kind: "orcchief", n: 3 },
     enrage: 0.3,
+    // สกิลเฉพาะตัว (ดู WorldRoom.bossSkill): พุ่งชนเป็นแนวยาว · คำรามโลหิต (ทำให้หวาดกลัว + ฟื้นเลือดตามคนที่โดน)
+    skills: [
+      { key: "bullrush", name: "พุ่งชนกระทิงคลั่ง", every: 11000, cast: 1000, range: 380, len: 380, w: 80, mult: 2.3 },
+      { key: "bloodroar", name: "คำรามโลหิต", every: 20000, cast: 900, range: 260, r: 270, mult: 0.8, debuff: "b_weak", heal: 0.02 },
+    ],
     // set = ชุดพิเศษของบอส: ดรอปแน่นอน 1 ชิ้นต่อการปราบ (สุ่มชิ้น ระดับน้ำเงินขึ้นไป · ใครก็เก็บได้)
     loot: { gear: 4, set: ["azure_helm", "azure_plate", "azure_gaunt", "azure_boots", "azure_cape", "azure_blade"], pool: ["goldhelm", "goldplate", "goldgaunt", "goldboots", "cape_shadow", "shades_hawk", "moonblade", "shield_spartan", "war_horn",
       "quiver_wind", "orb_star", "relic_holy", "judgehammer", "shadow_kris", "titanaxe", "bow_shadow", "staff_crystal", "book_holy",
@@ -260,18 +265,28 @@ const WORLD_BOSSES = {
     name: "จอมลิชราตรี", level: 60, sprite: "lich", tint: 0xb07aff, scale: 2.2, speed: 75, aggressive: true,
     maps: ["ruins", "cursed"], every: [90, 120],
     hpMul: 250, atkMul: 1.55, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
-    slam: { every: 8000, cast: 1200, r: 150, mult: 2.3 },
     summon: { at: [0.6, 0.3], kind: "skelknight", n: 4 },
     enrage: 0.3,
+    // ฝนหอกน้ำแข็งตกใส่ทุกคน (ช้าลง) · ตราแห่งความตาย (วงใหญ่ตามตัว — ต้องหนีออก) · คลื่นวิญญาณ (ปลอดภัยเฉพาะชิดตัวบอส)
+    skills: [
+      { key: "frostrain", name: "พายุหอกน้ำแข็ง", every: 9000, cast: 1300, range: 420, r: 75, n: 6, mult: 1.6, debuff: "b_chill" },
+      { key: "deathmark", name: "ตราแห่งความตาย", every: 14000, cast: 2300, range: 420, r: 125, mult: 2.6, dot: { ms: 6000, pct: 8 } },
+      { key: "soulnova", name: "คลื่นวิญญาณ", every: 19000, cast: 1700, range: 320, r0: 110, r: 330, mult: 2.0 },
+    ],
     loot: { gear: 4, cls: [50, 50, 70], pool: [], items: [["stone_3", 4, 6], ["potion_l", 5, 8], ["spirit_shard", 3, 5]] },
   },
   abyssdragon: {
-    name: "มังกรอเวจีนิรันดร์", level: 90, sprite: "wyvern", tint: 0x8a4aff, scale: 2.5, speed: 85, aggressive: true,
+    name: "มังกรอเวจีนิรันดร์", level: 90, sprite: "dragon_abyss", tint: 0xffffff, scale: 2.4, speed: 85, aggressive: true,
     maps: ["dragon", "abyss"], every: [120, 180],
     hpMul: 250, atkMul: 1.6, defMul: 1.7, expMul: 45, goldMul: 30, range: 80,
-    slam: { every: 7500, cast: 1100, r: 165, mult: 2.4 },
     summon: { at: [0.6, 0.3], kind: "dragonknight", n: 4 },
     enrage: 0.35,
+    // พ่นไฟอเวจีเป็นรูปกรวย · ฝนอุกกาบาต · พายุปีก (ผลักทุกคนกระเด็น)
+    skills: [
+      { key: "breath", name: "ลมหายใจอเวจี", every: 8000, cast: 1100, range: 320, r: 340, arc: 1.25, mult: 2.4, dot: { ms: 5000, pct: 7 } },
+      { key: "meteor", name: "ฝนอุกกาบาต", every: 13000, cast: 1500, range: 450, r: 90, n: 7, mult: 2.1, dot: { ms: 4000, pct: 6 } },
+      { key: "wingstorm", name: "พายุปีกอเวจี", every: 17000, cast: 800, range: 200, r: 200, mult: 1.3, knock: 150 },
+    ],
     loot: { gear: 5, cls: [70, 90, 90], pool: [], items: [["stone_3", 6, 9], ["potion_xl", 5, 8], ["spirit_shard", 5, 8]] },
   },
 };
@@ -420,6 +435,9 @@ const BUFFS = {
   fury: { name: "โทสะ", ms: 10000, atk: 1.3, aspd: 0.8 },
   swift: { name: "ฝีเท้าลม", ms: 10000, speed: 1.4, flee: 0.15 },
   bless: { name: "พรแห่งแสง", ms: 60000, atk: 1.15, def: 1.15 },
+  // ดีบัฟจาก World Boss
+  b_weak: { name: "หวาดกลัว", ms: 6000, atk: 0.75, debuff: true },
+  b_chill: { name: "หนาวเหน็บ", ms: 3500, speed: 0.55, aspd: 1.25, debuff: true },
 };
 Object.assign(BUFFS, J2.BUFFS2);
 // ต้นไม้สกิล: แต่ละแท็บ = รายการแถว (I, II, III) ของสกิล

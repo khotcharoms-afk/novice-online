@@ -113,31 +113,40 @@ def slime(c, d, kind, f, n, P):
 
 # ---------------- ค้างคาว ----------------
 def bat(c, d, kind, f, n, P):
-    flap = math.sin(f / max(1, n) * math.pi * 2 * (1 if kind != "walk" else 1)) if kind != "hurt" else -0.6
+    """ค้างคาว: ปีกพังผืดกว้างมีกระดูกนิ้ว · หูแหลมใหญ่ · เขี้ยว · ตาเรืองแสง"""
+    flap = math.sin(f / max(1, n) * math.pi * 2) if kind != "hurt" else -0.6
     bob = math.sin(f / max(1, n) * math.pi * 2) * 2
-    cx, cy = 32, 30 + bob
-    if kind == "slash": t = math.sin(f / (n - 1) * math.pi); cx += t * 8 * {"left": -1, "right": 1}.get(d, 0); cy += t * 8 * {"down": 1, "up": -1}.get(d, 0) + t * 6
-    if kind == "hurt": cy += f * 4; flap = -0.8
-    s = P.get("size", 1) * 1.35
-    wy = flap * 9 * s
+    cx, cy = 32, 32 + bob
+    if kind == "slash": t = math.sin(f / (n - 1) * math.pi); cx += t * 8 * {"left": -1, "right": 1}.get(d, 0); cy += t * 8 * {"down": 1, "up": -1}.get(d, 0) + t * 5
+    if kind == "hurt": cy += f * 4; flap = -0.9
+    s = P.get("size", 1) * 1.5
+    wy = flap * 10 * s
     side = d in ("left", "right")
     for sgn in ([-1, 1] if not side else [1 if d == "left" else -1]):
-        if side: sgn = -sgn  # ปีกด้านไกลเห็นด้านหลัง
-        span = (17 if not side else 13) * s
-        tip = (cx + sgn * span, cy - 4 - wy)
-        pts = [(cx + sgn * 3, cy - 3), tip, (cx + sgn * span * 0.85, cy + 4 - wy * 0.4), (cx + sgn * span * 0.55, cy + 1 - wy * 0.2),
-               (cx + sgn * span * 0.4, cy + 6 - wy * 0.1), (cx + sgn * 3, cy + 3)]
-        c.poly(pts, P["w"], 1)
-        c.line(cx + sgn * 3, cy - 2, tip[0], tip[1], 1, P["w"], 0)
-    c.ell(cx, cy, 6.5 * s, 7 * s, P["c"])
+        if side: sgn = -sgn
+        span = (19 if not side else 15) * s
+        sh = (cx + sgn * 4, cy - 3)
+        f1 = (cx + sgn * span, cy - 7 - wy)
+        f2 = (cx + sgn * span * 0.82, cy + 2 - wy * 0.5)
+        f3 = (cx + sgn * span * 0.5, cy + 5 - wy * 0.25)
+        pts = [sh, f1, (cx + sgn * span * 0.93, cy - 1 - wy * 0.75), f2, (cx + sgn * span * 0.66, cy + 5 - wy * 0.35), f3, (cx + sgn * span * 0.32, cy + 8 - wy * 0.1), (cx + sgn * 4, cy + 5)]
+        c.poly(pts, P["w"], 2)
+        for q in (f1, f2, f3): c.line(sh[0], sh[1], q[0], q[1], 1, P["w"], 0)
+        c.line(sh[0], sh[1], f1[0], f1[1], 1.6, P["c"], 0)
+        c.dot(f1[0], f1[1], (230, 220, 210), 0.7)  # กรงเล็บปลายปีก
+    c.ell(cx, cy + 1, 6.5 * s, 7.5 * s, P["c"])
+    if d != "up": c.ell(cx, cy + 3, 3.6 * s, 5 * s, P.get("belly", P["c"]), flat=3)
     ex = {"left": -1.5, "right": 1.5}.get(d, 0)
-    for sgn in (-1, 1):
-        c.poly([(cx + sgn * 2 + ex, cy - 5 * s), (cx + sgn * 5 + ex, cy - 12 * s), (cx + sgn * 5.5 + ex, cy - 4 * s)], P["c"], 1)
+    hy = cy - 6 * s
+    c.ell(cx + ex, hy, 5 * s, 4.4 * s, P["c"])
+    for sgn in (-1, 1):  # หูใหญ่แหลม
+        c.poly([(cx + sgn * 2 + ex, hy - 2 * s), (cx + sgn * 6.5 + ex, hy - 10 * s), (cx + sgn * 5.5 + ex, hy - 1 * s)], P["c"], 1)
+        c.poly([(cx + sgn * 3 + ex, hy - 2.5 * s), (cx + sgn * 5.8 + ex, hy - 8 * s), (cx + sgn * 5 + ex, hy - 2 * s)], P["w"], 3)
     if d != "up":
-        for x in ([cx - 2.5, cx + 2.5] if d == "down" else [cx + ex * 2]):
-            c.dot(x, cy - 1.5, P.get("eye", (255, 60, 60)), 1.3)
-        c.dot(cx - 1 + ex, cy + 2.5, (255, 255, 255), 0.6); c.dot(cx + 1 + ex, cy + 2.5, (255, 255, 255), 0.6)
-    if kind == "cast" and f in (2, 3, 4): c.ell(cx, cy - 16, 3.5, 3.5, P.get("eye", (255, 60, 60)), flat=4, alpha=0.75)
+        for x in ([cx - 2.2 * s, cx + 2.2 * s] if d == "down" else [cx + ex * 2.2]):
+            c.dot(x, hy - 0.5, P.get("eye", (255, 60, 60)), 1.4); c.dot(x, hy - 0.5, (255, 255, 230), 0.5)
+        c.dot(cx - 1.2 + ex, hy + 3.4, (255, 255, 255), 0.7); c.dot(cx + 1.2 + ex, hy + 3.4, (255, 255, 255), 0.7)  # เขี้ยว
+    if kind == "cast" and f in (2, 3, 4): c.ell(cx, cy - 20, 3.5, 3.5, P.get("eye", (255, 60, 60)), flat=4, alpha=0.75)
 
 # ---------------- ผี ----------------
 def ghost(c, d, kind, f, n, P):
@@ -361,25 +370,37 @@ def eye(c, d, kind, f, n, P):
 
 # ---------------- ภูตไฟ / ภูตน้ำแข็ง ----------------
 def wisp(c, d, kind, f, n, P):
+    """ภูตไฟ/น้ำแข็ง: เปลวไฟรูปหยดน้ำกลับหัว ปลายลิ้นไฟพลิ้วขึ้นข้างบน แกนสว่างจ้า มีตาสองดวงในเปลว"""
     rnd = np.random.RandomState(f * 7 + DIRS.index(d) * 13 + {"walk": 0, "slash": 1, "hurt": 2, "cast": 3}[kind] * 101)
-    cx, cy = 32, 36 + math.sin(f / max(1, n) * math.pi * 2) * 2
-    s = P.get("size", 1); a = 0.9
-    if kind == "slash": t = math.sin(f / (n - 1) * math.pi); cx += t * 8 * {"left": -1, "right": 1}.get(d, 0); cy += t * 7 * {"down": 1, "up": -1}.get(d, 0); s *= 1 + t * 0.2
-    if kind == "hurt": s *= 1 - f / n * 0.6; a *= 1 - f / n * 0.5
+    ph = f / max(1, n) * math.pi * 2
+    cx, cy = 32, 40 + math.sin(ph) * 2
+    s = P.get("size", 1) * 1.15; a = 0.95
+    if kind == "slash": t = math.sin(f / (n - 1) * math.pi); cx += t * 8 * {"left": -1, "right": 1}.get(d, 0); cy += t * 7 * {"down": 1, "up": -1}.get(d, 0); s *= 1 + t * 0.25
+    if kind == "hurt": s *= 1 - f / n * 0.7; a *= 1 - f / n * 0.6
+    if kind == "cast": s *= 1 + math.sin(f / (n - 1) * math.pi) * 0.2
     R = ramp(P["c"])
-    for layer, (sc, sh) in enumerate(((1.0, 1), (0.72, 2), (0.45, 3), (0.22, 4))):
+    lean = {"left": 3, "right": -3}.get(d, 0)
+    for layer, (sc, sh) in enumerate(((1.0, 1), (0.76, 2), (0.52, 3), (0.3, 4))):
+        Rr = 10 * sc * s
         pts = []
-        for i in range(12):
-            ang = i / 12 * math.pi * 2
-            rr = (10 + (6 if math.sin(ang) < -0.3 else 0) * (1 + rnd.rand() * 0.5)) * sc * s
-            if math.sin(ang) < -0.5: rr += rnd.rand() * 6 * sc * s  # เปลวด้านบน
-            pts.append((cx + math.cos(ang) * rr * 0.85, cy + math.sin(ang) * rr - (4 * sc * s if math.sin(ang) < 0 else 0)))
+        for i in range(13):  # ครึ่งล่างกลม
+            u = math.pi * i / 12
+            pts.append((cx + math.cos(u) * Rr, cy + math.sin(u) * Rr * 0.9))
+        # ครึ่งบน: ลิ้นไฟ 3 แฉกแหลม พลิ้วตามเฟรม
+        tongues = [(-0.55, 1.1 + 0.3 * math.sin(ph + 1)), (0.0, 2.0 + 0.35 * math.sin(ph * 1.3)), (0.55, 1.2 + 0.3 * math.sin(ph + 2.4))]
+        for i in range(25):
+            xx = -1 + i / 12  # ต่อจากครึ่งล่าง (จบที่ซ้าย) ไล่ไปขวา
+            h = 0.25 + sum(hh * math.exp(-((xx - x0) / 0.2) ** 2) for x0, hh in tongues)
+            h *= 1 - xx * xx * 0.35
+            bend = lean * h * 0.5 + math.sin(ph * 2 + h * 2) * h * 1.2
+            pts.append((cx + xx * Rr + bend, cy - h * Rr))
         c.poly(pts, R, sh, a)
-    if d != "up":
+    if d != "up" and kind != "hurt":
         ex = {"left": -3, "right": 3}.get(d, 0)
         for x in ([cx - 3.5, cx + 3.5] if d == "down" else [cx + ex]):
-            c.ell(x, cy + 1, 1.6, 2.4, (30, 14, 20), flat=0, alpha=0.9)
-    for i in range(3): c.dot(cx + rnd.randn() * 8, cy - 14 - rnd.rand() * 8, R[4], 0.9, 0.8)
+            c.ell(x, cy + 1, 1.5, 2.4, (40, 14, 20), flat=0, alpha=0.9)
+            c.dot(x, cy, (255, 255, 255), 0.5)
+    for i in range(4): c.dot(cx + rnd.randn() * 7, cy - 18 - rnd.rand() * 10, R[4], 0.9, 0.8)
 
 # ---------------- ต้นไม้กินคน ----------------
 def plant(c, d, kind, f, n, P):
@@ -413,7 +434,131 @@ def plant(c, d, kind, f, n, P):
     if kind == "cast" and f in (2, 3, 4, 5):
         for i in range(4): c.dot(hx + math.cos(i * 1.6 + f) * 12, hy - 8 - (f * 2 + i * 3) % 10, P.get("spore", (220, 120, 255)), 1.2, 0.85)
 
-BODIES = {"slime": slime, "bat": bat, "ghost": ghost, "mushroom": mushroom, "spider": spider, "golem": golem, "eye": eye, "wisp": wisp, "plant": plant}
+
+# ---------------- มังกร (ไวเวิร์น / มังกรอเวจี) ----------------
+def dragon(c, d, kind, f, n, P):
+    """มังกรยืนสองขา ปีกค้างคาวใหญ่ คอยาว หัวมีเขาโค้ง ตาเรืองแสง หางแหลม · โจมตี = ยื่นคอกัด · ร่ายเวท = ยืดตัวกางปีก พ่นไฟในปาก"""
+    ph = f / max(1, n) * math.pi * 2
+    s = P.get("size", 1)
+    body, wingc, belly, eye, fire, horn = P["c"], P["w"], P["belly"], P["eye"], P["fire"], P.get("horn", (225, 215, 200))
+    cx, base = 32, 61
+    flap = math.sin(ph) * 3 if kind == "walk" else 0
+    bob = math.sin(ph) * 1.2 if kind == "walk" else 0
+    lunge = 0; jaw = 0.25; rear = 0; droop = 0
+    if kind == "slash":
+        t = math.sin(f / (n - 1) * math.pi); lunge = t; jaw = 0.25 + t * 0.9; flap = -t * 2
+    if kind == "cast":
+        t = math.sin(min(1, f / (n - 2)) * math.pi * 0.5); rear = t; flap = -6 * t; jaw = 0.3 + t * 0.8
+    if kind == "hurt":
+        droop = f / max(1, n - 1); bob = droop * 10; flap = droop * 8
+    fw = {"left": -1, "right": 1}.get(d, 0)
+    side = fw != 0
+    by = base - 22 * s + bob - rear * 3
+    def wing(sx, sy, tipx, tipy, backx, backy, shade=1):
+        # กระดูกปีก 3 นิ้ว + พังผืดหยัก
+        f1 = (tipx, tipy)
+        f2 = (sx + (tipx - sx) * 0.75 + (backx - sx) * 0.35, sy + (tipy - sy) * 0.55 + (backy - sy) * 0.5)
+        f3 = (sx + (backx - sx) * 0.8, sy + (backy - sy) * 0.75)
+        mid = lambda a, b, k: ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + k)
+        pts = [(sx, sy), f1, mid(f1, f2, 4), f2, mid(f2, f3, 4), f3, (backx, backy)]
+        c.poly(pts, wingc, shade)
+        for q in (f1, f2, f3): c.line(sx, sy, q[0], q[1], 1.6, body, 0)
+        c.dot(f1[0], f1[1], horn, 1.0)
+    def head(hx, hy, look, jawk):
+        """look: -1/1 = ด้านข้าง (ทิศที่หัน) · 0 = หันหน้า · 2 = หันหลัง"""
+        if look == 2:
+            c.ell(hx, hy, 6.5 * s, 5.5 * s, body)
+            for sg in (-1, 1): c.poly([(hx + sg * 3, hy - 3), (hx + sg * 9, hy - 11), (hx + sg * 6, hy - 2)], horn, 2)
+            return
+        if look == 0:
+            for sg in (-1, 1):  # เขาโค้งไปด้านหลัง
+                c.poly([(hx + sg * 3, hy - 3), (hx + sg * 8, hy - 9), (hx + sg * 11, hy - 14), (hx + sg * 9, hy - 7), (hx + sg * 6, hy - 1)], horn, 2)
+            c.ell(hx, hy, 7 * s, 5.5 * s, body)
+            c.ell(hx, hy + 4.5 * s, 4.8 * s, 3.2 * s, body)                     # ปาก
+            if jawk > 0.4:
+                c.ell(hx, hy + 7 * s, 3.6 * s, 2.2 * s * jawk, (60, 10, 20), flat=0)
+                for i in range(4): c.dot(hx - 2.4 + i * 1.6, hy + 5.6 * s, (250, 245, 230), 0.5)
+                if kind == "cast": c.ell(hx, hy + 7 * s, 3 * s, 2 * s, fire, flat=4)
+            for sg in (-1, 1):
+                c.line(hx + sg * 1.5, hy - 1.2, hx + sg * 5, hy - 2.2, 1, (20, 10, 10), 0)          # คิ้วดุ
+                c.ell(hx + sg * 3.2, hy, 1.7, 1.0, eye, flat=4); c.ell(hx + sg * 3.2, hy, 2.8, 1.8, eye, flat=3, alpha=0.35)
+            c.dot(hx - 1.2, hy + 4.2 * s, (20, 8, 10), 0.5); c.dot(hx + 1.2, hy + 4.2 * s, (20, 8, 10), 0.5)
+            return
+        L = look
+        c.poly([(hx - L * 2, hy - 3), (hx - L * 8, hy - 8), (hx - L * 12, hy - 7), (hx - L * 7, hy - 2)], horn, 2)  # เขาโค้งไปข้างหลัง
+        c.ell(hx, hy, 6 * s, 4.6 * s, body)
+        c.ell(hx + L * 6 * s, hy + 1.4, 5 * s, 2.6 * s, body)                 # จมูก/ปากบน
+        c.ell(hx + L * 5 * s, hy + 3.2 + jawk * 3, 4.4 * s, 1.6 * s, body, flat=1)  # ขากรรไกรล่าง
+        if jawk > 0.4:
+            c.poly([(hx + L * 2, hy + 3), (hx + L * 10, hy + 3), (hx + L * 9, hy + 3 + jawk * 3)], (60, 10, 20), 0)
+            for i in range(3): c.dot(hx + L * (4 + i * 2), hy + 3.4, (250, 245, 230), 0.5)
+            if kind == "cast": c.ell(hx + L * 10, hy + 3.5, 3, 2.4, fire, flat=4)
+        c.ell(hx + L * 1.5, hy - 1.2, 1.8, 1.0, eye, flat=4); c.ell(hx + L * 1.5, hy - 1.2, 2.8, 1.8, eye, flat=3, alpha=0.35)
+        c.line(hx - L * 0.5, hy - 2.8, hx + L * 4, hy - 2, 1, (20, 10, 10), 0)
+        c.dot(hx + L * 10, hy + 0.6, (20, 8, 10), 0.5)
+    if not side:
+        back = d == "up"
+        # ปีกสองข้าง (หลังตัว)
+        for sg in (-1, 1):
+            wing(cx + sg * 6, by - 8, cx + sg * 31, by - 30 + flap + droop * 10, cx + sg * 9, by + 10, 1)
+        # หาง
+        if back:
+            for i in range(6): c.ell(cx + math.sin(i * 0.6 + ph * 0.3) * 3, by + 12 + i * 2.2, (5 - i * 0.6) * s, 3 * s, body)
+            c.poly([(cx - 3, base), (cx, base + 3), (cx + 3, base)], horn, 2)
+        else:
+            for i in range(6): c.ell(cx + 10 + i * 3, base - 4 - i * 0.6 + math.sin(i + ph) * 0.8, (4 - i * 0.45) * s, (3 - i * 0.3) * s, body)
+            c.poly([(cx + 26, base - 9), (cx + 31, base - 8), (cx + 27, base - 4)], horn, 2)
+        # ขา
+        for sg in (-1, 1):
+            st = math.sin(ph + (0 if sg > 0 else math.pi)) * 1.5 if kind == "walk" else 0
+            c.ell(cx + sg * 8, base - 9 - max(0, st), 5.5 * s, 7 * s, body)
+            c.ell(cx + sg * 9, base - 2.5, 4.5 * s, 2.5 * s, body, flat=1)
+            for k in (-1, 0, 1): c.dot(cx + sg * 9 + k * 2.2, base - 0.6, horn, 0.6)
+        # ลำตัว + ท้อง
+        c.ell(cx, by + 4, 11 * s, 13 * s, body)
+        if not back:
+            c.ell(cx, by + 6, 6 * s, 10 * s, belly)
+            for i in range(5): c.line(cx - 4.5, by - 1 + i * 3.4, cx + 4.5, by - 1 + i * 3.4, 1, belly, 1, 0.8)
+            for sg in (-1, 1): c.ell(cx + sg * 9, by + 2 - lunge * 2, 2.6 * s, 4 * s, body)            # แขนเล็ก
+        else:
+            for i in range(6): c.poly([(cx - 2, by - 6 + i * 4), (cx, by - 10 + i * 4), (cx + 2, by - 6 + i * 4)], P.get("spike", horn), 3)
+        # คอ + หัว
+        hy = by - 16 * s - rear * 3 + lunge * 5
+        c.ell(cx, by - 8, 5.5 * s, 7 * s, body)
+        if not back: c.ell(cx, by - 7, 3 * s, 5.5 * s, belly)
+        head(cx, hy, 2 if back else 0, jaw)
+    else:
+        L = fw
+        # ปีกด้านไกล
+        wing(cx - L * 2, by - 8, cx - L * 20, by - 34 + flap + droop * 10, cx - L * 15, by + 4, 0)
+        # หาง (ด้านหลัง) + ขาหลัง
+        for i in range(7): c.ell(cx - L * (10 + i * 3), base - 6 - math.sin(i * 0.5) * 3 + math.sin(i + ph) * 0.8, (4.5 - i * 0.5) * s, (3.2 - i * 0.3) * s, body)
+        tx = cx - L * 31; c.poly([(tx + L * 2, base - 12), (tx - L * 4, base - 10), (tx + L * 1, base - 6)], horn, 2)
+        st = math.sin(ph) * 2 if kind == "walk" else 0
+        c.ell(cx - L * 5 + st * L, base - 9, 5.5 * s, 7 * s, body, flat=1)
+        c.ell(cx - L * 4 + st * L, base - 2.5, 4.5 * s, 2.3 * s, body, flat=0)
+        # ลำตัว
+        c.ell(cx - L * 1, by + 5, 13 * s, 10.5 * s, body)
+        c.ell(cx + L * 2, by + 9, 8 * s, 5.5 * s, belly)
+        for i in range(5): c.poly([(cx - L * (9 - i * 3.5), by - 4 + i * 0.3), (cx - L * (7.5 - i * 3.5), by - 9 + i * 0.4), (cx - L * (6 - i * 3.5), by - 4 + i * 0.3)], P.get("spike", horn), 3)
+        # ขาหน้า
+        c.ell(cx + L * 6 - st * L, base - 9, 5 * s, 7 * s, body)
+        c.ell(cx + L * 7 - st * L, base - 2.5, 4.5 * s, 2.3 * s, body, flat=1)
+        for k in (0, 1, 2): c.dot(cx + L * (8.5 + k * 1.5) - st * L, base - 0.8, horn, 0.6)
+        # คอโค้ง → หัว
+        hx = cx + L * (12 + lunge * 8); hy = by - 16 * s - rear * 3 + lunge * 3
+        for i in range(5):
+            k = i / 4
+            nx = cx + L * 6 + (hx - L * 3 - (cx + L * 6)) * k; ny = by - 2 + (hy + 3 - (by - 2)) * k - math.sin(k * math.pi) * 3
+            c.ell(nx, ny, (5 - k * 1.2) * s, (5 - k * 1.2) * s, body)
+            c.ell(nx + L * 1.5, ny + 1.5, (2.6 - k * 0.6) * s, (3 - k * 0.6) * s, belly, flat=2)
+        head(hx, hy, L, jaw)
+        # ปีกด้านใกล้ (พับครึ่ง ชี้ขึ้น)
+        wing(cx + L * 1, by - 6, cx - L * 10, by - 36 + flap * 1.2 + droop * 10, cx - L * 12, by + 6, 2)
+    if kind == "cast" and 2 <= f <= 5:
+        for i in range(6): c.dot(cx + math.cos(i * 1.1 + f) * 22, by - 6 + math.sin(i * 1.7 + f) * 14, fire, 1.2, 0.85)
+
+BODIES = {"slime": slime, "bat": bat, "ghost": ghost, "mushroom": mushroom, "spider": spider, "golem": golem, "eye": eye, "wisp": wisp, "plant": plant, "dragon": dragon}
 # ชนิดมอน: body + สี
 CREATURES = {
     "slime_green":  ("slime", dict(c=(90, 200, 90))),
@@ -421,9 +566,9 @@ CREATURES = {
     "slime_poison": ("slime", dict(c=(150, 80, 200), angry=True)),
     "slime_lava":   ("slime", dict(c=(240, 90, 30), core=(255, 230, 120), alpha=0.97, angry=True)),
     "slime_abyss":  ("slime", dict(c=(80, 30, 110), core=(255, 80, 220), angry=True, size=1.15)),
-    "bat_brown":    ("bat", dict(c=(110, 80, 70), w=(90, 60, 60), eye=(255, 210, 60))),
-    "bat_vampire":  ("bat", dict(c=(60, 40, 70), w=(130, 30, 50), eye=(255, 50, 50), size=1.15)),
-    "bat_drake":    ("bat", dict(c=(60, 120, 70), w=(200, 120, 40), eye=(255, 230, 80), size=1.25)),
+    "bat_brown":    ("bat", dict(c=(104, 76, 66), w=(120, 84, 80), belly=(150, 118, 100), eye=(255, 210, 60))),
+    "bat_vampire":  ("bat", dict(c=(52, 34, 62), w=(140, 36, 58), belly=(90, 60, 100), eye=(255, 50, 50), size=1.12)),
+    "bat_drake":    ("bat", dict(c=(56, 116, 70), w=(206, 124, 44), belly=(200, 190, 120), eye=(255, 230, 80), size=1.2)),
     "ghost_white":  ("ghost", dict(c=(225, 235, 245))),
     "ghost_dark":   ("ghost", dict(c=(110, 80, 150), glow=(255, 90, 200), size=1.1)),
     "ghost_abyss":  ("ghost", dict(c=(60, 30, 80), glow=(255, 60, 160), size=1.2, alpha=0.88)),
@@ -439,6 +584,8 @@ CREATURES = {
     "wisp_frost":   ("wisp", dict(c=(130, 210, 255))),
     "wisp_fire":    ("wisp", dict(c=(255, 120, 30))),
     "plant_bog":    ("plant", dict(c=(170, 40, 60), leaf=(60, 130, 50), spore=(220, 255, 120))),
+    "wyvern":       ("dragon", dict(c=(60, 118, 84), w=(150, 80, 44), belly=(214, 196, 132), eye=(255, 220, 60), fire=(255, 150, 40), spike=(230, 210, 150))),
+    "dragon_abyss": ("dragon", dict(c=(64, 36, 96), w=(78, 28, 104), belly=(150, 92, 172), eye=(255, 80, 220), fire=(255, 110, 230), horn=(225, 205, 235), spike=(255, 70, 200))),
     "plant_cursed": ("plant", dict(c=(110, 40, 140), leaf=(50, 80, 60), spot=(255, 120, 230), spore=(220, 120, 255))),
 }
 LAYOUT = [("walk", 0, 9), ("slash", 4, 6), ("hurt", 8, 6), ("cast", 9, 7)]
