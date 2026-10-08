@@ -1099,6 +1099,7 @@ class WorldRoom extends Room {
     if (p.dead || t < (r.spReady || 0)) return;
     const k = S.skill, P = SP.power(s);
     if (S.role === "heal") {
+      const P = SP.healPower(s);
       const hpLow = p.hp < (p.maxHp * k.below) / 100, spLow = k.spPct && p.sp < (p.maxSp * k.below) / 100;
       const hurt = hpLow || spLow || (k.cleanse && r.poison);
       if (!hurt) return;

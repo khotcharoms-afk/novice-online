@@ -14,7 +14,7 @@ const SPIRITS = {
     skill: { name: "ลูกไฟ", every: 3000, mult: 0.6, range: 260, fx: "fire" },
     desc: "ยิงลูกไฟใส่ศัตรูที่เรากำลังสู้อยู่" },
   sp_spring: { name: "ภูติธารา อควอรา", role: "heal", color: "#5fd0ff", lv: 5,
-    skill: { name: "สายธารชุบชีวิต", every: 7000, healPct: 6, spPct: 4, below: 80 },
+    skill: { name: "สายธารชุบชีวิต", every: 7000, healPct: 5, spPct: 3, below: 60 },
     desc: "ฟื้นฟู HP และ SP ให้เราเมื่อ HP หรือ SP ต่ำกว่า 80%" },
   sp_frost: { name: "ภูติหิมะ ฟรอสตี้", role: "dmg", color: "#9fe3ff", lv: 5,
     skill: { name: "หอกน้ำแข็ง", every: 4000, mult: 0.75, range: 260, fx: "ice", slow: 1800 },
@@ -23,7 +23,7 @@ const SPIRITS = {
     skill: { name: "สายฟ้าลูกโซ่", every: 5000, mult: 0.55, range: 280, fx: "bolt", chain: 3 },
     desc: "ปล่อยสายฟ้ากระโดดใส่ศัตรูรอบตัวสูงสุด 3 ตัว" },
   sp_lumi: { name: "ภูติแสง ลูมิน่า", role: "heal", color: "#fff1a0", lv: 5,
-    skill: { name: "พรแห่งแสง", every: 8000, healPct: 8, spPct: 5, below: 85, cleanse: true },
+    skill: { name: "พรแห่งแสง", every: 8000, healPct: 6, spPct: 3.5, below: 60, cleanse: true },
     desc: "ฟื้นฟู HP และ SP ให้เราเมื่อ HP หรือ SP ต่ำกว่า 85% และล้างพิษออก" },
   sp_shadow: { name: "ภูติเงา นอกซ์", role: "dmg", color: "#b06aff", lv: 5,
     skill: { name: "เขี้ยวเงา", every: 3500, mult: 0.8, range: 240, fx: "dark", drain: 30 },
@@ -71,6 +71,8 @@ const QUEST_RARITY = 1; // ได้จากเควส = ระดับด�
 const expNeed = (lv) => Math.round(80 * Math.pow(lv, 1.9));
 // พลังรวมของภูติ (ใช้คูณดาเมจ/ฮีล): ระดับสี × เลเวล
 const power = (s) => RAR_MUL[Math.max(0, Math.min(4, s.r | 0))] * (1 + ((s.lv || 1) - 1) * 0.015) * (1 + (s.st | 0) * STAGE_POWER);
+// ภูติสายฮีล: โตช้ากว่าสายโจมตี (ได้แค่ 35% ของพลังที่เพิ่ม) — ช่วยประคอง ไม่ใช่แทนหมอ
+const healPower = (s) => 1 + (power(s) - 1) * 0.35;
 const cooldown = (s) => Math.round(SPIRITS[s.id].skill.every * (1 - (s.st | 0) * STAGE_CD));
 
 function norm(o) {
@@ -86,8 +88,9 @@ function info(s) {
   const S = SPIRITS[s.id], k = S.skill, P = power(s), cap = capOf(s.st);
   const out = { power: Math.round(P * 100), need: s.lv >= SPIRIT_MAX_LV ? 0 : expNeed(s.lv), cap, cd: cooldown(s), stage: STAGE_NAME[s.st | 0] };
   if (k.mult) out.dmg = Math.round(k.mult * P * 100);
-  if (k.healPct) out.heal = +(k.healPct * P).toFixed(1);
-  if (k.spPct) out.sp = +(k.spPct * P).toFixed(1);
+  if (k.healPct) out.heal = +(k.healPct * healPower(s)).toFixed(1);
+  if (k.spPct) out.sp = +(k.spPct * healPower(s)).toFixed(1);
+  if (k.below) out.below = k.below;
   if (k.drain) out.drain = k.drain;
   out.up = UPGRADE[s.r] || null;
   out.brk = (s.st | 0) < 4 ? BREAK[s.st | 0] : null;   // ของที่ต้องใช้ข้ามขีดจำกัดครั้งถัดไป
@@ -95,4 +98,4 @@ function info(s) {
   return out;
 }
 
-module.exports = { SPIRITS, SPIRIT_QUESTS, SPIRIT_MAX_LV, RAR_MUL, EXP_SHARE, UPGRADE, QUEST_RARITY, STAGE_NAME, BREAK, STAGE_POWER, STAGE_CD, capOf, cooldown, expNeed, power, norm, info };
+module.exports = { healPower, SPIRITS, SPIRIT_QUESTS, SPIRIT_MAX_LV, RAR_MUL, EXP_SHARE, UPGRADE, QUEST_RARITY, STAGE_NAME, BREAK, STAGE_POWER, STAGE_CD, capOf, cooldown, expNeed, power, norm, info };

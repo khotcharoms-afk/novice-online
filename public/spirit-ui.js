@@ -30,7 +30,8 @@ function renderSpirit() {
   const mob = gameData.mobs[q.kill[0]], item = itemOf(q.item[0]);
   const eff = [];
   if (k.mult) eff.push(`ดาเมจ ${Math.round(k.mult * mul * 100)}% ของพลังโจมตีเรา${k.chain ? ` · กระโดดได้ ${k.chain} ตัว` : ""}${k.slow ? ` · ทำให้ช้า ${k.slow / 1000} วิ` : ""}${k.drain ? ` · ดูดเป็น HP ${k.drain}%` : ""}`);
-  if (k.healPct) eff.push(`ฟื้น HP ${(k.healPct * mul).toFixed(1)}%${k.spPct ? ` + SP ${(k.spPct * mul).toFixed(1)}%` : ""} เมื่อ HP${k.spPct ? " หรือ SP" : ""} ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
+  const hm = 1 + (mul - 1) * 0.35; // ภูติสายฮีลโตช้ากว่า (ตรงกับเซิร์ฟเวอร์ healPower)
+  if (k.healPct) eff.push(`ฟื้น HP ${(k.healPct * hm).toFixed(1)}%${k.spPct ? ` + SP ${(k.spPct * hm).toFixed(1)}%` : ""} เมื่อ HP${k.spPct ? " หรือ SP" : ""} ต่ำกว่า ${k.below}%${k.cleanse ? " · ล้างพิษ" : ""}`);
   const active = spSel in spq, kills = active ? spq[spSel] : 0, have = countItem(q.item[0]);
   const row = (icon, txt, cur, need) => `<div class="qrow${active && cur >= need ? " ok" : ""}">${icon}<span>${txt}</span><b>${active ? `${Math.min(cur, need)}/${need}` : need}</b></div>`;
   let btns;
