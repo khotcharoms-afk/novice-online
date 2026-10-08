@@ -935,3 +935,4 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
   background: rgba(10, 14, 34, .85); border: 1px solid rgba(125, 216, 255, .5); color: #dfe8ff; white-space: nowrap; }
 #aimHint b { color: #7dd8ff; font-weight: 500; }
 @media (max-width: 700px) { #aimHint { white-space: normal; width: calc(100vw - 32px); text-align: center; bottom: 120px; } }
+.sk-qc { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: #cfd6ee; cursor: pointer; }

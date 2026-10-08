@@ -1947,6 +1947,13 @@ function castSkill(key, el) {
   // สกิลวงกว้างแบบเลือกจุด: กดครั้งแรก = เล็ง (วงตามเมาส์) · กดซ้ำ = ร่ายตรงเมาส์เลย
   const S = gameData && gameData.skills[key];
   if (S && S.ground && scene && (mySkillData.skills || {})[key] > 0) {
+    const ptr = scene.input.activePointer;
+    // Quick cast: ลงตรงเมาส์ทันที (เฉพาะเมาส์ที่อยู่บนจอเกม · จอสัมผัสยังเล็งก่อน)
+    if (storeGet("pn_quickcast") === "1" && !ptr.wasTouch && document.querySelector("#game canvas, canvas")?.matches(":hover")) {
+      ptr.updateWorldPoint(scene.cameras.main); room.send("skill", { skill: key, x: Math.round(ptr.worldX), y: Math.round(ptr.worldY) });
+      if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+      return;
+    }
     if (scene.aim && scene.aim.key === key) { const ptr = scene.input.activePointer; ptr.updateWorldPoint(scene.cameras.main); fireAim(ptr.worldX, ptr.worldY); }
     else startAim(key);
     if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
@@ -1956,6 +1963,7 @@ function castSkill(key, el) {
   if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
 }
 // ---------- เล็งสกิลวงกว้าง ----------
+(() => { const q = document.getElementById("skQuick"); if (q) { q.checked = storeGet("pn_quickcast") === "1"; q.onchange = () => storeSet("pn_quickcast", q.checked ? "1" : "0"); } })();
 function startAim(key) {
   const S = gameData.skills[key], L = (mySkillData.skills || {})[key] || 1;
   scene.aim = { key, r: (S.areas && S.areas[L - 1]) || 90, range: S.range || 200, name: S.name };
