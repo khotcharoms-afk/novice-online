@@ -2131,6 +2131,10 @@ function renderMaint() {
 }
 // ---------- หน้าจอตอนเซิร์ฟเวอร์หลุด / ปิดปรับปรุง / อัปเดต ----------
 let myCharId = null;
+// เวอร์ชันของเซิร์ฟเวอร์ตอนเปิดหน้านี้ (ใช้รู้ว่ามีอัปเดตใหม่)
+let GAME_VERSION = null;
+const serverVersion = async () => { try { return (await (await fetch("/api/version", { cache: "no-store" })).json()).v; } catch { return null; } };
+serverVersion().then((v) => { GAME_VERSION = v; });
 const autoReenter = () => { try { if (myCharId) sessionStorage.setItem("pn_auto", myCharId); saveChat(); } catch {} };
 // หลุด / เซิร์ฟเวอร์อัปเดต → เชื่อมต่อกลับในหน้าเดิม (ไม่ต้องโหลดหน้าใหม่) · ไม่สำเร็จค่อยใช้หน้าจอรอแบบเดิม
 let reconnecting = false;
@@ -2149,6 +2153,9 @@ async function reconnectGame(kind) {
     await new Promise((r) => setTimeout(r, i === 0 ? (kind === "restart" ? 1500 : 600) : Math.min(4000, 800 + i * 400)));
     try {
       if (!(await fetch("/health", { cache: "no-store" })).ok) continue;
+      // เซิร์ฟเวอร์เป็นเวอร์ชันใหม่ (เพิ่ง deploy) → โหลดหน้าใหม่เพื่อเอาโค้ดเกมล่าสุด แล้วเข้าเกมต่ออัตโนมัติ
+      const nv = await serverVersion();
+      if (nv && GAME_VERSION && nv !== GAME_VERSION) { say("มีเวอร์ชันใหม่ — กำลังโหลดเกมใหม่…"); autoReenter(); location.reload(); return; }
       say(`กำลังเข้าเกม… (ครั้งที่ ${i + 1})`);
       const r = await joinMap(gameClient, myChar, mapId, 0, true);
       room = r; bindRoom(room);
