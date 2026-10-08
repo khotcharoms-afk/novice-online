@@ -15,6 +15,8 @@ MAP = {
     "holyfist": "lorc/fulguro-punch", "heavenhammer": "delapouite/thor-hammer", "hasteaura": "delapouite/speedometer", "regenaura": "sbed/regeneration",
     # สกิลชาวบ้าน (Novice) เพิ่มเติม — SVG จากแพ็กเกจ npm @iconify-json/game-icons
     "stonethrow": "lorc/slingshot", "spinswing": "lorc/sword-spin", "rally": "delapouite/biceps",
+    # สกิลท้ายสาย (skill tree อาชีพขั้น 1)
+    "fortress": "gi/castle", "shieldslam": "gi/shield-impact", "deathblow": "gi/decapitation", "earthsplitter": "gi/earth-crack", "aimedshot": "gi/headshot", "multishot": "gi/striking-arrows", "inferno": "gi/fire-wave", "glacier": "gi/frozen-block", "renewal": "gi/health-increase", "holysmite": "gi/sunbeams",
 }
 ONLY = set(sys.argv[3:]) if len(sys.argv) > 2 and sys.argv[2] == "only" else None
 if __name__ == "__main__" and len(sys.argv) > 2 and sys.argv[2] == "list":

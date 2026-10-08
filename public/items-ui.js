@@ -386,6 +386,8 @@ function setupItemsUI() {
   setupShop();
   $("smithClose").onclick = closeSmith;
   $("apLoot").checked = autoCfg.loot !== false;
+  $("apAvoid").checked = !!autoCfg.avoidMini;
+  $("apAvoid").onchange = (e) => { autoCfg.avoidMini = e.target.checked; sendAutoCfg(); };
   $("apPotion").checked = autoCfg.potion !== false;
   $("apLoot").onchange = (e) => { autoCfg.loot = e.target.checked; sendAutoCfg(); };
   // ตัวกรองการเก็บของ

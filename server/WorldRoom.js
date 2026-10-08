@@ -395,7 +395,7 @@ class WorldRoom extends Room {
       mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
       portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })), world: worldInfo() });
     const sendMap = (client, lite) => lite ? client.send("map", mapOnly()) :
-      client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE,
+      client.send("map", { ...this.map, skills: SKILLS_CLIENT, jobSkills: D.JOB_SKILLS, skillTree: D.SKILL_TREE, branches: D.BRANCHES, branchCommit: D.BRANCH_COMMIT,
         statInfo: D.STAT_INFO, special: I.SPECIAL, specialMinRarity: I.SPECIAL_MIN_RARITY, itemSets: I.ITEM_SETS, statKeys: D.STAT_KEYS, statMax: D.STAT_MAX,
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, crystals: this.crystals, online: online.size,
@@ -527,7 +527,8 @@ class WorldRoom extends Room {
         potionPct: pct >= 10 && pct <= 90 ? pct : AUTO_POTION_PCT,
         hpPot: isPot(String(c.hpPot || "auto"), "hp") ? String(c.hpPot || "auto") : "auto",   // ยาแดงที่จะใช้ ("auto" = เลือกขวดที่พอดีให้)
         spOn: !!c.spOn, spPot: isPot(String(c.spPot || "auto"), "sp") ? String(c.spPot || "auto") : "auto", spPct: spPct >= 10 && spPct <= 90 ? spPct : 30,
-        skillOff: Array.isArray(c.skillOff) ? c.skillOff.filter((k) => D.SKILLS[k]).slice(0, 30) : [] }; // สกิลที่ไม่ให้ AUTO ใช้
+        skillOff: Array.isArray(c.skillOff) ? c.skillOff.filter((k) => D.SKILLS[k]).slice(0, 30) : [], // สกิลที่ไม่ให้ AUTO ใช้
+        avoidMini: !!c.avoidMini }; // เลี่ยงมินิบอส/World Boss (ไม่ตี และไม่ตีมอนที่อยู่ใกล้บอส)
       p.autoR = radius;
     });
     this.onMessage("attack", (client, m) => {
@@ -2471,11 +2472,18 @@ class WorldRoom extends Room {
       if (p.hp < p.maxHp * 0.4 && !healReady) r.resting = true;
       if (r.resting && (p.hp >= p.maxHp * 0.7 || healReady)) r.resting = false;
     }
+    // เลี่ยงมินิบอส: ไม่ตีบอส (ยกเว้นบอสในดันเจี้ยน) และไม่ตีมอนที่อยู่ใกล้บอส (กันโดนบอสรุม)
+    const avoid = r.autoCfg.avoidMini && this.def.type !== "dungeon";
+    const bossNear = [];
+    if (avoid) this.mr.forEach((mr, mid) => { const mm = this.state.monsters.get(mid); if (mm && !mm.dead && (mr.rank === 2 || mr.boss)) bossNear.push(mm); });
+    const isBossMob = (mid) => { const mr = this.mr.get(mid); return mr && (mr.rank === 2 || mr.boss); };
+    if (avoid && r.target && isBossMob(r.target)) { r.target = null; r.pending = null; }
     if (!r.target) {
       let best = null, bd = Infinity, attacker = false;
       this.state.monsters.forEach((m, mid) => {
         if (m.dead) return;
         const mr = this.mr.get(mid);
+        if (avoid && (mr.rank === 2 || mr.boss || bossNear.some((b) => dist(b, m) < 170))) return;
         const onMe = mr.target === pid;
         if (attacker && !onMe) return;
         if (!onMe) {

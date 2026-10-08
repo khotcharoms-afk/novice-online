@@ -53,17 +53,36 @@ function renderSkills() {
     (me.job === "villager" ? `<span class="sk-lockjob">เปลี่ยนอาชีพที่ Lv.${gameData.jobChangeLevel} เพื่อเปิดสกิลอาชีพ</span>` : !base ? `<span class="sk-lockjob">อาชีพขั้น 2 เปิดที่ Lv.${gameData.job2Level || 50}</span>` : "");
   $("skTabs").querySelectorAll("button").forEach((b) => (b.onclick = () => { skillTab = b.dataset.j; renderSkills(); }));
   const rows = gameData.skillTree[skillTab] || [];
+  const cell = (k, lockWhy) => {
+    const s = S[k], L = skLv(k), maxed = L >= s.max;
+    const reqOk = !s.req || skLv(s.req[0]) >= s.req[1];
+    const ok = reqOk && !lockWhy;
+    const can = !maxed && ok && mySkillData.points > 0;
+    const sub = lockWhy ? lockWhy : s.req ? `↳ ${S[s.req[0]].name} ${s.req[1]}` : s.passive ? "ติดตัว" : `SP ${s.sps[Math.max(0, L - 1)]}`;
+    return `<div class="sk-cell${L ? "" : " off"}${ok ? "" : " locked"}" data-k="${k}" tabindex="0">${skIcon(s)}
+      <div class="sk-txt"><b>${s.name}</b><small class="${ok ? "" : "bad"}">${sub}</small></div>
+      <em class="sk-lv">${L}/${s.max}</em>
+      <button type="button" class="sk-up" data-k="${k}" ${can ? "" : "disabled"} aria-label="อัป ${s.name}">+</button></div>`;
+  };
+  const B = gameData.branches && gameData.branches[skillTab];
+  if (B) { // อาชีพขั้น 1: สกิลกลาง + 2 สายให้เลือก
+    const need = gameData.branchCommit || 5;
+    const pts = (br) => B[br].skills.reduce((t, k) => t + Math.max(0, skLv(k) - ((S[k] && S[k].innate) || 0)), 0);
+    const P = { a: pts("a"), b: pts("b") }, pick = P.a >= need ? "a" : P.b >= need ? "b" : null;
+    const col = (br) => {
+      const X = B[br], other = br === "a" ? "b" : "a", locked = pick === other;
+      const st = pick === br ? `<span class="br-st ok">✔ สายที่เลือก</span>` : locked ? `<span class="br-st bad">🔒 ล็อก</span>` : `<span class="br-st">ลงครบ ${need} แต้ม = เลือกสายนี้</span>`;
+      return `<div class="sk-br${locked ? " br-locked" : ""}${pick === br ? " br-pick" : ""}">
+        <div class="br-head"><b>${X.name}</b><em>${Math.min(P[br], need)}/${need}</em></div><small class="br-desc">${X.desc}</small>${st}
+        ${X.skills.map((k) => cell(k, locked ? "สายนี้ถูกล็อก" : "")).join("")}
+        <div class="br-cap">${cell(X.cap, locked ? "สายนี้ถูกล็อก" : P[br] < need ? `ลงสายนี้ครบ ${need} แต้ม` : "")}</div></div>`;
+    };
+    $("skBody").innerHTML = `<div class="sk-row"><div class="sk-tier">★</div><div class="sk-cells">${B.core.map((k) => cell(k)).join("")}</div></div>
+      <div class="sk-branches">${col("a")}${col("b")}</div>
+      <p class="br-note">เลือกได้ 1 สาย · สายไหนลงแต้มครบ ${need} ก่อน อีกสายจะล็อก · เปลี่ยนสายได้ด้วยรีสกิลที่เซเลส (ผู้หลอมชะตา)</p>`;
+  } else
   $("skBody").innerHTML = rows.map((row, ri) => `<div class="sk-row"><div class="sk-tier">${ROMAN[ri]}</div><div class="sk-cells">` +
-    row.map((k) => {
-      const s = S[k], L = skLv(k), maxed = L >= s.max;
-      const reqOk = !s.req || skLv(s.req[0]) >= s.req[1];
-      const can = !maxed && reqOk && mySkillData.points > 0;
-      const sub = s.req ? `↳ ${S[s.req[0]].name} ${s.req[1]}` : s.passive ? "ติดตัว" : `SP ${s.sps[Math.max(0, L - 1)]}`;
-      return `<div class="sk-cell${L ? "" : " off"}${reqOk ? "" : " locked"}" data-k="${k}" tabindex="0">${skIcon(s)}
-        <div class="sk-txt"><b>${s.name}</b><small class="${reqOk ? "" : "bad"}">${sub}</small></div>
-        <em class="sk-lv">${L}/${s.max}</em>
-        <button type="button" class="sk-up" data-k="${k}" ${can ? "" : "disabled"} aria-label="อัป ${s.name}">+</button></div>`;
-    }).join("") + `</div></div>`).join("");
+    row.map((k) => cell(k)).join("") + `</div></div>`).join("");
   $("skBody").querySelectorAll(".sk-up").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); room.send("learnSkill", { skill: b.dataset.k }); }));
   $("skBody").querySelectorAll(".sk-cell").forEach((c) => {
     const show = () => skillInfo(c.dataset.k);

@@ -913,3 +913,15 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 .dg-clear small { color: #98a2c4; display: block; margin-bottom: 6px; }
 .dg-get { display: flex; align-items: center; gap: 8px; padding: 3px 0; } .dg-get img { width: 26px; height: 26px; image-rendering: pixelated; } .dg-get span { flex: 1; text-align: left; } .dg-get b { color: #7dff9a; font-weight: 500; }
 .job-body.dg-mode { display: block; }
+/* skill tree: 2 สาย */
+.sk-branches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.sk-br { border: 1px solid #2c3561; border-radius: 9px; padding: 6px; background: rgba(10, 13, 30, .45); display: flex; flex-direction: column; gap: 4px; }
+.sk-br.br-pick { border-color: #ffd76a; box-shadow: 0 0 10px rgba(255, 215, 106, .2); }
+.sk-br.br-locked { opacity: .55; }
+.br-head { display: flex; justify-content: space-between; align-items: center; } .br-head b { color: #ffd76a; font-weight: 500; font-size: 14px; } .br-head em { font-style: normal; color: #9fe3ff; font-size: 12px; }
+.br-desc { color: #98a2c4; font-size: 11.5px; }
+.br-st { font-size: 11px; color: #98a2c4; } .br-st.ok { color: #7dff9a; } .br-st.bad { color: #ff9a8a; }
+.br-cap { margin-top: 2px; padding-top: 5px; border-top: 1px dashed #3a4470; }
+.br-cap .sk-cell { box-shadow: inset 0 0 0 1px rgba(255, 215, 106, .35); }
+.br-note { margin: 6px 0 0; font-size: 11.5px; color: #98a2c4; }
+@media (max-width: 640px) { .sk-branches { grid-template-columns: 1fr; } }
