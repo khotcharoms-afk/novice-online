@@ -336,6 +336,7 @@ function bindRoom(room) {
     room.onMessage("maint", (info) => onMaint(info));
     room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
     room.onMessage("restartSoon", (d) => onRestartSoon(d));
+    room.onMessage("expEvent", (d) => onExpEvent(d));
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text, party }) => {
       addChat(party ? "chat party" : "chat", `${party ? "[ปาร์ตี้] " : ""}<span class="cname">${esc(name)}:</span> ${esc(text)}`);
@@ -2034,6 +2035,27 @@ function buildAutoPanel() {
 let toastTimer = null;
 // ---------- นับถอยหลังปิดปรับปรุง ----------
 let maintEnd = 0, maintMsg = "", maintTick = null, maintSaid = {};
+// ---------- อีเวนต์ EXP (แอดมินเปิด) ----------
+let expEv = null, expEvTick = null;
+function onExpEvent(d) {
+  expEv = d && d.active ? { ...d, end: d.endless ? 0 : Date.now() + d.left } : null;
+  clearInterval(expEvTick);
+  renderExpEv();
+  if (expEv && !expEv.endless) expEvTick = setInterval(renderExpEv, 1000);
+}
+function renderExpEv() {
+  const el = $("expEv");
+  if (!el) return;
+  if (!expEv) { el.hidden = true; return; }
+  let t = "";
+  if (!expEv.endless) {
+    const s = Math.max(0, Math.ceil((expEv.end - Date.now()) / 1000));
+    if (s <= 0) { expEv = null; clearInterval(expEvTick); el.hidden = true; return; }
+    t = ` · เหลือ ${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  }
+  el.hidden = false;
+  el.innerHTML = `🎉 อีเวนต์ <b>EXP x${expEv.mult}</b>${t}`;
+}
 // เซิร์ฟเวอร์จะรีสตาร์ท (Render อัปเดตเวอร์ชันใหม่) — นับถอยหลังในแถบเดียวกับปิดปรับปรุง
 let restartSoon = false;
 function onRestartSoon(d) {

@@ -234,6 +234,9 @@ const randMin = ([a, b]) => (a + Math.random() * (b - a)) * 60000;
 for (const [k, B] of Object.entries(D.WORLD_BOSSES)) bossSched[k] = { next: Date.now() + randMin([10, 25]), alive: false, since: 0, map: null, warned: false };
 // ปิดปรับปรุง: แอดมินตั้งเวลานับถอยหลัง → ครบเวลา = บันทึกทุกคน + ให้ออกจากเกม + ปิดไม่ให้เข้า (จนแอดมินเปิดหรือเซิร์ฟรีสตาร์ท)
 const maint = { endAt: 0, msg: "", closed: false, timer: null };
+// อีเวนต์ EXP (แอดมินเปิด): คูณ EXP จากมอนทุกคนในเซิร์ฟ · บันทึกในฐานข้อมูล อยู่รอดตอนรีสตาร์ท
+const expEvent = { mult: 1, endAt: 0, timer: null };
+const expMult = () => (expEvent.mult > 1 && (!expEvent.endAt || expEvent.endAt > Date.now()) ? expEvent.mult : 1);
 const adminLogin = (u) => isAdmin(u.loginId) || (store.mode === "dev" && u.loginId === "admin");
 
 // ข้อมูลโลกสำหรับหน้าต่างแผนที่โลก: แต่ละแผนที่มีมอนอะไร ดรอปอะไร บริการอะไร
@@ -344,6 +347,7 @@ class WorldRoom extends Room {
         this.sendDerived(me); this.sendInv(client.sessionId);
         if (maint.endAt || maint.closed) client.send("maint", WorldRoom.maintInfo());
         if (shuttingDown > Date.now()) client.send("restartSoon", { left: shuttingDown - Date.now() });
+        if (expMult() > 1) client.send("expEvent", WorldRoom.expEventInfo());
       }, 50);
       sendMap(client, m && m.lite);
     });
@@ -693,6 +697,27 @@ class WorldRoom extends Room {
   }
   static kickUid(uid, reason) {
     online.forEach((o, charId) => { const r = o.room.pr.get(o.sessionId); if (r && r.uid === uid) WorldRoom.kick(charId, reason); });
+  }
+  // ---------- อีเวนต์ EXP ----------
+  static expEventInfo() {
+    const m = expMult();
+    return { active: m > 1, mult: m, left: m > 1 && expEvent.endAt ? Math.max(0, expEvent.endAt - Date.now()) : 0, endless: m > 1 && !expEvent.endAt };
+  }
+  // mult 1 = ปิด · minutes 0 = ไม่จำกัดเวลา (จนกว่าแอดมินจะปิด)
+  static setExpEvent(mult, minutes, { quiet = false, endAt = null } = {}) {
+    clearTimeout(expEvent.timer); expEvent.timer = null;
+    const was = expMult();
+    expEvent.mult = mult > 1 ? mult : 1;
+    expEvent.endAt = expEvent.mult > 1 ? (endAt != null ? endAt : minutes > 0 ? Date.now() + minutes * 60000 : 0) : 0;
+    if (expEvent.mult > 1 && expEvent.endAt && expEvent.endAt <= Date.now()) { expEvent.mult = 1; expEvent.endAt = 0; }
+    if (expEvent.endAt) expEvent.timer = setTimeout(() => WorldRoom.setExpEvent(1, 0), Math.min(2 ** 31 - 1, expEvent.endAt - Date.now()));
+    if (!endAt) store.setConfig("expEvent", { mult: expEvent.mult, endAt: expEvent.endAt }).catch((e) => console.error("save expEvent", e.message));
+    const info = WorldRoom.expEventInfo();
+    rooms.forEach((rm) => rm.broadcast("expEvent", info));
+    if (quiet) return info;
+    if (info.active) WorldRoom.announce(`🎉 อีเวนต์ EXP x${info.mult} เริ่มแล้ว!${info.endless ? "" : ` (${Math.round(info.left / 60000)} นาที)`} ล่ามอนกันเลย`);
+    else if (was > 1) WorldRoom.announce(`อีเวนต์ EXP x${was} จบแล้ว ขอบคุณที่ร่วมสนุก`);
+    return info;
   }
   // ---------- ปิดปรับปรุง ----------
   static maintInfo() {
@@ -2066,6 +2091,7 @@ class WorldRoom extends Room {
   gainExp(pid, amount) {
     const p = this.state.players.get(pid);
     if (!p || p.level >= D.MAX_LEVEL) return;
+    amount = Math.round(amount * expMult());
     if (p.sx && p.sx.expPct) amount = Math.round(amount * (1 + p.sx.expPct / 100));
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("exp", amount);
@@ -2902,3 +2928,5 @@ module.exports = { WorldRoom };
 setInterval(() => { try { WorldRoom.bossTick(); } catch (e) { console.error("bossTick", e.message); } }, 15000).unref();
 // เตรียมแผนที่ + คริสตัลทุกแผนที่ไว้ล่วงหน้า (เข้าแผนที่ครั้งแรกจะไม่ต้องรอสร้าง)
 setTimeout(() => { for (const id of Object.keys(W.MAPS)) { try { getMap(id); mapCrystals(id); } catch (e) { console.error("prewarm", id, e.message); } } }, 500).unref();
+// โหลดอีเวนต์ EXP ที่ค้างอยู่ (เผื่อเซิร์ฟเวอร์รีสตาร์ทระหว่างอีเวนต์)
+store.getConfig && store.getConfig("expEvent").then((e) => { if (e && e.mult > 1 && (!e.endAt || e.endAt > Date.now())) WorldRoom.setExpEvent(e.mult, 0, { quiet: true, endAt: e.endAt || 0 }); }).catch(() => {});

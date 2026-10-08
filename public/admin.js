@@ -100,7 +100,7 @@ function openTab(t) {
   if (t === "pl" && !$("accList").children.length) search();
   if (t === "lg") loadLogs();
   clearInterval(mtTimer);
-  if (t === "an") { loadMaint(); mtTimer = setInterval(renderMaint, 500); }
+  if (t === "an") { loadMaint(); loadEv(); mtTimer = setInterval(() => { renderMaint(); renderEv(); }, 500); }
   if (t === "gd") loadGameData();
   clearInterval(wbTimer);
   if (t === "wb") { loadBoss(); wbTimer = setInterval(loadBoss, 3000); }
@@ -374,6 +374,29 @@ $("mtStart").onclick = async () => {
 };
 $("mtCancel").onclick = async () => { const r = await run(() => api("POST", "/api/admin/maintenance", { cancel: true })); if (r) { MT = { ...r, at: Date.now() }; renderMaint(); } };
 $("mtOpen").onclick = async () => { const r = await run(() => api("POST", "/api/admin/maintenance", { open: true })); if (r) { MT = { ...r, at: Date.now() }; renderMaint(); } };
+
+// ---------- อีเวนต์ EXP ----------
+let EV = null;
+async function loadEv() { try { EV = await api("GET", "/api/admin/expevent"); EV.at = Date.now(); renderEv(); } catch (e) { toast(e.message, true); } }
+function renderEv() {
+  if (!EV) return;
+  const left = Math.max(0, EV.left - (Date.now() - EV.at)), s = Math.ceil(left / 1000);
+  const hh = Math.floor(s / 3600), mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0"), ss = String(s % 60).padStart(2, "0");
+  $("evState").innerHTML = EV.active ? `<b style="color:var(--gold)">สถานะ: EXP x${EV.mult} กำลังทำงาน</b> · ${EV.endless ? "ไม่จำกัดเวลา" : `เหลือ ${hh}:${mm}:${ss}`}` : "สถานะ: ไม่มีอีเวนต์";
+  $("evStop").hidden = !EV.active;
+  if (EV.active && !EV.endless && left <= 0) { EV.active = false; setTimeout(loadEv, 1500); }
+}
+$("evStart").onclick = async () => {
+  const mult = Number($("evMult").value), minutes = Number($("evMin").value);
+  if (!confirm(`เปิดอีเวนต์ EXP x${mult} ${minutes ? $("evMin").selectedOptions[0].text : "แบบไม่จำกัดเวลา"} ให้ทุกคนในเซิร์ฟ?${EV && EV.active ? "\n(จะแทนที่อีเวนต์ที่กำลังทำงานอยู่)" : ""}`)) return;
+  const r = await run(() => api("POST", "/api/admin/expevent", { mult, minutes }));
+  if (r) { EV = { ...r, at: Date.now() }; renderEv(); }
+};
+$("evStop").onclick = async () => {
+  if (!confirm("ปิดอีเวนต์ EXP ตอนนี้?")) return;
+  const r = await run(() => api("POST", "/api/admin/expevent", { stop: true }));
+  if (r) { EV = { ...r, at: Date.now() }; renderEv(); }
+};
 
 // ---------- ประกาศ / บันทึก ----------
 $("annSend").onclick = async () => {

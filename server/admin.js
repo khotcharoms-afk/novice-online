@@ -240,6 +240,17 @@ function mount(app, api) {
     const info = WorldRoom.maintInfo();
     return { ...info, note: info.msg, msg: `เริ่มนับถอยหลัง ${minutes} นาที` };
   }));
+  // อีเวนต์ EXP: { mult: 2|3, minutes } = เริ่ม (minutes 0 = ไม่จำกัด) · { stop: true } = ปิด
+  app.get("/api/admin/expevent", admin(async () => WorldRoom.expEventInfo()));
+  app.post("/api/admin/expevent", admin(async (user, req) => {
+    const b = req.body || {};
+    if (b.stop) { const info = WorldRoom.setExpEvent(1, 0); audit(user, "ปิดอีเวนต์ EXP"); return { ...info, msg: "ปิดอีเวนต์แล้ว" }; }
+    const mult = [1.5, 2, 3].includes(Number(b.mult)) ? Number(b.mult) : 2;
+    const minutes = Math.max(0, Math.min(7 * 24 * 60, Math.round(Number(b.minutes) || 0)));
+    const info = WorldRoom.setExpEvent(mult, minutes);
+    audit(user, `เปิดอีเวนต์ EXP x${mult} ${minutes ? minutes + " นาที" : "ไม่จำกัดเวลา"}`);
+    return { ...info, msg: `เปิดอีเวนต์ EXP x${mult} แล้ว` };
+  }));
   // World Boss: ดูสถานะ / เรียก / ลบ
   app.get("/api/admin/worldboss", admin(async () => ({
     bosses: Object.fromEntries(Object.entries(D.WORLD_BOSSES).map(([k, b]) => [k, { name: b.name, level: b.level }])),

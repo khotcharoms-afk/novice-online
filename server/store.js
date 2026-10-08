@@ -190,13 +190,16 @@ function firebaseStore() {
     },
     // คลังเก็บของของบัญชี (ใช้ร่วมทุกตัวละคร)
     async loadStorage(uid) { const s = await db.collection("storage").doc(uid).get(); return s.exists ? s.data() : null; },
+    // ค่าตั้งของเซิร์ฟเวอร์ (เช่น อีเวนต์ EXP) — อยู่รอดตอนเซิร์ฟเวอร์รีสตาร์ท
+    async getConfig(key) { const s = await db.collection("config").doc(key).get(); return s.exists ? s.data() : null; },
+    async setConfig(key, data) { await db.collection("config").doc(key).set({ ...data, updatedAt: Date.now() }); },
     async saveStorage(uid, data) { await db.collection("storage").doc(uid).set({ ...data, updatedAt: Date.now() }); },
   };
 }
 
 // ---------------- โหมดทดสอบ (ไม่มี Firebase) ----------------
 function memoryStore() {
-  const accounts = new Map(), chars = new Map(), names = new Map(), storages = new Map();
+  const accounts = new Map(), chars = new Map(), names = new Map(), storages = new Map(), configs = new Map();
   let seq = 0;
   // ทดสอบรีสตาร์ทในเครื่อง: DEV_STORE_FILE=ไฟล์.json → เก็บข้อมูลโหมดทดสอบลงไฟล์ (โหลดตอนเปิด · เขียนตอนปิด)
   const file = process.env.DEV_STORE_FILE;
@@ -204,10 +207,10 @@ function memoryStore() {
     const fs = require("fs");
     try {
       const d = JSON.parse(fs.readFileSync(file, "utf8"));
-      for (const [k, m] of [["accounts", accounts], ["chars", chars], ["names", names], ["storages", storages]]) for (const [a, b] of d[k] || []) m.set(a, b);
+      for (const [k, m] of [["accounts", accounts], ["chars", chars], ["names", names], ["storages", storages], ["configs", configs]]) for (const [a, b] of d[k] || []) m.set(a, b);
       seq = d.seq || 0;
     } catch {}
-    const dump = () => { try { fs.writeFileSync(file, JSON.stringify({ seq, accounts: [...accounts], chars: [...chars], names: [...names], storages: [...storages] })); } catch {} };
+    const dump = () => { try { fs.writeFileSync(file, JSON.stringify({ seq, accounts: [...accounts], chars: [...chars], names: [...names], storages: [...storages], configs: [...configs] })); } catch {} };
     process.on("exit", dump);
   }
   return {
@@ -276,6 +279,8 @@ function memoryStore() {
       if (c) Object.assign(c, data, { updatedAt: Date.now() });
     },
     async loadStorage(uid) { return storages.get(uid) || null; },
+    async getConfig(key) { return configs.get(key) || null; },
+    async setConfig(key, data) { configs.set(key, JSON.parse(JSON.stringify(data))); },
     async saveStorage(uid, data) { storages.set(uid, JSON.parse(JSON.stringify(data))); },
   };
 }

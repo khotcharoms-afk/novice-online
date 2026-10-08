@@ -199,6 +199,17 @@
       <!-- ประกาศ -->
       <section id="tab-an" hidden>
         <div class="card">
+          <h2>🎉 อีเวนต์ EXP (ทั้งเซิร์ฟ)</h2>
+          <p class="muted">ผู้เล่นทุกคนได้ EXP จากมอนเพิ่มตามตัวคูณ · ขึ้นป้ายประกาศกลางจอ + ป้าย EXP บนจอเกมตลอดอีเวนต์ · เซิร์ฟรีสตาร์ท/อัปเดตเกม อีเวนต์ยังอยู่</p>
+          <div class="row"><label class="muted">ตัวคูณ</label>
+            <select id="evMult"><option value="1.5">EXP x1.5</option><option value="2" selected>EXP x2</option><option value="3">EXP x3</option></select>
+            <label class="muted">นาน</label>
+            <select id="evMin"><option value="30">30 นาที</option><option value="60" selected>1 ชั่วโมง</option><option value="120">2 ชั่วโมง</option><option value="180">3 ชั่วโมง</option><option value="360">6 ชั่วโมง</option><option value="720">12 ชั่วโมง</option><option value="1440">1 วัน</option><option value="4320">3 วัน</option><option value="0">ไม่จำกัด (จนกว่าจะกดปิด)</option></select>
+            <button class="btn gold" id="evStart">เริ่มอีเวนต์</button></div>
+          <div class="row" style="margin-top:10px"><span id="evState" class="muted">สถานะ: ไม่มีอีเวนต์</span>
+            <button class="btn" id="evStop" hidden>ปิดอีเวนต์</button></div>
+        </div>
+        <div class="card">
           <h2>ปิดปรับปรุงเซิร์ฟเวอร์ (นับถอยหลัง)</h2>
           <p class="muted">ผู้เล่นทุกคนจะเห็นแถบนับถอยหลังบนจอ + เตือนในแชทตอนเหลือ 5 นาที / 1 นาที / 30 วิ / 10 วิ ·
             ครบเวลา = บันทึกตัวละครทุกคน แล้วให้ออกจากเกม และปิดไม่ให้เข้า (แอดมินยังเข้าได้) จนกว่าจะกด "เปิดให้เข้าเกม" หรือเซิร์ฟรีสตาร์ท</p>
