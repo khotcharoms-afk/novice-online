@@ -45,7 +45,7 @@ function renderDungeon() {
   const err = me.level < Df.req ? `ต้อง Lv.${Df.req} ขึ้นไป` : tickets < Df.tickets ? `ตั๋วไม่พอ (มี ${tickets}/${Df.tickets})` : !lead ? "หัวหน้าปาร์ตี้เป็นคนเปิดดัน" : "";
   $("spiritBody").innerHTML = `<div class="dg-wrap">
     <p class="dg-intro">ล้างมอน ${G.waves} ระลอก แล้วปราบผู้พิทักษ์ธาตุภายใน ${G.timeMin} นาที · ได้<b>แก่นธาตุ</b>ไว้ข้ามขีดจำกัดภูติธาตุเดียวกัน และผลึกวิญญาณไว้อัประดับสี
-      ${inParty ? "· <b>เพื่อนในปาร์ตี้</b>จะได้คำเชิญให้ตามเข้ามา (ใช้ตั๋วของตัวเอง)" : "· ไปคนเดียวหรือชวนเพื่อนเข้าปาร์ตี้ก่อนก็ได้ (สูงสุด 6 คน)"}</p>
+      ${inParty ? "· <b>หัวหน้าปาร์ตี้</b>เปิดดันแล้ว เพื่อนในปาร์ตี้ที่ออนไลน์และเลเวลถึงจะถูกพาเข้าดันด้วยทันที (หัวหน้าจ่ายตั๋วคนเดียว)" : "· ไปคนเดียวหรือชวนเพื่อนเข้าปาร์ตี้ก่อนก็ได้ (สูงสุด 6 คน)"}</p>
     <h4>เลือกธาตุ</h4><div class="dg-els">${cards}</div>
     <h4>ระดับความยาก</h4><div class="dg-diffs">${diffs}</div>
     <div class="dg-sum" style="--sc:${el.color}">
@@ -65,7 +65,7 @@ function renderDungeon() {
   $("dgBuy1").onclick = () => room.send("dungeonBuy", { n: 1 });
   $("dgBuy5").onclick = () => room.send("dungeonBuy", { n: 5 });
   $("dgGo").onclick = async () => {
-    if (await askConfirm(`เข้า<b>ดันเจี้ยนภูติธาตุ${el.name} · ${Df.name}</b>?<br><small>ใช้ตั๋ว ${Df.tickets} ใบ${inParty ? " · เพื่อนในปาร์ตี้จะได้คำเชิญ" : ""}</small>`, { okText: "เข้าดัน" })) {
+    if (await askConfirm(`เข้า<b>ดันเจี้ยนภูติธาตุ${el.name} · ${Df.name}</b>?<br><small>ใช้ตั๋ว ${Df.tickets} ใบ${inParty ? " · เพื่อนในปาร์ตี้จะถูกพาเข้าดันด้วย" : ""}</small>`, { okText: "เข้าดัน" })) {
       room.send("dungeonStart", { el: dgEl, diff: dgDiff });
       closeSpirit();
     }

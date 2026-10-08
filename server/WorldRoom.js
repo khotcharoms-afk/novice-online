@@ -3062,14 +3062,22 @@ class WorldRoom extends Room {
     dungeons.set(inst, g);
     this.useTickets(p, SD.DIFFS[diff].tickets); this.sendInv(pid); this.save(pid);
     const E = SD.ELEMENTS[el], Df = SD.DIFFS[diff];
-    // เชิญเพื่อนในปาร์ตี้ที่ออนไลน์ (ไม่ได้อยู่ในดันอื่น)
+    // ดึงเพื่อนในปาร์ตี้ที่ออนไลน์เข้าดันด้วยเลย (หัวหน้าจ่ายตั๋วแทนทั้งปาร์ตี้ · ต้องเลเวลถึงและไม่ได้ตาย/อยู่ในดันอื่น)
+    const pulled = [], skipped = [];
     if (pt) for (const cid of pt.members) {
-      if (cid === r.charId) continue;
-      const c = clientOf(cid), w = who(cid);
-      if (!c || !w || W.MAPS[w.o.room.mapId].type === "dungeon") continue;
-      g.invited.add(cid);
-      c.send("dungeonInvite", { inst, el, diff, from: p.name, name: `ดันเจี้ยนภูติธาตุ${E.name} · ${Df.name}`, tickets: Df.tickets, req: Df.req });
+      if (cid === r.charId || g.members.size >= SD.PARTY_MAX) continue;
+      const w = who(cid), c = clientOf(cid);
+      if (!w || !c) continue; // ออฟไลน์
+      const why = w.o.room.def.type === "dungeon" ? "อยู่ในดันเจี้ยนอื่น" : w.p.dead ? "ตายอยู่" : w.p.warp ? "กำลังย้ายแผนที่" : w.p.level < Df.req ? `เลเวลไม่ถึง ${Df.req}` : null;
+      if (why) { skipped.push(`${w.p.name} (${why})`); c.send("toast", `เข้าดันเจี้ยนภูติกับปาร์ตี้ไม่ได้: ${why}`); continue; }
+      g.members.add(cid); pulled.push({ w, c });
     }
+    g.size = g.members.size;
+    for (const { w, c } of pulled) {
+      c.send("system", `🌀 ${p.name} (หัวหน้าปาร์ตี้) พาเข้าดันเจี้ยนภูติธาตุ${E.name} · ${Df.name}`);
+      w.o.room.warpPlayer(w.o.sessionId, SD.mapId(el), null, { inst });
+    }
+    if (skipped.length) client.send("system", `🌀 เพื่อนที่เข้าดันไม่ได้: ${skipped.join(", ")}`);
     console.log(`[dungeon] ${p.name} เปิด ${E.name}/${Df.name} (${inst})`);
     this.warpPlayer(pid, SD.mapId(el), null, { inst });
   }
