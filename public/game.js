@@ -413,6 +413,7 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_spiritkeeper", "/assets/npc_spiritkeeper.png");
     this.load.image("npcsrc_storage", "/assets/npc_storage.png");
     this.load.image("npcsrc_reclass", "/assets/npc_reclass.png");
+    this.load.spritesheet("summon/hawk", "/assets/summons/hawk.png", { frameWidth: 64, frameHeight: 64 });
     this.load.image("crystal", "/assets/crystal.png");
     (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 40, frameHeight: 40 })); // แถว = ร่าง 0–4
     for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
@@ -1282,29 +1283,55 @@ class WorldScene extends Phaser.Scene {
     this.summons = this.summons || new Map();
     const old = this.summons.get(id);
     if (old) { old.s.destroy(); this.summons.delete(id); }
-    const key = kind === "fire" ? "spirit/sp_ember" : "pet/pet_canary";
+    const key = kind === "fire" ? "spirit/sp_ember" : "summon/hawk";
     if (!this.textures.exists(key)) return;
-    const s = this.add.sprite(0, 0, key, kind === "fire" ? 8 : 0).setScale(kind === "fire" ? 0.9 : 1.1);
-    if (kind === "hawk") s.setTint(0xb07a40);
-    else if (this.game.renderer.type === Phaser.WEBGL && s.preFX) s.preFX.addGlow(0xff7a30, 2, 0, false, 0.1, 10);
-    this.summons.set(id, { s, kind, until: this.time.now + ms, seed: Math.random() * 1000 });
+    const s = this.add.sprite(0, 0, key, kind === "fire" ? 8 : 0).setScale(kind === "fire" ? 0.9 : 0.9);
+    if (kind === "fire" && this.game.renderer.type === Phaser.WEBGL && s.preFX) s.preFX.addGlow(0xff7a30, 2, 0, false, 0.1, 10);
+    const v = this.views.get(id);
+    if (v) s.setPosition(v.root.x, v.root.y - 120); // บินลงมาจากฟ้า
+    this.summons.set(id, { s, kind, until: this.time.now + ms, seed: Math.random() * 1000, lx: s.x });
   }
   updateSummons(time) {
     if (!this.summons) return;
     this.summons.forEach((o, id) => {
       const v = this.views.get(id);
       if (!v || time > o.until) { o.s.destroy(); this.summons.delete(id); return; }
+      if (o.busy) return; // กำลังโฉบตีเป้า (tween คุมตำแหน่งเอง)
       const bob = Math.sin((time + o.seed) / 250) * 4;
+      if (o.kind === "hawk") { // วนบินเป็นวงรีเหนือหัวเจ้าของ · หันหน้าตามทิศที่บิน
+        const a = (time + o.seed) / 900, tx = v.root.x + Math.cos(a) * 34, ty = v.root.y - 62 + Math.sin(a) * 12;
+        const nx = Phaser.Math.Linear(o.s.x, tx, 0.12), ny = Phaser.Math.Linear(o.s.y, ty, 0.12);
+        if (Math.abs(nx - o.s.x) > 0.3) o.s.setFlipX(nx < o.s.x);
+        o.s.setPosition(nx, ny).setDepth(v.root.y + 40).setFrame(Math.floor(time / 110) % 4);
+        return;
+      }
       o.s.setPosition(v.root.x - 26, v.root.y - 50 + bob).setDepth(v.root.y + 5);
-      if (o.kind === "fire") o.s.setFrame(8 + (Math.floor(time / 150) % 4)); else o.s.setFrame(Math.floor(time / 120) % 2);
+      o.s.setFrame(8 + (Math.floor(time / 150) % 4));
     });
   }
   summonShot({ id, kind, tgt }) {
     const o = this.summons && this.summons.get(id), b = this.views.get(tgt);
     if (!o || !b) return;
-    if (kind === "hawk") { // เหยี่ยวโฉบ: บินไปที่เป้าแล้วกลับ
-      const sx = o.s.x, sy = o.s.y;
-      this.tweens.add({ targets: o.s, x: b.root.x, y: b.root.y - 30, duration: 220, yoyo: true, ease: "Quad.easeIn", onYoyo: () => this.burst(b.root.x, b.root.y - 26, 0xd0a060, 16) });
+    if (kind === "hawk") { // เหยี่ยวโฉบ: ไต่ขึ้น → หุบปีกพุ่งลงจิกเป้า (กางกรงเล็บ) → บินกลับ
+      if (o.busy) return;
+      o.busy = true;
+      const tx = b.root.x, ty = b.root.y - 28;
+      o.s.setFlipX(tx < o.s.x);
+      this.tweens.chain({ targets: o.s, tweens: [
+        { y: o.s.y - 18, duration: 140, ease: "Sine.easeOut", onStart: () => o.s.setFrame(0) },
+        { x: tx, y: ty, duration: 200, ease: "Quad.easeIn", onStart: () => { o.s.setFrame(4); o.s.setDepth(b.root.depth + 2); },
+          onComplete: () => {
+            o.s.setFrame(5);
+            this.burst(tx, ty + 4, 0xd0a060, 18);
+            for (let i = 0; i < 3; i++) { // รอยข่วน 3 เส้น
+              const g = this.add.graphics().setDepth(1e6 - 1).setBlendMode(Phaser.BlendModes.ADD);
+              g.lineStyle(2, 0xfff0c0, 1); g.lineBetween(tx - 10 + i * 6, ty - 10, tx - 4 + i * 6, ty + 10);
+              this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+            }
+            this.cameras.main.shake(60, 0.002);
+          } },
+        { x: tx + (o.s.flipX ? 30 : -30), y: ty - 50, duration: 260, ease: "Sine.easeOut", onStart: () => o.s.setFrame(2) },
+      ], onComplete: () => { o.busy = false; } });
       return;
     }
     this.shotFrom({ x: o.s.x, y: o.s.y }, b, "fire");

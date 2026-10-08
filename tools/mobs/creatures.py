@@ -225,31 +225,115 @@ def spider(c, d, kind, f, n, P):
     if kind == "cast" and f in (2, 3, 4): c.ell(cx, cy - 18, 4, 4, (240, 240, 240), flat=4, alpha=0.6)
 
 # ---------------- โกเลม ----------------
+def rock(c, cx, cy, rx, ry, col, seed=0, alpha=1.0, flat=None):
+    """ก้อนหินเหลี่ยม: ขอบเป็นหลายเหลี่ยมไม่สม่ำเสมอ + แรเงาตามแสงแบบก้อนนูน (ดูเป็นหินแกะ ไม่ใช่ลูกบอล)"""
+    if rx <= 0.5 or ry <= 0.5: return
+    from PIL import ImageDraw
+    rnd = np.random.RandomState(seed)
+    k = 7 + seed % 3
+    pts = []
+    for i in range(k):
+        a = (i + rnd.rand() * 0.35) / k * math.pi * 2
+        r = 0.86 + rnd.rand() * 0.18
+        pts.append((cx + math.cos(a) * rx * r, cy + math.sin(a) * ry * r))
+    im = Image.new("L", (S, S), 0); ImageDraw.Draw(im).polygon(pts, fill=255)
+    m = np.array(im) > 0
+    if not m.any(): return
+    R = ramp(col) if not isinstance(col[0], tuple) else col
+    # เส้นขอบเข้มรอบก้อน (แยกชิ้นหินให้เห็นชัด)
+    e = m.copy(); e[1:] |= m[:-1]; e[:-1] |= m[1:]; e[:, 1:] |= m[:, :-1]; e[:, :-1] |= m[:, 1:]
+    c._put(e & ~m, np.broadcast_to(np.array([v * 0.35 for v in R[0]], float), (S, S, 3)), alpha)
+    if flat is not None:
+        c._put(m, np.broadcast_to(np.array(R[flat], float), (S, S, 3)), alpha); return
+    nx, ny = (XX - cx) / rx, (YY - cy) / ry
+    # ระนาบเหลี่ยม: ปัดทิศ normal เป็นขั้น ๆ → เห็นหน้าตัดหิน
+    ang = np.arctan2(ny, nx); ang = np.round(ang / (math.pi / 3)) * (math.pi / 3)
+    rr = np.clip(np.sqrt(nx * nx + ny * ny), 0, 1)
+    rr = np.where(rr < 0.45, 0.0, 0.75)
+    nxq, nyq = np.cos(ang) * rr, np.sin(ang) * rr
+    nz = np.sqrt(np.clip(1 - nxq * nxq - nyq * nyq, 0, 1))
+    inten = nxq * LIGHT[0] + nyq * LIGHT[1] + nz * LIGHT[2]
+    idx = np.digitize(inten, [0.05, 0.38, 0.72, 0.93])
+    c._put(m, np.array(R, float)[idx], alpha)
+
 def golem(c, d, kind, f, n, P):
+    """โกเลม: ร่างหินเหลี่ยมหลังค่อม ไหล่ใหญ่ แขนยาวถึงพื้น กำปั้นหินโต หัวเล็กจมอยู่ระหว่างไหล่ แกนพลังเรืองแสงกลางอก"""
     ph = f / max(1, n) * math.pi * 2
-    step = math.sin(ph) if kind == "walk" else 0
-    cx, base = 32, 58
     s = P.get("size", 1)
-    swing = 0
-    if kind == "slash": t = math.sin(f / (n - 1) * math.pi); swing = t; base += t * 3 * {"down": 1, "up": -1}.get(d, 0)
-    if kind == "hurt": base += f * 0.6
+    col, core = P["c"], P["core"]
+    cx, base = 32, 60
+    step = math.sin(ph) if kind == "walk" else 0
+    bob = abs(math.sin(ph)) * 1.5 if kind == "walk" else 0
     fw = {"left": -1, "right": 1}.get(d, 0)
-    for sgn in (-1, 1):  # ขา
-        c.ell(cx + sgn * 6 * s, base - 5 - (max(0, step * sgn) * 3), 5 * s, 6 * s, P["c"])
-    by = base - 20 * s - abs(step)
-    c.ell(cx, by, 14 * s, 11 * s, P["c"])
-    for (dx, dy, r) in ((-6, -3, 1.5), (5, 2, 1.2), (1, -6, 1.1)):  # รอยร้าวเรืองแสง
-        c.dot(cx + dx * s, by + dy * s, P["core"], r, 0.9)
-    for sgn in (-1, 1):  # แขนก้อนหิน
-        arm_y = by + 4 + (step * sgn * 2 if kind == "walk" else 0) - (swing * 10 if (sgn == fw or (fw == 0 and sgn == 1)) else 0)
-        ax = cx + sgn * 16 * s + (fw * swing * 6 if sgn == fw else 0)
-        c.ell(ax, arm_y - 6, 5 * s, 5 * s, P["c"]); c.ell(ax, arm_y + 2, 6 * s, 6 * s, P["c"])
-    hy = by - 13 * s
-    c.ell(cx + fw * 2, hy, 7 * s, 6 * s, P["c"])
-    if d != "up":
-        for x in ([cx - 3 * s, cx + 3 * s] if d == "down" else [cx + fw * 4 * s]):
-            c.ell(x, hy, 1.8 * s, 1.2 * s, P["core"], flat=4)
-    if kind == "cast" and f in (2, 3, 4, 5): c.ell(cx, by, 15 * s, 12 * s, P["core"], flat=3, alpha=0.35)
+    side = fw != 0
+    lift = 0; slam = 0
+    if kind == "slash":  # ยกกำปั้นสองข้างขึ้นเหนือหัว แล้วทุบลงพื้น
+        t = f / (n - 1)
+        lift = math.sin(min(1, t / 0.6) * math.pi / 2) if t < 0.6 else max(0, 1 - (t - 0.6) / 0.25)
+        slam = 1 if t >= 0.8 else 0
+    crumble = f / max(1, n - 1) if kind == "hurt" else 0
+    glow = 1.0 + (0.6 if kind == "cast" and 2 <= f <= 5 else 0)
+    by = base - 29 * s + bob   # กลางลำตัว
+    def at(x, y, k=1.0):  # ตอนตาย: ชิ้นส่วนกระจาย/ร่วงลงพื้น
+        if not crumble: return x, y
+        return x + (x - cx) * crumble * 0.5 * k, y + crumble * (base - 4 - y) * 0.85
+    # ขา
+    for sgn in ((-1, 1) if not side else (fw, -fw)):
+        lx = cx + sgn * (7 if not side else 3) * s + (step * sgn * 3 if side else 0)
+        ly = base - 7 - max(0, step * sgn) * 3
+        x, y = at(lx, ly); rock(c, x, y, 5 * s, 7.5 * s, col, seed=3 + (sgn > 0))
+    # แขนด้านหลัง (ด้านข้าง) วาดก่อนลำตัว
+    def arm(sgn, front):
+        sx = cx + sgn * (17 if not side else 4) * s + (fw * 2 if side else 0)
+        sy = by - 6 * s
+        swing = -step * sgn * 3 if kind == "walk" else 0
+        if lift:
+            hx, hy = cx + sgn * 8 * s + fw * 6, by - 30 * s * lift
+        else:
+            hx, hy = sx + sgn * 2 * s + (fw * (8 if front else -2) if side else 0) + swing * (1 if side else 0), base - 10 + swing * (0 if side else 1)
+            if slam: hx, hy = cx + fw * 14 + sgn * 6, base - 6
+        mx, my = (sx + hx) / 2 + sgn * 2 * s, (sy + hy) / 2
+        x, y = at(mx, my); rock(c, x, y, 4 * s, 6.5 * s, col, seed=11 + (sgn > 0))
+        x, y = at(hx, hy, 1.4); rock(c, x, y, 6.5 * s, 6 * s, col, seed=21 + (sgn > 0))  # กำปั้น
+        if slam and front:
+            for i in range(5): c.dot(hx + (i - 2) * 4, base - 1 - (i % 2) * 2, (200, 190, 170), 1.3, 0.8)
+    if side: arm(-fw, False)
+    # ลำตัว (หลังค่อม) + ไหล่
+    x, y = at(cx, by + 3); rock(c, x, y, (10 if not side else 8) * s, 8 * s, col, seed=4)   # เอว
+    x, y = at(cx, by - 3); rock(c, x, y, (14 if not side else 10) * s, 10 * s, col, seed=5)  # อก
+    if not side:
+        for sgn in (-1, 1):
+            x, y = at(cx + sgn * 15 * s, by - 9 * s); rock(c, x, y, 6.5 * s, 6 * s, col, seed=7 + (sgn > 0))
+    else:
+        x, y = at(cx - fw * 3, by - 10 * s); rock(c, x, y, 8 * s, 6 * s, col, seed=8)
+    # มอส/คริสตัล/ลาวาบนไหล่
+    if P.get("moss") and not crumble:
+        for dx in ((-15, 15) if not side else (-fw * 4,)):
+            c.ell(cx + dx * s, by - 14 * s, 4 * s, 1.8 * s, P["moss"], flat=2)
+    # แกนพลังกลางอก + รอยร้าวเรืองแสง
+    if d != "up" and crumble < 0.5:
+        ccx = cx + fw * 4 * s; ccy = by - 1
+        c.poly([(ccx, ccy - 4 * s), (ccx + 3 * s, ccy), (ccx, ccy + 4 * s), (ccx - 3 * s, ccy)], core, 4)
+        c.ell(ccx, ccy, 5 * s * glow, 5 * s * glow, core, flat=3, alpha=0.35)
+        for (a0, a1) in ((0.4, 1.0), (2.4, 2.9), (4.0, 4.6)):
+            c.line(ccx + math.cos(a0) * 4, ccy + math.sin(a0) * 4, ccx + math.cos(a1) * 10 * s, ccy + math.sin(a1) * 8 * s, 1, core, 3, 0.85)
+    elif d == "up" and not crumble:
+        for (x0, y0, x1, y1) in ((-6, -6, -1, 2), (5, -3, 2, 6)):
+            c.line(cx + x0 * s, by + y0 * s, cx + x1 * s, by + y1 * s, 1, core, 3, 0.7)
+    # หัวเล็กจมระหว่างไหล่
+    hx, hy = cx + fw * 6 * s, by - 16 * s + (2 if lift else 0)
+    x, y = at(hx, hy); rock(c, x, y, 6 * s, 5.5 * s, col, seed=31)
+    if d != "up" and crumble < 0.4:
+        c.line(x - 5 * s, y - 2.5 * s, x + 5 * s, y - 2.5 * s, 1.5, col, 0)  # คิ้วหิน
+        for ex in ([-2.5, 2.5] if not side else [fw * 2.5]):
+            c.ell(x + ex * s, y, 1.6 * s, 1.0 * s, core, flat=4)
+            c.ell(x + ex * s, y, 2.6 * s, 1.8 * s, core, flat=3, alpha=0.35)
+    # แขนหน้า
+    if side: arm(fw, True)
+    else:
+        for sgn in (-1, 1): arm(sgn, True)
+    if kind == "cast" and 2 <= f <= 5:
+        for i in range(6): c.dot(cx + math.cos(i + f) * 18 * s, by + math.sin(i * 1.7 + f) * 12, core, 1.2, 0.8)
 
 # ---------------- ดวงตาลอย ----------------
 def eye(c, d, kind, f, n, P):
@@ -347,9 +431,9 @@ CREATURES = {
     "shroom_glow":  ("mushroom", dict(c=(70, 160, 230), stem=(210, 230, 240), spot=(200, 255, 255), spore=(140, 240, 255), angry=True)),
     "spider_bog":   ("spider", dict(c=(70, 80, 50), mark=(200, 220, 60))),
     "spider_sand":  ("spider", dict(c=(190, 150, 90), mark=(160, 60, 30), size=1.1)),
-    "golem_stone":  ("golem", dict(c=(140, 135, 130), core=(120, 220, 255))),
-    "golem_magma":  ("golem", dict(c=(70, 50, 50), core=(255, 140, 30), size=1.1)),
-    "golem_sand":   ("golem", dict(c=(200, 170, 110), core=(80, 230, 200), size=1.1)),
+    "golem_stone":  ("golem", dict(c=(128, 126, 122), core=(110, 220, 255), moss=(90, 140, 70))),
+    "golem_magma":  ("golem", dict(c=(66, 50, 50), core=(255, 140, 30), size=1.08)),
+    "golem_sand":   ("golem", dict(c=(196, 166, 108), core=(70, 230, 200), size=1.08)),
     "eye_float":    ("eye", dict(c=(235, 225, 215), iris=(60, 160, 90), t=(170, 90, 110))),
     "eye_abyss":    ("eye", dict(c=(70, 40, 80), iris=(255, 60, 200), t=(110, 40, 90), size=1.15)),
     "wisp_frost":   ("wisp", dict(c=(130, 210, 255))),
