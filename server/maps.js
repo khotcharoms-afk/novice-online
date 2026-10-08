@@ -68,31 +68,31 @@ const MAPS = {
     world: { x: 9, y: 36 }, exits: { E: "swamp", S: "cursed" },
     spawns: [["skelknight", 7], ["frankenstein", 9], ["gargoyle", 8], ["lich", 5], ["eye_float", 5], ["ghost_dark", 5]], style: { ponds: 1, forest: 15, dead: 35, rocks: 70, bushes: 10, dirt: 22 },
   },
-  cursed: {
+  cursed: { danger: true, // โซนอันตราย Lv.60+: มอน ×1.5 · ทุกตัวดุ · เรียกพวกมารุม
     name: "ป่าต้องสาป", type: "field", lv: [58, 68], season: "shadow", w: 70, h: 52, seed: 1111,
     desc: "ป่าที่แสงส่องไม่ถึง วอร์ทอร์และหมาป่าคำสาปล่าเหยื่อ ลอร์ดแวมไพร์ปกครองที่นี่",
     world: { x: 9, y: 58 }, exits: { N: "ruins", E: "pine", S: "lava" },
     spawns: [["cursedwolf", 6], ["wartotaur", 9], ["dryad", 8], ["vamplord", 5], ["bat_vampire", 5], ["shroom_glow", 4], ["plant_cursed", 4]], style: { ponds: 4, forest: 75, dead: 25, rocks: 25, bushes: 35 },
   },
-  lava: {
+  lava: { danger: true, // โซนอันตราย Lv.60+: มอน ×1.5 · ทุกตัวดุ · เรียกพวกมารุม
     name: "ทุ่งลาวา", type: "field", lv: [66, 76], season: "lava", w: 70, h: 52, seed: 1212,
     desc: "ทุ่งหินไหม้ที่ลาวาไหลเป็นทาง ปีศาจเพลิงและซาลาแมนเดอร์อาศัยอยู่",
     world: { x: 9, y: 85 }, exits: { N: "cursed" },
     spawns: [["salamander", 6], ["flameorc", 9], ["firedemon", 8], ["lavataur", 5], ["wisp_fire", 5], ["slime_lava", 5], ["golem_magma", 4]], style: { ponds: 9, forest: 12, dead: 30, rocks: 65, bushes: 8, dirt: 16 },
   },
-  desert: {
+  desert: { danger: true, // โซนอันตราย Lv.60+: มอน ×1.5 · ทุกตัวดุ · เรียกพวกมารุม
     name: "ทะเลทรายแดง", type: "field", lv: [74, 84], season: "desert", w: 70, h: 52, seed: 1313,
     desc: "ผืนทรายร้อนระอุทางตะวันออกของค่ายออร์ค มัมมี่ตื่นจากสุสานใต้ทราย",
     world: { x: 91, y: 36 }, exits: { W: "orcamp", N: "dragon" },
     spawns: [["mummy", 7], ["sandrat", 9], ["sandspirit", 8], ["sandwarlord", 5], ["spider_sand", 6], ["golem_sand", 5]], style: { ponds: 2, forest: 10, dead: 20, rocks: 45, bushes: 10, dirt: 20 },
   },
-  dragon: {
+  dragon: { danger: true, // โซนอันตราย Lv.60+: มอน ×1.5 · ทุกตัวดุ · เรียกพวกมารุม
     name: "ยอดเขามังกร", type: "field", lv: [82, 92], season: "lava", w: 70, h: 52, seed: 1414,
     desc: "ภูเขาไฟที่เผ่ามังกรยึดครอง ดราโคเนียนและอัศวินมังกรคุ้มกันรัง",
     world: { x: 91, y: 14 }, exits: { S: "desert", W: "abyss" },
     spawns: [["draconian", 8], ["wyvern", 9], ["dragonknight", 7], ["volcanogiant", 6], ["bat_drake", 7]], style: { ponds: 6, forest: 8, dead: 25, rocks: 75, bushes: 5, dirt: 14 },
   },
-  abyss: {
+  abyss: { danger: true, // โซนอันตราย Lv.60+: มอน ×1.5 · ทุกตัวดุ · เรียกพวกมารุม
     name: "ห้วงอเวจี", type: "field", lv: [90, 99], season: "shadow", w: 72, h: 54, seed: 1515,
     desc: "รอยแยกสู่ความมืดที่ปลายสุดของโลก ที่พำนักของจอมมารแห่งห้วงลึก",
     world: { x: 71, y: 14 }, exits: { E: "dragon" },

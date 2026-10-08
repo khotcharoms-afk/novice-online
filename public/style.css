@@ -841,3 +841,4 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 ::-webkit-scrollbar-thumb { background: var(--brass-dim); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--brass); }
 ::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none; background: transparent; }
+.tag.danger { background: #5a1018 !important; color: #ffb0b0 !important; border-color: #ff5a5a !important; }

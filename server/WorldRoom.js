@@ -24,6 +24,8 @@ const MELEE_RANGE = 44;      // ระยะตีใกล้
 const MOB_ATK_MS = 1500;
 const MOB_RANGE = 40;
 const AGGRO_RADIUS = 150;
+// โซนอันตราย (แผนที่ Lv.60+ ที่ตั้ง danger): มอนเพิ่ม ×1.5 · ทุกตัวดุ มองเห็นไกลขึ้น · โดนตี/เจอเป้าแล้วเรียกพวกรอบ ๆ มารุม
+const DANGER = { count: 1.5, aggro: 200, call: 140, callMax: 2 };
 const LEASH = 420;
 const ELITE_CHANCE = 0.04;      // โอกาสมอนเกิดเป็นชั้นยอด
 const MINI_RESPAWN_MS = [8 * 60000, 12 * 60000]; // มินิบอสเกิดใหม่ 8–12 นาทีหลังตาย           // มอนไล่ไกลเกินนี้จะกลับบ้าน
@@ -181,7 +183,7 @@ const WEAR = Object.fromEntries(Object.entries(I.ITEMS).filter(([, it]) => it.ty
 function worldInfo() {
   if (worldCache) return worldCache;
   worldCache = { name: W.WORLD_NAME, maps: Object.entries(W.MAPS).map(([id, m]) => ({
-    id, name: m.name, type: m.type, lv: m.lv, desc: m.desc, world: m.world, season: m.season,
+    id, name: m.name, type: m.type, lv: m.lv, desc: m.desc, danger: !!m.danger, world: m.world, season: m.season,
     exits: Object.values(m.exits),
     mobs: [...new Set(m.spawns.map(([k]) => k))].map((k) => ({ kind: k, name: D.MONSTERS[k].name, level: D.MONSTERS[k].level,
       aggressive: D.MONSTERS[k].aggressive, drops: (I.DROPS[k] || []).map(([id]) => id) })),
@@ -995,8 +997,9 @@ class WorldRoom extends Room {
 
   // ================= มอนสเตอร์ =================
   spawnMonsters() {
-    for (const [kind, count] of this.def.spawns) {
+    for (const [kind, count0] of this.def.spawns) {
       const def = D.MONSTERS[kind];
+      const count = this.def.danger && !process.env.DANGER_OFF ? Math.ceil(count0 * DANGER.count) : count0;
       for (let i = 0; i < count; i++) {
         const id = "m" + this.mobSeq++;
         const m = new Monster();
@@ -1447,6 +1450,17 @@ class WorldRoom extends Room {
       if (r.target) { const p = this.state.players.get(r.target); if (p && this.inSafe(p)) { r.target = null; r.returning = true; } }
     }
   }
+  // โซนอันตราย: มอนที่ว่างอยู่รอบ ๆ เข้ามารุมเป้าเดียวกัน (สูงสุด callMax ตัว)
+  callPack(m, pid) {
+    if (!this.def.danger || process.env.DANGER_OFF) return;
+    let n = 0;
+    for (const [mid, mr] of this.mr) {
+      if (n >= DANGER.callMax) break;
+      const o = this.state.monsters.get(mid);
+      if (!o || o === m || o.dead || mr.target || mr.boss || mr.returning) continue;
+      if (dist(o, m) <= DANGER.call) { mr.target = pid; mr.returning = false; n++; }
+    }
+  }
   updateMobInner(m, r, id, dt, t) {
     if (r.boss) return this.updateBoss(m, r, id, dt, t);
     if (m.dead) { if (t >= r.respawnAt) this.respawnMob(id); return; }
@@ -1454,10 +1468,11 @@ class WorldRoom extends Room {
     const step = (r.def.speed * (r.slowUntil > t ? 0.5 : 1) * dt) / 1000;
 
     // มอนดุ: มองหาผู้เล่นใกล้ ๆ
-    if (!r.target && r.def.aggressive && !r.returning) {
-      let best = null, bd = AGGRO_RADIUS;
+    const danger = this.def.danger && !process.env.DANGER_OFF;
+    if (!r.target && (r.def.aggressive || danger) && !r.returning) {
+      let best = null, bd = danger ? DANGER.aggro : AGGRO_RADIUS;
       this.state.players.forEach((p, pid) => { if (!p.dead && !p.stealth && !this.inSafe(p)) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
-      if (best) r.target = best;
+      if (best) { r.target = best; this.callPack(m, best); }
     }
 
     if (r.target) {
@@ -1808,7 +1823,7 @@ class WorldRoom extends Room {
     }
     // อาบยาพิษ: ทุกการโจมตีใส่พิษ (ไม่ซ้อน — ต่อเวลา)
     if (md.poison && !opts.spirit && !opts.dot) { r.dots = r.dots || {}; r.dots[pid] = { dmg: Math.max(1, Math.round(p.atk * md.poison)), until: t0 + 5000 }; }
-    if (!r.target) { r.target = pid; r.returning = false; }
+    if (!r.target) { r.target = pid; r.returning = false; this.callPack(m, pid); }
     if (opts.stun) r.stunUntil = now() + opts.stun;
     if (opts.slow) r.slowUntil = now() + opts.slow;
     if (m.hp <= 0) this.killMob(mid, m, r);

@@ -37,7 +37,7 @@ function renderWorld() {
     <div class="drops">${sampleDrops(mb.drops, items).map((id) => `<img src="/assets/icons/${id}.png" alt="${(items[id] || {}).name || id}" title="${(items[id] || {}).name || id}">`).join("")}${mb.drops.length > 5 ? `<span class="more">+${mb.drops.length - 5}</span>` : ""}</div>`).join("");
   $("wmInfo").innerHTML = `<div class="kind">${m.type === "town" ? "เมือง · ปลอดภัย" : "พื้นที่ล่ามอนสเตอร์"}</div>
     <h3>${m.name}</h3>
-    <div class="tags">${m.lv ? `<span class="tag">Lv.${m.lv[0]}–${m.lv[1]}</span>` : '<span class="tag">ปลอดภัย</span>'}${m.id === room.mapId ? '<span class="tag here">คุณอยู่ที่นี่</span>' : ""}</div>
+    <div class="tags">${m.lv ? `<span class="tag">Lv.${m.lv[0]}–${m.lv[1]}</span>` : '<span class="tag">ปลอดภัย</span>'}${m.danger ? '<span class="tag danger" title="มอนเยอะ ทุกตัวดุ และเรียกพวกมารุม">☠ โซนอันตราย</span>' : ""}${m.id === room.mapId ? '<span class="tag here">คุณอยู่ที่นี่</span>' : ""}</div>
     <div>${m.desc}</div>
     <div class="wm-acts">${m.type === "town" ? `<button type="button" class="btn-gold wm-go" id="wmTp">🏠 วาปกลับเมือง <small>(ฟรี)</small></button>`
       : `<button type="button" class="btn-gold wm-go" id="wmTp">💎 วาปไปคริสตัล <small>(${tpCost(m).toLocaleString()} gold)</small></button>`}
