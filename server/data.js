@@ -41,7 +41,7 @@ const STAT_INFO = {
   dex: { name: "DEX", th: "แม่นยำ", desc: "ตีโดนแม่น, คริติคอล, พลังธนู" },
 };
 const START_POINTS = 5;
-const STAT_MAX = 99;
+const STAT_MAX = 120;
 const STAT_COST_STEP = 10;
 const pointsAtLevel = (lv) => 3 + Math.floor(lv / 5);                       // แต้มที่ได้ตอนขึ้นเลเวล lv
 const statCost = (x) => 1 + Math.floor((x - 1) / STAT_COST_STEP);           // แต้มที่ใช้เพื่อเพิ่มจาก x เป็น x+1
