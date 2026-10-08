@@ -1328,6 +1328,12 @@ class WorldScene extends Phaser.Scene {
     if (!v) return;
     const fx = f.fx || {};
     const wt = f.wt;
+    if (typeof SKILL2_FX !== "undefined" && SKILL2_FX[f.skill]) { // อาชีพขั้น 2: ท่า + เอฟเฟกต์เฉพาะสกิล (skillfx2.js)
+      const tv2 = f.tgt && this.views.get(f.tgt), S2 = gameData && gameData.skills[f.skill];
+      if (S2 && !f.again && (f.id === room.sessionId || tv2)) this.floatText(v.root.x, v.root.y - 92, S2.name, "#9fe3ff", 11, 700);
+      try { SKILL2_FX[f.skill](this, f, v, tv2); } catch (e) { console.warn("skillfx2", f.skill, e); }
+      return;
+    }
     if (self || fx.type === "proj" || fx.type === "aoe" || fx.type === "meteor") {
       if (wt === "bow") this.playOnce(f.id, "aim", f.dir, 560); else this.playOnce(f.id, "cast", f.dir || v.dir, 520);
     } else this.playOnce(f.id, "slash", f.dir, 620, f.skill === "doublehit" ? 1 : 0);
