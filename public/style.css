@@ -862,3 +862,14 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
   animation: expEvGlow 2.4s ease-in-out infinite; }
 .exp-ev b { color: #ffd76a; font-weight: 600; }
 @keyframes expEvGlow { 0%, 100% { box-shadow: 0 0 0 rgba(255, 200, 90, 0); } 50% { box-shadow: 0 0 10px rgba(255, 200, 90, .45); } }
+
+/* นับถอยหลังอัปเดตเกม (กลางจอ ไม่บังการคลิก) */
+#updBox { position: fixed; left: 50%; top: 11%; transform: translateX(-50%); z-index: 46; pointer-events: none; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 26px 14px; border-radius: 14px;
+  background: rgba(14, 18, 44, .86); border: 1px solid rgba(140, 180, 255, .45); box-shadow: 0 6px 30px rgba(0, 0, 0, .45); color: #dfe8ff; }
+#updBox small { font-size: 14px; color: #9fc2ff; }
+#updBox b { font-size: 46px; line-height: 1.05; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; letter-spacing: 1px; }
+#updBox span { font-size: 12px; color: #aab4d6; max-width: 300px; }
+#updBox.urgent { border-color: #ff9a7a; animation: maintPulse 1s infinite; }
+#updBox.urgent b { color: #ffd0b0; }
+@media (max-width: 700px) { #updBox { top: 9%; padding: 8px 16px 10px; } #updBox b { font-size: 34px; } }

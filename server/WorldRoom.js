@@ -563,19 +563,32 @@ class WorldRoom extends Room {
     r.saveTimer = this.clock.setTimeout(() => { r.saveTimer = null; this.save(pid); }, 1500);
   }
   onDispose() { rooms.delete(this); }
-  // เซิร์ฟเวอร์กำลังปิด (เช่น Render อัปเดตเวอร์ชันใหม่) → แจ้งผู้เล่น · บันทึก · ตัดการเชื่อมต่อด้วยรหัส 4004
-  // นับถอยหลังก่อน (ค่าเริ่มต้น 20 วิ — Render รอปิดได้ 30 วิ · ตั้ง SHUTDOWN_COUNTDOWN ได้ แต่ต้องน้อยกว่า Shutdown Delay ของ Render)
+  // เซิร์ฟเวอร์กำลังปิด (Render ส่ง SIGTERM) → แจ้งผู้เล่น · บันทึก · ตัดการเชื่อมต่อด้วยรหัส 4004
+  // ปกติการนับถอยหลัง 1 นาทีเริ่มไปก่อนแล้วตอนเห็นเวอร์ชันใหม่ (watchUpdate) · ถ้ายังไม่เริ่ม = นับ 20 วิ (Render รอปิดได้ 30 วิ)
   async onBeforeShutdown() {
     const sec = Math.max(0, Number(process.env.SHUTDOWN_COUNTDOWN ?? 20));
     if (!shuttingDown) shuttingDown = Date.now() + sec * 1000;
+    else shuttingDown = Math.min(shuttingDown, Date.now() + 25000); // ต้องจบก่อน Render บังคับปิด (30 วิ)
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id))); // บันทึกไว้ก่อนเผื่อโดนปิดกลางทาง
     if (this.clients.length && shuttingDown > Date.now()) {
       this.broadcast("restartSoon", { left: shuttingDown - Date.now() });
       await new Promise((ok) => setTimeout(ok, Math.max(0, shuttingDown - Date.now())));
     }
+    await this.restartKick();
+  }
+  async restartKick() {
+    if (this.kicked) return; this.kicked = true;
     this.broadcast("restart", {});
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
     this.disconnect(4004);
+  }
+  // อัปเดตใหม่พร้อมแล้ว → นับถอยหลังให้ทุกคน (กลางจอ) ครบเวลา = บันทึกแล้วย้ายผู้เล่นไปเซิร์ฟเวอร์เวอร์ชันใหม่
+  static startUpdateCountdown(sec) {
+    if (shuttingDown) return;
+    shuttingDown = Date.now() + sec * 1000;
+    console.log(`[update] พบเวอร์ชันใหม่ — นับถอยหลัง ${sec} วิ แล้วย้ายผู้เล่นไปเซิร์ฟเวอร์ใหม่`);
+    rooms.forEach((rm) => rm.broadcast("restartSoon", { left: sec * 1000 }));
+    setTimeout(() => rooms.forEach((rm) => { if (rm.clients.length) rm.restartKick().catch((e) => console.error("restartKick", e.message)); }), sec * 1000);
   }
 
   // ================= ผู้เล่นเข้า/ออก =================
@@ -2963,3 +2976,19 @@ setInterval(() => { try { WorldRoom.bossTick(); } catch (e) { console.error("bos
 setTimeout(() => { for (const id of Object.keys(W.MAPS)) { try { getMap(id); mapCrystals(id); } catch (e) { console.error("prewarm", id, e.message); } } }, 500).unref();
 // โหลดอีเวนต์ EXP ที่ค้างอยู่ (เผื่อเซิร์ฟเวอร์รีสตาร์ทระหว่างอีเวนต์)
 store.getConfig && store.getConfig("expEvent").then((e) => { if (e && e.mult > 1 && (!e.endAt || e.endAt > Date.now())) WorldRoom.setExpEvent(e.mult, 0, { quiet: true, endAt: e.endAt || 0 }); }).catch(() => {});
+// ---------- ตรวจว่ามีเวอร์ชันใหม่ขึ้นแล้ว (Render: เครื่องใหม่พร้อม → ทราฟฟิกใหม่ไปเครื่องใหม่ · เครื่องเก่ายังรันต่อ ~60 วิ ก่อนได้ SIGTERM + 30 วิ)
+// เครื่องเก่าถาม /api/version ผ่าน URL สาธารณะของตัวเองทุก 5 วิ → ถ้าได้เวอร์ชันอื่น = เครื่องใหม่พร้อมแล้ว → นับถอยหลังกลางจอ
+const BUILD = process.env.RENDER_GIT_COMMIT || String(Date.now());
+WorldRoom.BUILD = BUILD;
+if (process.env.RENDER_EXTERNAL_URL) {
+  const UPDATE_SEC = Math.max(10, Math.min(75, Number(process.env.UPDATE_COUNTDOWN || 60)));
+  const watch = setInterval(async () => {
+    if (shuttingDown) return clearInterval(watch);
+    try {
+      const r = await fetch(process.env.RENDER_EXTERNAL_URL.replace(/\/$/, "") + "/api/version", { cache: "no-store", signal: AbortSignal.timeout(4000) });
+      const v = r.ok && (await r.json()).v;
+      if (v && v !== BUILD) { clearInterval(watch); WorldRoom.startUpdateCountdown(UPDATE_SEC); }
+    } catch {}
+  }, 5000);
+  watch.unref();
+}

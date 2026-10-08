@@ -2092,8 +2092,7 @@ function onRestartSoon(d) {
   for (const t of [300, 60, 30, 10]) if (Math.ceil(d.left / 1000) <= t + 2) maintSaid[t] = true;
   if (first) {
     const sec = Math.ceil(d.left / 1000);
-    addChat("system", `🔄 เซิร์ฟเวอร์จะอัปเดตเวอร์ชันใหม่ในอีก ${sec} วินาที — ตัวละครบันทึกแล้ว เกมจะเชื่อมต่อกลับให้อัตโนมัติ (ปาร์ตี้ยังอยู่)`);
-    showAnnounce(`อัปเดตเกมในอีก ${sec} วินาที`);
+    addChat("system", `🔄 มีอัปเดตเกมใหม่ — จะรีโหลดในอีก ${sec >= 60 ? Math.round(sec / 60) + " นาที" : sec + " วินาที"} (ตัวละครบันทึกแล้ว ปาร์ตี้ยังอยู่)`);
   }
   clearInterval(maintTick);
   maintTick = setInterval(renderMaint, 250);
@@ -2125,6 +2124,15 @@ function renderMaint() {
   b.classList.toggle("urgent", sec <= 30);
   b.innerHTML = restartSoon ? `🔄 อัปเดตเกมในอีก <b>${mm}:${ss}</b> · จะเชื่อมต่อกลับอัตโนมัติ`
     : `🔧 ปิดปรับปรุงในอีก <b>${mm}:${ss}</b>${maintMsg ? ` · ${esc(maintMsg)}` : ""}`;
+  // อัปเดตเกม: นับถอยหลังตัวใหญ่กลางจอ (ไม่บังการคลิก)
+  if (restartSoon) {
+    b.hidden = true;
+    let u = $("updBox");
+    if (!u) { u = document.createElement("div"); u.id = "updBox"; u.setAttribute("role", "timer"); document.body.appendChild(u); }
+    u.hidden = left <= 0;
+    u.classList.toggle("urgent", sec <= 10);
+    u.innerHTML = `<small>🔄 มีอัปเดตเกมใหม่</small><b>${mm}:${ss}</b><span>เกมจะรีโหลดเองเมื่อครบเวลา · ตัวละครบันทึกไว้แล้ว ไม่ต้องทำอะไร</span>`;
+  }
   // เตือนในแชทเมื่อเหลือ 5 นาที / 1 นาที / 30 วิ / 10 วิ
   for (const t of [300, 60, 30, 10]) if (sec <= t && !maintSaid[t]) {
     maintSaid[t] = true;
@@ -2146,6 +2154,7 @@ async function reconnectGame(kind) {
   reconnecting = true;
   clearInterval(maintTick); restartSoon = false; maintEnd = 0;
   const b = $("maintBar"); if (b) b.hidden = true;
+  const ub = $("updBox"); if (ub) ub.hidden = true;
   const mapId = (room && room.mapId) || (myChar && myChar.map) || "town";
   let o = $("reconBox");
   if (!o) { o = document.createElement("div"); o.id = "reconBox"; document.body.appendChild(o); }

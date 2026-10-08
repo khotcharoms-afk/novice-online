@@ -35,8 +35,7 @@ app.get("/credits", (_req, res) =>
 );
 app.get("/health", (_req, res) => res.send("ok"));
 // เวอร์ชันของเซิร์ฟเวอร์ (เปลี่ยนทุกครั้งที่ deploy) — หน้าเกมใช้เช็กว่าต้องโหลดโค้ดใหม่ไหมหลังเชื่อมต่อกลับ
-const BUILD = process.env.RENDER_GIT_COMMIT || String(Date.now());
-app.get("/api/version", (_req, res) => res.set("Cache-Control", "no-store").json({ v: BUILD }));
+app.get("/api/version", (_req, res) => res.set("Cache-Control", "no-store").json({ v: WorldRoom.BUILD }));
 app.get("/api/world", (_req, res) => res.json(WorldRoom.worldInfo()));
 app.get("/api/status", (_req, res) => res.json({ closed: WorldRoom.maintInfo().closed }));
 
