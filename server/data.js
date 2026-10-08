@@ -411,9 +411,9 @@ const SKILLS = {
     desc: (L) => `SP สูงสุด +${3 * L}% · SP ฟื้นเร็วขึ้น ${5 * L}%`, pas: (L) => ({ spPct: 3 * L, spRegen: 0.05 * L }) },
   firebolt:   { name: "ลูกไฟ", max: 10, sp: [6, 0.4], cooldown: 3000, target: "mob", range: 200, auto: "dmg", icon: "skill_firebolt", color: "#c0501a",
     mult: [1.3, 0.08], splash: 0.5, area: [48, 0], desc: (L) => `เวท ${Math.round((1.3 + 0.08 * L) * 100)}% + ไฟกระเด็นรอบ ๆ 50%`, fx: { type: "proj", proj: "fire" } },
-  frostnova:  { name: "วงน้ำแข็ง", max: 10, sp: [14, 0.5], cooldown: 10000, target: "mob", range: 200, auto: "dmg", icon: "skill_frostnova", color: "#2a7ab0",
+  frostnova:  { name: "วงน้ำแข็ง", ground: true, max: 10, sp: [14, 0.5], cooldown: 10000, target: "mob", range: 200, auto: "dmg", icon: "skill_frostnova", color: "#2a7ab0",
     mult: [0.9, 0.06], area: [90, 4], slow: [2000, 200], desc: (L) => `เวท ${Math.round((0.9 + 0.06 * L) * 100)}% ทุกตัวในวง ${((90 + 4 * L) / 32).toFixed(1)} ช่อง + ช้าลง ${(2 + 0.2 * L).toFixed(1)} วิ`, fx: { type: "aoe", color: 0x9fe3ff } },
-  meteor:     { name: "อุกกาบาต", max: 10, req: ["firebolt", 5], sp: [26, 1], cooldown: 20000, target: "mob", range: 220, auto: "dmg", icon: "skill_meteor", color: "#b03a1a",
+  meteor:     { name: "อุกกาบาต", ground: true, max: 10, req: ["firebolt", 5], sp: [26, 1], cooldown: 20000, target: "mob", range: 220, auto: "dmg", icon: "skill_meteor", color: "#b03a1a",
     mult: [1.8, 0.12], area: [110, 4], delay: 800, desc: (L) => `หลัง 0.8 วิ เวท ${Math.round((1.8 + 0.12 * L) * 100)}% ทุกตัวในวง ${((110 + 4 * L) / 32).toFixed(1)} ช่อง`, fx: { type: "meteor", color: 0xff7a30 } },
   // ===== หมอ =====
   faith:      { name: "ศรัทธา", passive: true, max: 10, icon: "skill_faith", color: "#a08a3a",
@@ -439,9 +439,9 @@ const SKILLS = {
     mult: [2.4, 0.18], desc: (L) => `เล็งยิงจุดตาย ${Math.round((2.4 + 0.18 * L) * 100)}% คริติคอลแน่นอน · ระยะ 7.5 ช่อง` },
   multishot:  { name: "ยิงกระจาย", max: 5, req: ["arrowrain", 5], sp: [16, 0.8], cooldown: 9000, target: "mob", range: 220, kind: "chain", chain: 4, auto: "dmg", icon: "skill_multishot", color: "#5aa04a",
     mult: [1.0, 0.08], desc: (L) => `ยิงธนูกระจายใส่มอน ${4 + Math.floor(L / 4)} ตัวใกล้กัน ตัวละ ${Math.round((1 + 0.08 * L) * 100)}%` },
-  inferno:    { name: "ทะเลเพลิง", max: 5, req: ["meteor", 3], sp: [26, 1.2], cooldown: 16000, target: "mob", range: 220, kind: "aoeTarget", area: [100, 4], hits: 4, every: 450, auto: "dmg", icon: "skill_inferno", color: "#e04a10",
+  inferno:    { name: "ทะเลเพลิง", ground: true, max: 5, req: ["meteor", 3], sp: [26, 1.2], cooldown: 16000, target: "mob", range: 220, kind: "aoeTarget", area: [100, 4], hits: 4, every: 450, auto: "dmg", icon: "skill_inferno", color: "#e04a10",
     mult: [0.6, 0.05], desc: (L) => `ไฟลุกท่วมพื้น 4 ระลอก ระลอกละ ${Math.round((0.6 + 0.05 * L) * 100)}% ทุกตัวในวง ${((100 + 4 * L) / 32).toFixed(1)} ช่อง` },
-  glacier:    { name: "ธารน้ำแข็งถล่ม", max: 5, req: ["frostnova", 5], sp: [24, 1.2], cooldown: 15000, target: "mob", range: 220, kind: "aoeTarget", area: [110, 4], stun: [1500, 100], delay: 300, auto: "dmg", icon: "skill_glacier", color: "#4aa0e0",
+  glacier:    { name: "ธารน้ำแข็งถล่ม", ground: true, max: 5, req: ["frostnova", 5], sp: [24, 1.2], cooldown: 15000, target: "mob", range: 220, kind: "aoeTarget", area: [110, 4], stun: [1500, 100], delay: 300, auto: "dmg", icon: "skill_glacier", color: "#4aa0e0",
     mult: [1.4, 0.1], desc: (L) => `ก้อนน้ำแข็งถล่ม ${Math.round((1.4 + 0.1 * L) * 100)}% ทุกตัวในวง ${((110 + 4 * L) / 32).toFixed(1)} ช่อง + แช่แข็ง ${(1.5 + 0.1 * L).toFixed(1)} วิ` },
   renewal:    { name: "ฟื้นฟูศักดิ์สิทธิ์", max: 5, req: ["bless", 3], sp: [26, 1], cooldown: 16000, target: "self", kind: "massHeal", area: [230, 0], heal: [0.14, 0.02], auto: "heal", icon: "skill_renewal", color: "#f0d870",
     desc: (L) => `ฮีลทุกคนรอบตัว 7 ช่อง ${Math.round((0.14 + 0.02 * L) * 100)}% ของ HP + INT×3` },
@@ -517,8 +517,8 @@ function sanitizeSkills(raw, job, lv) {
 // ข้อมูลสกิลสำหรับ client (ฟังก์ชันส่งผ่านเครือข่ายไม่ได้ → คำนวณคำอธิบาย/SP ทุกเลเวลไว้ให้)
 const skillsForClient = () => Object.fromEntries(Object.entries(SKILLS).map(([k, s]) => {
   const o = { name: s.name, passive: !!s.passive, max: s.max, innate: s.innate || 0, req: s.req || null, icon: s.icon, color: s.color,
-    target: s.target || null, cooldown: s.cooldown || 0, range: s.range || 0, fx: s.fx || null, descs: [], sps: [] };
-  for (let L = 1; L <= s.max; L++) { o.descs.push(s.desc(L)); if (s.sp) o.sps.push(Math.round(lvVal(s.sp, L))); }
+    target: s.target || null, cooldown: s.cooldown || 0, range: s.range || 0, fx: s.fx || null, descs: [], sps: [], ground: !!s.ground, areas: [] };
+  for (let L = 1; L <= s.max; L++) { o.descs.push(s.desc(L)); if (s.sp) o.sps.push(Math.round(lvVal(s.sp, L))); if (s.area) o.areas.push(Math.round(lvVal(s.area, L))); }
   o.desc = o.descs[0]; o.sp = o.sps[0] || 0;
   return [k, o];
 }));

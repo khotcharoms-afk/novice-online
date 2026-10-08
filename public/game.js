@@ -345,6 +345,7 @@ function bindRoom(room) {
     room.onMessage("dungeonInvite", (d) => onDungeonInvite(d));
     room.onMessage("dungeonClear", (d) => onDungeonClear(d));
     if (typeof hideDungeonHud === "function") hideDungeonHud();
+    if (typeof cancelAim === "function") cancelAim();
     if (typeof closeSpirit === "function") closeSpirit(); // หน้าต่างลูน่าใช้ได้แค่ในเมือง // ห้องใหม่: ถ้าเป็นดัน เซิร์ฟเวอร์จะส่งสถานะมาเอง
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text, party }) => {
@@ -609,6 +610,11 @@ class WorldScene extends Phaser.Scene {
     // ---------- คลิก ----------
     this.input.on("pointerdown", (p, over) => {
       if (document.activeElement === $("chatInput")) $("chatInput").blur();
+      // กำลังเล็งสกิลวงกว้าง: คลิกพื้น = ร่ายตรงนั้น · คลิกขวา = ยกเลิก
+      if (this.aim) {
+        if (p.rightButtonDown()) { cancelAim(); return; }
+        fireAim(p.worldX, p.worldY); return;
+      }
       const drop = over.find((o) => o.getData && o.getData("dropId"));
       if (drop) { this.myTarget = null; room.send("pickup", { id: drop.getData("dropId") }); return; }
       const npc = over.find((o) => o.getData && o.getData("npcId"));
@@ -1682,7 +1688,23 @@ class WorldScene extends Phaser.Scene {
     } });
     this.tweens.add({ targets: o, x: x1, y: y1, duration: ms, onComplete: () => { trail.remove(); o.destroy(); this.burst(x1, y1, c, 18); } });
   }
+  // วาดวงเล็งสกิล (ตามเมาส์) + วงระยะร่ายรอบตัว
+  drawAim() {
+    if (!this.aim) return;
+    if (!this.aimG) this.aimG = this.add.graphics().setDepth(-7900);
+    const g = this.aimG, me = this.views.get(room.sessionId), ptr = this.input.activePointer;
+    ptr.updateWorldPoint(this.cameras.main);
+    g.clear();
+    if (!me) return;
+    const x = ptr.worldX, y = ptr.worldY, r = this.aim.r, inRange = Math.hypot(x - me.root.x, y - me.root.y) <= this.aim.range;
+    const col = inRange ? 0x7dd8ff : 0xffb050;
+    g.lineStyle(1.5, 0xffffff, 0.25); g.strokeEllipse(me.root.x, me.root.y, this.aim.range * 2, this.aim.range * 1.24);
+    g.fillStyle(col, 0.16); g.fillEllipse(x, y, r * 2, r * 1.24);
+    g.lineStyle(2.5, col, 0.9); g.strokeEllipse(x, y, r * 2, r * 1.24);
+    g.lineStyle(1, col, 0.6); g.lineBetween(x - 8, y, x + 8, y); g.lineBetween(x, y - 5, x, y + 5);
+  }
   update(time, dt) {
+    this.drawAim();
     if (this.petViews) this.updatePets(time);
     if (this.spiritViews) this.updateSpirits(time);
     this.updateSummons(time);
@@ -1922,9 +1944,40 @@ function renderAuto(on, state) {
 }
 function castSkill(key, el) {
   if (!key) return;
+  // สกิลวงกว้างแบบเลือกจุด: กดครั้งแรก = เล็ง (วงตามเมาส์) · กดซ้ำ = ร่ายตรงเมาส์เลย
+  const S = gameData && gameData.skills[key];
+  if (S && S.ground && scene && (mySkillData.skills || {})[key] > 0) {
+    if (scene.aim && scene.aim.key === key) { const ptr = scene.input.activePointer; ptr.updateWorldPoint(scene.cameras.main); fireAim(ptr.worldX, ptr.worldY); }
+    else startAim(key);
+    if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+    return;
+  }
   room.send("skill", { skill: key, target: scene.myTarget });
   if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
 }
+// ---------- เล็งสกิลวงกว้าง ----------
+function startAim(key) {
+  const S = gameData.skills[key], L = (mySkillData.skills || {})[key] || 1;
+  scene.aim = { key, r: (S.areas && S.areas[L - 1]) || 90, range: S.range || 200, name: S.name };
+  scene.input.setDefaultCursor("crosshair");
+  let h = $("aimHint");
+  if (!h) { h = document.createElement("div"); h.id = "aimHint"; document.body.appendChild(h); }
+  h.innerHTML = `🎯 <b>${esc(S.name)}</b> · คลิกพื้นที่จะร่าย · กดปุ่มสกิลซ้ำ = ร่ายตรงเมาส์ · คลิกขวา/Esc ยกเลิก`;
+  h.hidden = false;
+}
+function cancelAim() {
+  if (!scene || !scene.aim) return;
+  scene.aim = null; scene.input.setDefaultCursor(CUR.arrow);
+  if (scene.aimG) scene.aimG.clear();
+  const h = $("aimHint"); if (h) h.hidden = true;
+}
+function fireAim(x, y) {
+  const a = scene.aim; if (!a) return;
+  room.send("skill", { skill: a.key, x: Math.round(x), y: Math.round(y) });
+  cancelAim();
+}
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && scene && scene.aim) { e.stopPropagation(); cancelAim(); } }, true);
+window.addEventListener("contextmenu", (e) => { if (scene && scene.aim) { e.preventDefault(); cancelAim(); } });
 function setupHotkeys() {
   window.addEventListener("keydown", (e) => {
     if (isTyping()) return;

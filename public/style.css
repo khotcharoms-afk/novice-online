@@ -931,3 +931,7 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 .cmp ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
 .cmp li.up { color: #7dff9a; } .cmp li.down { color: #ff8a8a; }
 .cmp-none { font-size: 12px; color: #cfd6ee; } .cmp-note { font-size: 11.5px; color: #ffcf7a; margin-top: 3px; }
+#aimHint { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 40; padding: 5px 12px; border-radius: 99px; font-size: 12.5px; pointer-events: none;
+  background: rgba(10, 14, 34, .85); border: 1px solid rgba(125, 216, 255, .5); color: #dfe8ff; white-space: nowrap; }
+#aimHint b { color: #7dd8ff; font-weight: 500; }
+@media (max-width: 700px) { #aimHint { white-space: normal; width: calc(100vw - 32px); text-align: center; bottom: 120px; } }

@@ -409,12 +409,12 @@ class WorldRoom extends Room {
 
     this.onMessage("moveTo", (client, m) => {
       const r = this.alive(client); if (!r || !m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
-      r.moveTarget = { x: m.x, y: m.y }; r.dx = r.dy = 0; r.target = null; r.pending = null; r.pick = null;
+      r.moveTarget = { x: m.x, y: m.y }; r.dx = r.dy = 0; r.target = null; r.pending = null; r.pick = null; r.pendingAt = null;
       this.setAuto(client.sessionId, false);
     });
     this.onMessage("dir", (client, m) => {
       const r = this.alive(client); if (!r || !m) return;
-      r.dx = Math.sign(Number(m.dx) || 0); r.dy = Math.sign(Number(m.dy) || 0);
+      r.dx = Math.sign(Number(m.dx) || 0); r.dy = Math.sign(Number(m.dy) || 0); if (r.dx || r.dy) r.pendingAt = null;
       if (r.dx || r.dy) { r.moveTarget = null; r.target = null; r.pending = null; r.pick = null; this.setAuto(client.sessionId, false); }
     });
     this.onMessage("auto", (client, on) => { if (this.alive(client)) this.setAuto(client.sessionId, !!on); });
@@ -535,7 +535,7 @@ class WorldRoom extends Room {
       const r = this.alive(client); if (!r || !m) return;
       const mob = this.state.monsters.get(String(m.id));
       if (!mob || mob.dead) return;
-      r.target = String(m.id); r.moveTarget = null; r.dx = r.dy = 0; r.pick = null;
+      r.target = String(m.id); r.moveTarget = null; r.dx = r.dy = 0; r.pick = null; r.pendingAt = null;
     });
     this.onMessage("skill", (client, m) => this.useSkill(client, m));
     // ---------- เปลี่ยนอาชีพ ----------
@@ -1519,6 +1519,14 @@ class WorldRoom extends Room {
       return;
     }
 
+    // สกิลลงจุดที่เลือก: เดินเข้าระยะแล้วร่าย
+    if (r.pendingAt && !r.target) {
+      const pa = r.pendingAt, sk = D.SKILLS[pa.key];
+      if (!sk) { r.pendingAt = null; return; }
+      if (dist(p, pa) <= sk.range) { r.pendingAt = null; r.nav = null; p.moving = false; p.dir = dirOf(pa.x - p.x, pa.y - p.y); this.castSkill(id, p, r, pa.key, null, pa); return; }
+      if (!this.navTo(p, r, pa, step, t)) { r.pendingAt = null; r.nav = null; p.moving = false; }
+      return;
+    }
     // มีเป้าหมาย: เดินเข้าไปจนถึงระยะ แล้วตี
     if (r.target) {
       const mob = this.state.monsters.get(r.target);
@@ -2557,6 +2565,13 @@ class WorldRoom extends Room {
     if (now() < (r.cds[key] || 0)) return client.send("toast", `${sk.name} ยังไม่พร้อม`);
     if (p.sp < sk.sp) return client.send("toast", "SP ไม่พอ");
     if (sk.target !== "mob") return this.castSkill(pid, p, r, key, null);
+    // สกิลวงกว้างแบบเลือกจุด (ไม่ต้องมีเป้า): ไกลเกินระยะ → เดินไปก่อนแล้วร่ายเอง
+    if (sk.ground && Number.isFinite(Number(m.x)) && Number.isFinite(Number(m.y))) {
+      const at = { x: Number(m.x), y: Number(m.y) };
+      r.target = null; r.pending = null; r.moveTarget = null; r.dx = r.dy = 0; r.pick = null;
+      if (dist(p, at) > sk.range) { r.pendingAt = { key, ...at }; return; }
+      return this.castSkill(pid, p, r, key, null, at);
+    }
     const tid = m.target ? String(m.target) : r.target;
     const mob = tid && this.state.monsters.get(tid);
     if (!mob || mob.dead) return client.send("toast", "เลือกมอนสเตอร์เป้าหมายก่อน");
@@ -2566,13 +2581,15 @@ class WorldRoom extends Room {
     this.castSkill(pid, p, r, key, tid);
   }
 
-  castSkill(pid, p, r, key, tid) {
+  castSkill(pid, p, r, key, tid, at) {
     const L = (p.skills || {})[key] || 0;
     if (!L) return;
     const sk = D.skillAt(key, L), bv = sk.bv ? sk.bv(L) : null;
     if (p.sp < sk.sp || now() < (r.cds[key] || 0)) return;
     if (sk.hpCost && p.hp <= p.maxHp * sk.hpCost + 1) return;
-    const mob = tid && this.state.monsters.get(tid);
+    // ร่ายลงจุดที่เลือก: ใช้ตำแหน่งนั้นแทนตัวมอน (ศูนย์กลางวง)
+    const mob = at && sk.ground ? { x: at.x, y: at.y, dead: false, ground: true } : tid && this.state.monsters.get(tid);
+    if (at && sk.ground) tid = null;
     if (sk.target === "mob" && (!mob || mob.dead)) return;
     if (sk.target === "mob" && this.inSafe(p)) return;
     p.sp -= sk.sp;

@@ -89,7 +89,7 @@ const SKILLS2 = {
   bladefan: { name: "ใบมีดพายุ", max: 10, sp: [12, 0.6], cooldown: 8000, target: "self", kind: "aoeSelf", area: [110, 4], auto: "dmg", icon: "skill_bladefan", color: "#8050b0",
     mult: [0.9, 0.07], desc: (L) => `ขว้างใบมีดรอบตัว ${((110 + 4 * L) / 32).toFixed(1)} ช่อง ${pct(0.9, 0.07, L)}%`, fx: { type: "spin", color: 0xc08aff } },
   // ===== จอมเวท =====
-  blizzard: { name: "พายุหิมะ", max: 10, sp: [24, 1], cooldown: 14000, target: "mob", range: 220, kind: "aoeTarget", area: [120, 4], hits: 4, every: 500, slow: [2000, 0], auto: "dmg", icon: "skill_blizzard", color: "#80c0ff",
+  blizzard: { name: "พายุหิมะ", ground: true, max: 10, sp: [24, 1], cooldown: 14000, target: "mob", range: 220, kind: "aoeTarget", area: [120, 4], hits: 4, every: 500, slow: [2000, 0], auto: "dmg", icon: "skill_blizzard", color: "#80c0ff",
     mult: [0.45, 0.03], desc: (L) => `พายุหิมะ 4 ระลอก ระลอกละ ${pct(0.45, 0.03, L)}% ทุกตัวในวง ${((120 + 4 * L) / 32).toFixed(1)} ช่อง + ช้าลง`, fx: { type: "aoe", color: 0xcfeaff } },
   lightning: { name: "สายฟ้าฟาด", max: 10, sp: [16, 0.8], cooldown: 7000, target: "mob", range: 220, kind: "chain", chain: 4, auto: "dmg", icon: "skill_lightning", color: "#f0e060",
     mult: [1.3, 0.09], desc: (L) => `สายฟ้ากระโดด ${4 + Math.floor(L / 4)} ตัว ตัวละ ${pct(1.3, 0.09, L)}%`, fx: { type: "chain", color: 0xfff27a } },
@@ -104,7 +104,7 @@ const SKILLS2 = {
     dv: (L) => ({ pct: 0.15 + 0.02 * L, ms: 12000 }), desc: (L) => `มอนในวงรอบเป้า โดนดาเมจแรงขึ้น ${15 + 2 * L}% นาน 12 วิ`, fx: { type: "aoe", color: 0xff7ab0 } },
   souldrain: { name: "ดูดวิญญาณ", max: 10, sp: [10, 0.5], cooldown: 6000, target: "mob", range: 220, kind: "hit", drain: 0.3, spGain: 5, auto: "dmg", icon: "skill_souldrain", color: "#c050a0",
     mult: [1.4, 0.1], desc: (L) => `เวท ${pct(1.4, 0.1, L)}% · ดูดเป็น HP 30% ของดาเมจ + SP 5`, fx: { type: "proj", proj: "dark" } },
-  blackhole: { name: "หลุมดำ", max: 10, sp: [28, 1.2], cooldown: 20000, target: "mob", range: 220, kind: "aoeTarget", area: [140, 4], hits: 3, every: 500, pull: true, auto: "dmg", icon: "skill_blackhole", color: "#301040",
+  blackhole: { name: "หลุมดำ", ground: true, max: 10, sp: [28, 1.2], cooldown: 20000, target: "mob", range: 220, kind: "aoeTarget", area: [140, 4], hits: 3, every: 500, pull: true, auto: "dmg", icon: "skill_blackhole", color: "#301040",
     mult: [0.5, 0.04], desc: (L) => `เปิดหลุมดำ ดูดมอนในวง ${((140 + 4 * L) / 32).toFixed(1)} ช่องเข้าหากลาง 3 ระลอก ระลอกละ ${pct(0.5, 0.04, L)}%`, fx: { type: "aoe", color: 0x8a40c0 } },
   // ===== นักบุญ =====
   massheal: { name: "ฮีลหมู่", max: 10, sp: [24, 1.2], cooldown: 12000, target: "self", kind: "massHeal", area: [230, 0], heal: [0.15, 0.015], auto: "heal", icon: "skill_massheal", color: "#ffe080",
