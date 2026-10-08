@@ -234,6 +234,19 @@ const randMin = ([a, b]) => (a + Math.random() * (b - a)) * 60000;
 for (const [k, B] of Object.entries(D.WORLD_BOSSES)) bossSched[k] = { next: Date.now() + randMin([10, 25]), alive: false, since: 0, map: null, warned: false };
 // ปิดปรับปรุง: แอดมินตั้งเวลานับถอยหลัง → ครบเวลา = บันทึกทุกคน + ให้ออกจากเกม + ปิดไม่ให้เข้า (จนแอดมินเปิดหรือเซิร์ฟรีสตาร์ท)
 const maint = { endAt: 0, msg: "", closed: false, timer: null };
+// สถิติการหลุด (ไว้ดูสาเหตุ "เด้งบ่อย" ในหน้าแอดมิน/ล็อก Render)
+const netStats = { drops: [], lagMax: 0, lagAt: 0, lagSpikes: [] };
+{
+  let last = performance.now();
+  setInterval(() => {
+    const t = performance.now(), lag = t - last - 1000; last = t;
+    if (lag > netStats.lagMax || Date.now() - netStats.lagAt > 3600000) { netStats.lagMax = Math.max(0, Math.round(lag)); netStats.lagAt = Date.now(); }
+    if (lag > 1000) { netStats.lagSpikes.push(Date.now()); console.warn(`[lag] เซิร์ฟเวอร์ค้าง ${Math.round(lag)} ms`); }
+    const h = Date.now() - 3600000;
+    while (netStats.drops.length && netStats.drops[0].t < h) netStats.drops.shift();
+    while (netStats.lagSpikes.length && netStats.lagSpikes[0] < h) netStats.lagSpikes.shift();
+  }, 1000).unref();
+}
 // อีเวนต์ EXP (แอดมินเปิด): คูณ EXP จากมอนทุกคนในเซิร์ฟ · บันทึกในฐานข้อมูล อยู่รอดตอนรีสตาร์ท
 const expEvent = { mult: 1, endAt: 0, timer: null };
 const expMult = () => (expEvent.mult > 1 && (!expEvent.endAt || expEvent.endAt > Date.now()) ? expEvent.mult : 1);
@@ -698,6 +711,9 @@ class WorldRoom extends Room {
   static kickUid(uid, reason) {
     online.forEach((o, charId) => { const r = o.room.pr.get(o.sessionId); if (r && r.uid === uid) WorldRoom.kick(charId, reason); });
   }
+  static netInfo() {
+    return { drops1h: netStats.drops.length, recentDrops: netStats.drops.slice(-8).reverse(), lagMax: netStats.lagMax, lagSpikes1h: netStats.lagSpikes.length };
+  }
   // ---------- อีเวนต์ EXP ----------
   static expEventInfo() {
     const m = expMult();
@@ -1005,8 +1021,12 @@ class WorldRoom extends Room {
   }
   static announce(text) { rooms.forEach((rm) => rm.broadcast("announce", text)); }
 
-  onLeave(client) {
+  onLeave(client, consented) {
     const p = this.state.players.get(client.sessionId), r = this.pr.get(client.sessionId);
+    if (p && !p.warp && !consented && !shuttingDown) { // หลุดเอง (ไม่ได้กดออก/ย้ายแผนที่)
+      netStats.drops.push({ t: Date.now(), name: p.name });
+      console.log(`[drop] ${p.name} หลุดการเชื่อมต่อ (${this.mapId})`);
+    }
     if (r && r.charId) {
       this.save(client.sessionId);
       const o = online.get(r.charId);

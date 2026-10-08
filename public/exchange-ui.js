@@ -114,8 +114,10 @@ function renderTrade() {
   if ($("stSort")) $("stSort").onclick = () => room.send("storageSort");
   if ($("stPut")) $("stPut").onclick = () => { const n = Math.floor(Number($("stAmt").value) || 0); if (n > 0) room.send("storageGold", { n }); };
   if ($("stTake")) $("stTake").onclick = () => { const n = Math.floor(Number($("stAmt").value) || 0); if (n > 0) room.send("storageGold", { n: -n }); };
-  if ($("trLock")) $("trLock").onclick = () => room.send("tradeLock");
+  if ($("trLock")) $("trLock").onclick = () => (TRADE ? room.send("tradeLock") : onTradeClosed({ reason: "การแลกเปลี่ยนจบไปแล้ว" }));
   if ($("trOk")) $("trOk").onclick = async () => { if (await askConfirm("ยืนยันการแลกเปลี่ยน?<br><small>ตรวจของและจำนวนเงินของทั้งสองฝ่ายให้แน่ใจ</small>", { okText: "ยืนยัน" })) room.send("tradeConfirm"); };
-  if ($("trCancel")) $("trCancel").onclick = () => room.send("tradeCancel");
-  if ($("trClose")) $("trClose").onclick = () => room.send("tradeCancel");
+  // ยกเลิก/ปิด: ปิดหน้าต่างทันทีฝั่งเรา (แม้อีกฝ่ายหลุดไปแล้วและเซิร์ฟเวอร์ไม่ตอบ) แล้วค่อยบอกเซิร์ฟเวอร์
+  const cancel = () => { try { room.send("tradeCancel"); } catch {} onTradeClosed(null); };
+  if ($("trCancel")) $("trCancel").onclick = cancel;
+  if ($("trClose")) $("trClose").onclick = cancel;
 })();

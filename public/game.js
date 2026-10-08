@@ -328,6 +328,8 @@ async function enterGame(c, btn) {
 }
 // ผูกข้อความจากห้อง (เรียกทุกครั้งที่เข้าห้องใหม่ — ตอนเข้าเกมและตอนย้ายแผนที่)
 function bindRoom(room) {
+    // เข้าห้องใหม่ (ย้ายแผนที่/เชื่อมต่อใหม่) → การแลกเปลี่ยนเดิมจบแล้วฝั่งเซิร์ฟเวอร์ ปิดหน้าต่างค้าง
+    if (typeof TRADE !== "undefined" && (TRADE || tradeOpen())) onTradeClosed({ reason: "การแลกเปลี่ยนถูกยกเลิก (เชื่อมต่อใหม่)" });
     room.onMessage("warp", (w) => travelTo(myChar, w));
     room.onMessage("sold", () => { sellCart.clear(); renderShop(); });
     room.onMessage("bought", () => { buyCart.clear(); renderShop(); });
@@ -384,6 +386,8 @@ function bindRoom(room) {
 }
 
 initAuth();
+// กันเซิร์ฟเวอร์ (Render) หลับเพราะคิดว่าไม่มีคนใช้: ระหว่างอยู่ในเกม ยิง /health เบา ๆ ทุก 4 นาที
+setInterval(() => { if (room && myCharId) fetch("/health", { cache: "no-store" }).catch(() => {}); }, 240000);
 
 // =============================================================
 //  ฉากเกม

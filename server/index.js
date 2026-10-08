@@ -62,7 +62,9 @@ app.delete("/api/chars/:id", api(async (user, req) => {
 }));
 
 const gameServer = new Server({
-  transport: new WebSocketTransport({ server: http.createServer(app) }),
+  // ตรวจว่าผู้เล่นยังเชื่อมต่ออยู่: ping ทุก 10 วิ ไม่ตอบ 3 ครั้ง (~30-40 วิ) ค่อยตัด
+  // (ค่าเดิม 3 วิ × 2 = ~6-9 วิ — มือถือสลับแอป/เน็ตกระตุก/เซิร์ฟช้าแป๊บเดียวก็หลุดทันที)
+  transport: new WebSocketTransport({ server: http.createServer(app), pingInterval: 10000, pingMaxRetries: 3 }),
 });
 gameServer.define("world", WorldRoom).filterBy(["mapId"]); // 1 ห้องต่อ 1 แผนที่
 

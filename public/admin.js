@@ -134,7 +134,8 @@ async function loadOverview() {
   const up = Math.floor(d.uptime / 60000);
   const cards = [["ออนไลน์", d.world.players], ["มอนที่มีชีวิต", `${d.world.alive}/${d.world.monsters}`], ["ของบนพื้น", d.world.drops],
     ["สัตว์เลี้ยงที่ออกมา", d.world.pets], ["เปิดเซิร์ฟมา", up >= 60 ? `${Math.floor(up / 60)} ชม. ${up % 60} น.` : `${up} นาที`],
-    ["RAM", d.memMB + " MB"], ["ฐานข้อมูล", d.mode === "firebase" ? "Firebase" : "ทดสอบ"]];
+    ["RAM", d.memMB + " MB"], ["ฐานข้อมูล", d.mode === "firebase" ? "Firebase" : "ทดสอบ"],
+    ...(d.net ? [["หลุด/ปิดเกมไม่กดออก (1 ชม.)", d.net.drops1h + " ครั้ง"], ["เซิร์ฟค้างสูงสุด (1 ชม.)", `${d.net.lagMax} ms${d.net.lagSpikes1h ? ` · ค้าง>1วิ ${d.net.lagSpikes1h} ครั้ง` : ""}`]] : [])];
   $("stats").innerHTML = cards.map(([k, v]) => `<div class="stat"><small>${k}</small><b>${esc(v)}</b></div>`).join("");
   $("ovTime").textContent = "· อัปเดต " + new Date().toLocaleTimeString("th-TH");
   const rows = d.online.map((o) => `<tr>

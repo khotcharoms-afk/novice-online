@@ -159,7 +159,7 @@ function mount(app, api) {
     hasAdminIds: !!process.env.ADMIN_IDS })));
   app.get("/api/admin/overview", admin(async () => ({
     mode: store.mode, uptime: Date.now() - startedAt, memMB: Math.round(process.memoryUsage().rss / 1048576),
-    world: WorldRoom.worldStats(), online: WorldRoom.onlineList(),
+    world: WorldRoom.worldStats(), online: WorldRoom.onlineList(), net: WorldRoom.netInfo(),
   })));
   app.get("/api/admin/items", admin(async () => ({
     items: Object.entries(I.ITEMS).map(([id, it]) => ({ id, name: it.name, type: it.type, lv: it.lv || 0, slot: it.slot || null,
