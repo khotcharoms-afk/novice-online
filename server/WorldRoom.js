@@ -85,21 +85,28 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const SAVE_EVERY_MS = 60000;
 const online = new Map(); // charId -> { room, sessionId } (ตัวละครที่ออนไลน์อยู่)
 const rooms = new Set();  // ห้องโลกเกมที่เปิดอยู่
-// ---------- ปาร์ตี้ (ข้ามแผนที่ได้ · ไม่บันทึกลงฐานข้อมูล · ออกเกม = ออกจากปาร์ตี้) ----------
+// ---------- ปาร์ตี้ (ข้ามแผนที่ได้ · หลุด/ออกเกม = ยังอยู่ในปาร์ตี้ 10 นาที · บันทึกติดตัวละคร → รอดตอนเซิร์ฟเวอร์รีสตาร์ท) ----------
 const PARTY_MAX = 6;
 const PARTY_RANGE = 900;          // สมาชิกที่อยู่แผนที่เดียวกันในระยะนี้จากมอน = ได้ EXP แบ่ง
-const parties = new Map();        // partyId -> { id, leader: charId, members: [charId] }
+const PARTY_GRACE_MS = Number(process.env.PARTY_GRACE_MIN || 10) * 60000; // หลุดเกินเวลานี้ = ถูกนำออกจากปาร์ตี้
+const PARTY_LEAD_MS = 60000;      // หัวหน้าหลุดเกิน 1 นาที → ส่งต่อให้สมาชิกที่ออนไลน์
+const parties = new Map();        // partyId -> { id, leader, members: [charId], names: {cid: ชื่อ}, off: {cid: เวลาที่หลุด}, quit: {cid: true} }
 const partyOf = new Map();        // charId -> partyId
 const invites = new Map();        // charId ผู้ถูกชวน -> { from: charId, until }
-let partySeq = 1;
+let shuttingDown = 0;             // เวลาที่เซิร์ฟเวอร์จะปิด (กำลังนับถอยหลังอัปเดต)
+const newPartyId = () => "pt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const who = (cid) => { const o = online.get(cid); const p = o && o.room.state.players.get(o.sessionId); return p ? { o, p } : null; };
 const clientOf = (cid) => { const o = online.get(cid); return o && o.room.clients.find((c) => c.sessionId === o.sessionId); };
+const partyName = (pt, cid) => { const w = who(cid); if (w) pt.names[cid] = w.p.name; return pt.names[cid] || "สมาชิก"; };
+const partyTell = (pt, text, skip) => { for (const x of pt.members) if (x !== skip) { const c = clientOf(x); if (c) c.send("system", text); } };
 function partySend(party) {
   if (!party) return;
+  const t = Date.now();
   const members = party.members.map((cid) => {
     const w = who(cid);
+    if (w) party.names[cid] = w.p.name;
     return w ? { cid, name: w.p.name, level: w.p.level, job: w.p.jobName, hp: w.p.hp, maxHp: w.p.maxHp, sp: w.p.sp, maxSp: w.p.maxSp, map: w.o.room.def.name, mapId: w.o.room.mapId, sid: w.o.sessionId, dead: w.p.dead }
-      : { cid, name: "?", offline: true };
+      : { cid, name: party.names[cid] || "?", offline: true, quit: !!party.quit[cid], left: party.off[cid] ? Math.max(0, PARTY_GRACE_MS - (t - party.off[cid])) : PARTY_GRACE_MS };
   });
   for (const cid of party.members) { const cl = clientOf(cid); if (cl) cl.send("party", { id: party.id, leader: party.leader, me: cid, members }); }
 }
@@ -107,18 +114,73 @@ function partyRemove(cid, reason) {
   const pid = partyOf.get(cid), party = pid && parties.get(pid);
   partyOf.delete(cid);
   if (!party) return;
+  const nm = partyName(party, cid);
   party.members = party.members.filter((x) => x !== cid);
+  delete party.off[cid]; delete party.quit[cid];
   const cl = clientOf(cid); if (cl) cl.send("party", null);
-  const w = who(cid), nm = w ? w.p.name : "สมาชิก";
   if (party.members.length <= 1) { // เหลือคนเดียว = ยุบปาร์ตี้
-    for (const x of party.members) { partyOf.delete(x); const c2 = clientOf(x); if (c2) { c2.send("party", null); c2.send("system", "ปาร์ตี้ถูกยุบแล้ว"); } }
+    for (const x of party.members) { partyOf.delete(x); const c2 = clientOf(x); if (c2) { c2.send("party", null); c2.send("system", `👥 ${nm} ${reason || "ออกจากปาร์ตี้"} — ปาร์ตี้ถูกยุบแล้ว`); } }
     parties.delete(pid); return;
   }
-  if (party.leader === cid) party.leader = party.members[0];
-  for (const x of party.members) { const c2 = clientOf(x); if (c2) c2.send("system", `👥 ${nm} ${reason || "ออกจากปาร์ตี้"}`); }
+  if (party.leader === cid) party.leader = party.members.find((x) => who(x)) || party.members[0];
+  partyTell(party, `👥 ${nm} ${reason || "ออกจากปาร์ตี้"}`);
   partySend(party);
 }
-setInterval(() => parties.forEach((pt) => partySend(pt)), 1000).unref();
+// ผู้เล่นออกเกม/หลุด (ไม่ใช่ย้ายแผนที่) → ยังอยู่ในปาร์ตี้ รอกลับมา
+function partyDrop(cid) {
+  const pt = parties.get(partyOf.get(cid));
+  if (!pt) return;
+  pt.off[cid] = pt.off[cid] || Date.now(); pt.quit[cid] = true;
+  if (!shuttingDown) partyTell(pt, `👥 ${partyName(pt, cid)} ออกจากเกม — ยังอยู่ในปาร์ตี้ (รอกลับมา ${Math.round(PARTY_GRACE_MS / 60000)} นาที)`, cid);
+  partySend(pt);
+}
+// ผู้เล่นเข้าเกม (หรือย้ายแผนที่เสร็จ) → กลับเข้าปาร์ตี้เดิม · หลังเซิร์ฟเวอร์รีสตาร์ท สร้างปาร์ตี้ขึ้นใหม่จากข้อมูลที่บันทึกไว้ในตัวละคร
+function partyBack(cid, saved) {
+  let pt = parties.get(partyOf.get(cid));
+  if (!pt && saved && saved.id && Array.isArray(saved.members) && saved.members.includes(cid) && Date.now() - (saved.t || 0) < PARTY_GRACE_MS) {
+    const ex = parties.get(saved.id);
+    if (ex) pt = ex.members.includes(cid) ? ex : null; // ปาร์ตี้ยังอยู่ แต่ถูกเอาออกไปแล้ว = ไม่กลับ
+    else {
+      const mem = saved.members.filter((m, i, a) => typeof m === "string" && a.indexOf(m) === i && (m === cid || !partyOf.has(m))).slice(0, PARTY_MAX);
+      if (mem.length > 1) {
+        const t = Date.now();
+        pt = { id: saved.id, leader: mem.includes(saved.leader) ? saved.leader : cid, members: mem, names: { ...(saved.names || {}) }, off: {}, quit: {} };
+        for (const m of mem) if (m !== cid) { pt.off[m] = t; pt.quit[m] = true; }
+        parties.set(pt.id, pt);
+        for (const m of mem) partyOf.set(m, pt.id);
+      }
+    }
+    if (pt) partyOf.set(cid, pt.id);
+  }
+  if (!pt) return;
+  const back = pt.quit[cid];
+  delete pt.off[cid]; delete pt.quit[cid];
+  if (back) partyTell(pt, `👥 ${partyName(pt, cid)} กลับเข้าเกมแล้ว`, cid);
+  partySend(pt);
+}
+// ข้อมูลปาร์ตี้ที่บันทึกติดตัวละคร
+function partySnap(cid) {
+  const pt = parties.get(partyOf.get(cid));
+  if (!pt) return null;
+  for (const m of pt.members) partyName(pt, m);
+  return { id: pt.id, leader: pt.leader, members: [...pt.members], names: { ...pt.names }, t: Date.now() };
+}
+setInterval(() => {
+  const t = Date.now();
+  for (const pt of [...parties.values()]) {
+    for (const cid of [...pt.members]) {
+      if (online.has(cid)) continue;
+      if (!pt.off[cid]) { pt.off[cid] = t; continue; } // ย้ายแผนที่ค้าง/หลุดเงียบ ๆ ก็นับเวลาเหมือนกัน
+      if (t - pt.off[cid] > PARTY_GRACE_MS) partyRemove(cid, "หลุดจากเกมนานเกินไป — ถูกนำออกจากปาร์ตี้");
+    }
+    if (!parties.has(pt.id)) continue;
+    if (pt.off[pt.leader] && t - pt.off[pt.leader] > PARTY_LEAD_MS) {
+      const nl = pt.members.find((x) => online.has(x));
+      if (nl) { pt.leader = nl; partyTell(pt, `👑 ${partyName(pt, nl)} เป็นหัวหน้าปาร์ตี้แทน (หัวหน้าเดิมออฟไลน์)`); }
+    }
+    partySend(pt);
+  }
+}, 1000).unref();
 // คริสตัลจุดเกิดของแต่ละแผนที่ (คำนวณครั้งเดียว ใช้ได้แม้ห้องของแผนที่นั้นยังไม่เปิด — สำหรับวาป)
 const crystalCache = {};
 function mapCrystals(mapId) {
@@ -281,6 +343,7 @@ class WorldRoom extends Room {
       if (me) this.clock.setTimeout(() => {
         this.sendDerived(me); this.sendInv(client.sessionId);
         if (maint.endAt || maint.closed) client.send("maint", WorldRoom.maintInfo());
+        if (shuttingDown > Date.now()) client.send("restartSoon", { left: shuttingDown - Date.now() });
       }, 50);
       sendMap(client, m && m.lite);
     });
@@ -457,7 +520,7 @@ class WorldRoom extends Room {
   save(pid) {
     const p = this.state.players.get(pid), r = this.pr.get(pid);
     if (!p || !r || !r.charId) return Promise.resolve();
-    const data = this.toData(p), prev = saveChain.get(r.charId) || Promise.resolve();
+    const data = { ...this.toData(p), party: partySnap(r.charId) }, prev = saveChain.get(r.charId) || Promise.resolve();
     const next = prev.then(() => store.save(r.charId, data)).catch((e) => console.error("save failed", r.charId, e.message));
     saveChain.set(r.charId, next);
     next.then(() => { if (saveChain.get(r.charId) === next) saveChain.delete(r.charId); });
@@ -471,7 +534,15 @@ class WorldRoom extends Room {
   }
   onDispose() { rooms.delete(this); }
   // เซิร์ฟเวอร์กำลังปิด (เช่น Render อัปเดตเวอร์ชันใหม่) → แจ้งผู้เล่น · บันทึก · ตัดการเชื่อมต่อด้วยรหัส 4004
+  // นับถอยหลังก่อน (ค่าเริ่มต้น 20 วิ — Render รอปิดได้ 30 วิ · ตั้ง SHUTDOWN_COUNTDOWN ได้ แต่ต้องน้อยกว่า Shutdown Delay ของ Render)
   async onBeforeShutdown() {
+    const sec = Math.max(0, Number(process.env.SHUTDOWN_COUNTDOWN ?? 20));
+    if (!shuttingDown) shuttingDown = Date.now() + sec * 1000;
+    await Promise.all([...this.state.players.keys()].map((id) => this.save(id))); // บันทึกไว้ก่อนเผื่อโดนปิดกลางทาง
+    if (this.clients.length && shuttingDown > Date.now()) {
+      this.broadcast("restartSoon", { left: shuttingDown - Date.now() });
+      await new Promise((ok) => setTimeout(ok, Math.max(0, shuttingDown - Date.now())));
+    }
     this.broadcast("restart", {});
     await Promise.all([...this.state.players.keys()].map((id) => this.save(id)));
     this.disconnect(4004);
@@ -508,7 +579,7 @@ class WorldRoom extends Room {
     this.syncSpirit(client.sessionId);
     this.sendInv(client.sessionId);
     client.send("quest", p.quest);
-    this.clock.setTimeout(() => this.partyRefresh(c.id), 800);
+    this.clock.setTimeout(() => partyBack(c.id, c.party), 800);
     this.sendSkills(client.sessionId);
     if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
     this.state.monsters.forEach((m) => { if (m.boss && !m.dead) client.send("system", `⚠️ World Boss ${m.name} อยู่ในแผนที่นี้! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`); });
@@ -884,7 +955,7 @@ class WorldRoom extends Room {
     if (partyOf.has(r.charId)) return client.send("toast", "คุณมีปาร์ตี้อยู่แล้ว");
     if (!online.has(inv.from)) return client.send("toast", "ผู้ชวนออกจากเกมไปแล้ว");
     let pt = parties.get(partyOf.get(inv.from));
-    if (!pt) { pt = { id: "pt" + partySeq++, leader: inv.from, members: [inv.from] }; parties.set(pt.id, pt); partyOf.set(inv.from, pt.id); }
+    if (!pt) { pt = { id: newPartyId(), leader: inv.from, members: [inv.from], names: {}, off: {}, quit: {} }; parties.set(pt.id, pt); partyOf.set(inv.from, pt.id); }
     if (pt.members.length >= PARTY_MAX) return client.send("toast", "ปาร์ตี้เต็มแล้ว");
     pt.members.push(r.charId); partyOf.set(r.charId, pt.id);
     for (const cid of pt.members) { const c = clientOf(cid); if (c) c.send("system", `👥 ${p.name} เข้าร่วมปาร์ตี้`); }
@@ -916,8 +987,8 @@ class WorldRoom extends Room {
       const o = online.get(r.charId);
       if (o && o.room === this && o.sessionId === client.sessionId) online.delete(r.charId);
     }
-    if (p && !p.warp) this.broadcast("system", `${p.name} ออกจากเกม`);
-    if (p && !p.warp && r && r.charId) { invites.delete(r.charId); partyRemove(r.charId, "ออกจากเกม"); }
+    if (p && !p.warp && !shuttingDown) this.broadcast("system", `${p.name} ออกจากเกม`);
+    if (p && !p.warp && r && r.charId) { invites.delete(r.charId); partyDrop(r.charId); }
     this.state.players.delete(client.sessionId);
     this.state.pets.delete(client.sessionId);
     this.state.spirits.delete(client.sessionId);

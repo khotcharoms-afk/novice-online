@@ -21,7 +21,12 @@ function renderParty() {
   el.hidden = false;
   el.innerHTML = `<div class="pt-head"><span>👥 ปาร์ตี้ (${PARTY.members.length}/6)</span><button type="button" id="ptLeave">ออก</button></div>` +
     PARTY.members.map((m) => {
-      if (m.offline) return `<div class="pt-mem away"><div class="nm"><b>…</b><small>กำลังย้ายแผนที่</small></div></div>`;
+      if (m.offline) {
+        const kick = lead && m.cid !== PARTY.me ? ` <button type="button" class="kick" data-cid="${m.cid}" title="เชิญออก">✕</button>` : "";
+        if (!m.quit) return `<div class="pt-mem away"><div class="nm"><b>${esc(m.name || "…")}</b><small>กำลังย้ายแผนที่${kick}</small></div></div>`;
+        const mins = Math.max(1, Math.ceil((m.left || 0) / 60000));
+        return `<div class="pt-mem away off"><div class="nm"><b>${m.cid === PARTY.leader ? "👑 " : ""}${esc(m.name)}</b><small>ออฟไลน์ · รอ ${mins} นาที${kick}</small></div></div>`;
+      }
       const hp = m.maxHp ? Math.round((m.hp * 100) / m.maxHp) : 0, sp = m.maxSp ? Math.round((m.sp * 100) / m.maxSp) : 0;
       const away = m.map !== here;
       return `<div class="pt-mem${m.cid === PARTY.me ? " me" : ""}${away ? " away" : ""}${m.dead ? " dead" : ""}">

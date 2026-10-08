@@ -335,6 +335,7 @@ function bindRoom(room) {
     room.onMessage("system", (text) => addChat("system", esc(text)));
     room.onMessage("maint", (info) => onMaint(info));
     room.onMessage("restart", () => addChat("system", "🔄 เซิร์ฟเวอร์กำลังอัปเดตเวอร์ชันใหม่ — บันทึกตัวละครแล้ว จะเชื่อมต่อใหม่อัตโนมัติ"));
+    room.onMessage("restartSoon", (d) => onRestartSoon(d));
     room.onMessage("announce", (text) => { addChat("system", "📢 ประกาศ: " + esc(text)); showAnnounce(text); });
     room.onMessage("chat", ({ id, name, text, party }) => {
       addChat(party ? "chat party" : "chat", `${party ? "[ปาร์ตี้] " : ""}<span class="cname">${esc(name)}:</span> ${esc(text)}`);
@@ -377,7 +378,7 @@ function bindRoom(room) {
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
       else if (code === 4003) showDownScreen("maint");
       else if (code === 4005 || leavingForWarp) return;
-      else if (code !== 1000) showDownScreen(code === 4004 ? "restart" : "lost");
+      else if (code !== 1000) reconnectGame(code === 4004 ? "restart" : "lost");
     });
 }
 
@@ -2033,6 +2034,21 @@ function buildAutoPanel() {
 let toastTimer = null;
 // ---------- นับถอยหลังปิดปรับปรุง ----------
 let maintEnd = 0, maintMsg = "", maintTick = null, maintSaid = {};
+// เซิร์ฟเวอร์จะรีสตาร์ท (Render อัปเดตเวอร์ชันใหม่) — นับถอยหลังในแถบเดียวกับปิดปรับปรุง
+let restartSoon = false;
+function onRestartSoon(d) {
+  const first = !restartSoon;
+  restartSoon = true; maintEnd = Date.now() + (d.left || 0); maintMsg = ""; maintSaid = {};
+  for (const t of [300, 60, 30, 10]) if (Math.ceil(d.left / 1000) <= t + 2) maintSaid[t] = true;
+  if (first) {
+    const sec = Math.ceil(d.left / 1000);
+    addChat("system", `🔄 เซิร์ฟเวอร์จะอัปเดตเวอร์ชันใหม่ในอีก ${sec} วินาที — ตัวละครบันทึกแล้ว เกมจะเชื่อมต่อกลับให้อัตโนมัติ (ปาร์ตี้ยังอยู่)`);
+    showAnnounce(`อัปเดตเกมในอีก ${sec} วินาที`);
+  }
+  clearInterval(maintTick);
+  maintTick = setInterval(renderMaint, 250);
+  renderMaint();
+}
 function onMaint(info) {
   if (info.now) return; // ครบเวลาแล้ว — รอโดนตัดการเชื่อมต่อ (รหัส 4003)
   if (!info.active) {
@@ -2057,17 +2073,50 @@ function renderMaint() {
   const mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, "0");
   b.hidden = false;
   b.classList.toggle("urgent", sec <= 30);
-  b.innerHTML = `🔧 ปิดปรับปรุงในอีก <b>${mm}:${ss}</b>${maintMsg ? ` · ${esc(maintMsg)}` : ""}`;
+  b.innerHTML = restartSoon ? `🔄 อัปเดตเกมในอีก <b>${mm}:${ss}</b> · จะเชื่อมต่อกลับอัตโนมัติ`
+    : `🔧 ปิดปรับปรุงในอีก <b>${mm}:${ss}</b>${maintMsg ? ` · ${esc(maintMsg)}` : ""}`;
   // เตือนในแชทเมื่อเหลือ 5 นาที / 1 นาที / 30 วิ / 10 วิ
   for (const t of [300, 60, 30, 10]) if (sec <= t && !maintSaid[t]) {
     maintSaid[t] = true;
-    if (sec > t - 3) addChat("system", `🔧 ปิดปรับปรุงในอีก ${t >= 60 ? t / 60 + " นาที" : t + " วินาที"}`);
+    if (sec > t - 3) addChat("system", `${restartSoon ? "🔄 อัปเดตเกม" : "🔧 ปิดปรับปรุง"}ในอีก ${t >= 60 ? t / 60 + " นาที" : t + " วินาที"}`);
   }
   if (left <= 0) clearInterval(maintTick);
 }
 // ---------- หน้าจอตอนเซิร์ฟเวอร์หลุด / ปิดปรับปรุง / อัปเดต ----------
 let myCharId = null;
 const autoReenter = () => { try { if (myCharId) sessionStorage.setItem("pn_auto", myCharId); saveChat(); } catch {} };
+// หลุด / เซิร์ฟเวอร์อัปเดต → เชื่อมต่อกลับในหน้าเดิม (ไม่ต้องโหลดหน้าใหม่) · ไม่สำเร็จค่อยใช้หน้าจอรอแบบเดิม
+let reconnecting = false;
+async function reconnectGame(kind) {
+  if (reconnecting) return;
+  reconnecting = true;
+  clearInterval(maintTick); restartSoon = false; maintEnd = 0;
+  const b = $("maintBar"); if (b) b.hidden = true;
+  const mapId = (room && room.mapId) || (myChar && myChar.map) || "town";
+  let o = $("reconBox");
+  if (!o) { o = document.createElement("div"); o.id = "reconBox"; document.body.appendChild(o); }
+  const say = (t) => { o.innerHTML = `<b>${kind === "restart" ? "🔄 กำลังอัปเดตเกม" : "📡 หลุดการเชื่อมต่อ"}</b><small>${t}</small><p class="dots"><span></span><span></span><span></span></p>`; };
+  say("กำลังเชื่อมต่อกลับอัตโนมัติ…"); o.hidden = false;
+  const t0 = Date.now();
+  for (let i = 0; Date.now() - t0 < 120000; i++) {
+    await new Promise((r) => setTimeout(r, i === 0 ? (kind === "restart" ? 1500 : 600) : Math.min(4000, 800 + i * 400)));
+    try {
+      if (!(await fetch("/health", { cache: "no-store" })).ok) continue;
+      say(`กำลังเข้าเกม… (ครั้งที่ ${i + 1})`);
+      const r = await joinMap(gameClient, myChar, mapId, 0, true);
+      room = r; bindRoom(room);
+      leavingForWarp = false; reconnecting = false; o.hidden = true;
+      if (scene && scene.scene) scene.scene.restart();
+      addChat("system", "✅ เชื่อมต่อกลับเข้าเกมแล้ว");
+      return;
+    } catch (e) {
+      console.warn("reconnect failed", e);
+      if (/ล็อกอิน|ไม่พบตัวละคร|ปิดปรับปรุง/.test((e && e.message) || "")) break;
+    }
+  }
+  reconnecting = false; o.hidden = true;
+  showDownScreen(kind);
+}
 function showDownScreen(kind) {
   clearInterval(maintTick);
   const b = $("maintBar"); if (b) b.hidden = true;

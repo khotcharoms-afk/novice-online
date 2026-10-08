@@ -198,6 +198,18 @@ function firebaseStore() {
 function memoryStore() {
   const accounts = new Map(), chars = new Map(), names = new Map(), storages = new Map();
   let seq = 0;
+  // ทดสอบรีสตาร์ทในเครื่อง: DEV_STORE_FILE=ไฟล์.json → เก็บข้อมูลโหมดทดสอบลงไฟล์ (โหลดตอนเปิด · เขียนตอนปิด)
+  const file = process.env.DEV_STORE_FILE;
+  if (file) {
+    const fs = require("fs");
+    try {
+      const d = JSON.parse(fs.readFileSync(file, "utf8"));
+      for (const [k, m] of [["accounts", accounts], ["chars", chars], ["names", names], ["storages", storages]]) for (const [a, b] of d[k] || []) m.set(a, b);
+      seq = d.seq || 0;
+    } catch {}
+    const dump = () => { try { fs.writeFileSync(file, JSON.stringify({ seq, accounts: [...accounts], chars: [...chars], names: [...names], storages: [...storages] })); } catch {} };
+    process.on("exit", dump);
+  }
   return {
     mode: "dev",
     async verify(token) {

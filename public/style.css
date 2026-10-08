@@ -464,6 +464,16 @@ section.frame.on-top { z-index: 20 !important; }
 #downScreen .dots span { display: inline-block; width: 7px; height: 7px; margin: 0 3px; border-radius: 50%; background: var(--name); animation: dot 1.2s infinite; }
 #downScreen .dots span:nth-child(2) { animation-delay: .2s; } #downScreen .dots span:nth-child(3) { animation-delay: .4s; }
 @keyframes dot { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
+/* เชื่อมต่อกลับในหน้าเดิม (หลุด / อัปเดตเกม) */
+#reconBox { position: fixed; inset: 0; z-index: 89; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(8, 10, 24, .55); color: var(--name); text-align: center; padding: 16px; }
+#reconBox b { font-size: 17px; font-weight: 500; }
+#reconBox small { color: var(--muted); font-size: 13px; }
+#reconBox .dots { margin: 4px 0 0; }
+#reconBox .dots span { display: inline-block; width: 7px; height: 7px; margin: 0 3px; border-radius: 50%; background: var(--name); animation: dot 1.2s infinite; }
+#reconBox .dots span:nth-child(2) { animation-delay: .2s; } #reconBox .dots span:nth-child(3) { animation-delay: .4s; }
+.pt-mem.off { opacity: .6; }
+.pt-mem.off small { color: #ffb070; }
 
 /* ---------- เดินทางข้ามแผนที่ ---------- */
 #travel { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; background: radial-gradient(circle, #161d42, #06081a);
