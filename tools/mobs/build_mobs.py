@@ -123,15 +123,15 @@ def M():
         "boss_minotaur": lambda: L(W("blunt/waraxe"), cape("maroon"), mus("fur_copper"), plate_legs("iron"), legion("iron"), shoulder("bauldron", "iron"), head("minotaur", "fur_copper"), horns("curled")),
         # มอนเลเวลต่ำแบบคน (ทำใหม่: มีอาวุธ/ชุดเกราะ ไม่ใช่แค่ตัวเปล่าย้อมสี)
         "orc":         lambda: L(W("blunt/waraxe"), mus("green"), pants("brown"), leather(), shoulder("pauldrons", "iron"), head("orc", "green")),
-        "troll":       lambda: L(W("blunt/club"), mus("taupe"), pants("walnut"), head("troll", "taupe")),
+        "troll":       lambda: L(W("blunt/flail"), mus("taupe"), pants("walnut"), head("troll", "taupe"), shoulder("pauldrons", "iron")),
         "minotaur":    lambda: L(W("polearm/halberd"), mus("fur_brown"), pants("maroon"), legion("bronze"), head("minotaur", "fur_brown")),
-        "snowtroll":   lambda: L(W("blunt/club"), mus("fur_white"), pants("bluegray"), shoulder("bauldron", "silver"), head("troll", "fur_white")),
+        "snowtroll":   lambda: L(W("blunt/mace"), mus("fur_white"), pants("bluegray"), shoulder("bauldron", "silver"), head("troll", "fur_white")),
         "skeleton":    lambda: L(W("sword/saber"), body("skeleton", "light"), head("skeleton", "light")),
         # ยอดเขาน้ำแข็ง 34–44
         "frostgiant":  lambda: L(W("blunt/mace"), mus("fur_white"), pants("navy"), plate("silver"), head("troll", "fur_white"), helm("horned", "silver")),
         "snowwraith":  lambda: L(wings("feathered", "platinum"), body("skeleton", "light"), robe("white"), head("skeleton", "light")),
         "icewolfman":  lambda: L(tail("wolf", "platinum"), mus("fur_white"), pants("bluegray"), head("wolf", "fur_white")),
-        "frostcyclops":lambda: L(W("blunt/club"), mus("blue"), pants("slate"), shoulder("bauldron", "silver"), head("human", "blue", "male_plump"), cyclops()),
+        "frostcyclops":lambda: L(W("blunt/waraxe"), mus("blue"), pants("slate"), shoulder("bauldron", "silver"), head("human", "blue", "male_plump"), cyclops()),
         # บึงพิษมรณะ 42–52
         "bogzombie":   lambda: L(body("zombie", "zombie_green"), pants_m("forest"), head("zombie", "zombie_green")),
         "venomlizard": lambda: L(W("polearm/spear"), tail("lizard", None, pal=None), mus("dark_green"), pants("maroon"), head("lizard", "dark_green")),
@@ -161,7 +161,7 @@ def M():
         "draconian":   lambda: L(W("polearm/dragonspear"), wings("lizard", None), tail("lizard", None), mus("green"), pants("forest"), head("lizard", "green"), horns("backwards")),
         "dragonknight":lambda: L(W("sword/glowsword"), wings("lizard", None), mus("light"), plate_legs("gold"), plate("gold"), head("human", "light"), helm("maximus", "gold")),
         "wyvern":      lambda: L(wings("bat", "navy"), tail("lizard", None), mus("blue"), pants("navy"), head("lizard", "blue")),
-        "volcanogiant":lambda: L(W("blunt/club"), mus("black"), pants("maroon"), metal("torso/armour/legion/male", "copper"), head("troll", "black"), shoulder("bauldron", "copper")),
+        "volcanogiant":lambda: L(W("blunt/mace"), mus("black"), pants("maroon"), metal("torso/armour/legion/male", "copper"), head("troll", "black"), shoulder("bauldron", "copper")),
         # ห้วงอเวจี 90–99
         "deathknight": lambda: L(W("polearm/scythe"), cape("black"), body("skeleton", "light"), plate_legs("iron"), plate("iron"), head("skeleton", "light"), helm("xeon", "iron")),
         "shadowdemon": lambda: L(W("sword/katana"), wings("feathered", "black"), mus("lavender"), pants("black"), head("human", "lavender"), horns("curled")),
