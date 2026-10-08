@@ -244,7 +244,7 @@ const MONSTER_RESPAWN_MS = 8000;
 // slam = ทุบพื้นเป็นวง (เตือนก่อน cast ms) · summon = เรียกลูกน้องเมื่อเลือดต่ำกว่า at · enrage = คลั่งเมื่อเลือดต่ำกว่า
 const WORLD_BOSSES = {
   bloodking: {
-    name: "ราชันโลหิตมิโนทอร์", level: 32, sprite: "minotaur", tint: 0xff5a4a, scale: 2.1, speed: 80, aggressive: true,
+    name: "ราชันโลหิตมิโนทอร์", level: 32, sprite: "boss_minotaur", tint: 0xffffff, scale: 2.1, speed: 80, aggressive: true,
     maps: ["orcamp", "snow"], every: [60, 90], // เกิดเองตามเวลา: สุ่มแผนที่ · ทุก 60–90 นาทีหลังถูกปราบ/หายไป
     hpMul: 250, atkMul: 1.5, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
     slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
@@ -262,7 +262,7 @@ const WORLD_BOSSES = {
       items: [["stone_3", 3, 5], ["potion_m", 5, 8]] },
   },
   lichking: {
-    name: "จอมลิชราตรี", level: 60, sprite: "lich", tint: 0xb07aff, scale: 2.2, speed: 75, aggressive: true,
+    name: "จอมลิชราตรี", level: 60, sprite: "boss_lich", tint: 0xffffff, scale: 2.2, speed: 75, aggressive: true,
     maps: ["ruins", "cursed"], every: [90, 120],
     hpMul: 250, atkMul: 1.55, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
     summon: { at: [0.6, 0.3], kind: "skelknight", n: 4 },

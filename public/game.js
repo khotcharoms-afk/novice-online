@@ -156,7 +156,7 @@ const layersFor = (lk, job = "villager", gear = "") => {
 // สีเตือนพื้นที่ของสกิลบอส / สีออร่าตามร่างบอส
 const BOSS_SK = { bullrush: { c: 0xff5a2a }, bloodroar: { c: 0xc01020 }, frostrain: { c: 0x6fd0ff }, deathmark: { c: 0xa040ff }, soulnova: { c: 0x50e0a0 },
   breath: { c: 0xff3ad0 }, meteor: { c: 0xff6a1a }, wingstorm: { c: 0xc890ff } };
-const BOSS_AURA = { minotaur: 0xc01020, lich: 0x7a4aff, dragon_abyss: 0xff3ad0, wyvern: 0xff3ad0 };
+const BOSS_AURA = { minotaur: 0xc01020, boss_minotaur: 0xc01020, lich: 0x7a4aff, boss_lich: 0x6ad8ff, dragon_abyss: 0xff3ad0, wyvern: 0xff3ad0 };
 function drawLook(cv, lk, job, frame, row, gear) {
   const ctx = cv.getContext("2d");
   ctx.imageSmoothingEnabled = false;

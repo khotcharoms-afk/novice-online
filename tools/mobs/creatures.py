@@ -558,7 +558,187 @@ def dragon(c, d, kind, f, n, P):
     if kind == "cast" and 2 <= f <= 5:
         for i in range(6): c.dot(cx + math.cos(i * 1.1 + f) * 22, by - 6 + math.sin(i * 1.7 + f) * 14, fire, 1.2, 0.85)
 
-BODIES = {"slime": slime, "bat": bat, "ghost": ghost, "mushroom": mushroom, "spider": spider, "golem": golem, "eye": eye, "wisp": wisp, "plant": plant, "dragon": dragon}
+
+# ---------------- บอส: ราชันโลหิตมิโนทอร์ ----------------
+def rot2(px, py, cx, cy, a):
+    dx, dy = px - cx, py - cy
+    return cx + dx * math.cos(a) - dy * math.sin(a), cy + dx * math.sin(a) + dy * math.cos(a)
+
+def big_axe(c, hx, hy, ang, s, metal=(150, 150, 160), blood=(150, 20, 20), glow=None):
+    """ขวานสองคมยักษ์: ด้ามจากมือ (hx,hy) ยาวไปทางมุม ang · ใบขวานที่ปลาย"""
+    L = 26 * s
+    ex, ey = hx + math.cos(ang) * L, hy + math.sin(ang) * L
+    bx, by = hx - math.cos(ang) * 6 * s, hy - math.sin(ang) * 6 * s
+    c.line(bx, by, ex, ey, 2.4, (90, 60, 34), 1)
+    for side in (-1, 1):  # ใบขวานสองข้าง
+        pts = [(0, -1), (side * 9, -7), (side * 12, 0), (side * 9, 7), (0, 1)]
+        q = [rot2(ex + px * s, ey + py * s, ex, ey, ang + math.pi / 2) for px, py in pts]
+        c.poly(q, metal, 2)
+        e1 = rot2(ex + side * 11.5 * s, ey - 5 * s, ex, ey, ang + math.pi / 2); e2 = rot2(ex + side * 11.5 * s, ey + 5 * s, ex, ey, ang + math.pi / 2)
+        c.line(e1[0], e1[1], e2[0], e2[1], 1, (235, 235, 245), 3)
+        c.dot(*rot2(ex + side * 7 * s, ey + 2 * s, ex, ey, ang + math.pi / 2), blood, 1.1)
+    c.dot(ex, ey, (60, 50, 50), 1.6)
+
+def minotaur_boss(c, d, kind, f, n, P):
+    ph = f / max(1, n) * math.pi * 2
+    s = P.get("size", 1)
+    fur, dark, horn, metal, eye = P["c"], P["dark"], P.get("horn", (232, 222, 196)), P.get("metal", (120, 120, 132)), P.get("eye", (255, 40, 30))
+    cx, base = 32, 61
+    step = math.sin(ph) if kind == "walk" else 0
+    bob = abs(math.sin(ph)) * 1.4 if kind == "walk" else 0
+    fw = {"left": -1, "right": 1}.get(d, 0); side = fw != 0
+    swing = None; roar = 0; fall = 0
+    if kind == "slash":  # ยกขวานไปหลังหัว → ฟาดลงข้างหน้า
+        t = f / (n - 1); swing = (-2.3 + t * 3.3) if t > 0.25 else -2.3 - t * 0.6
+    if kind == "cast": roar = math.sin(min(1, f / (n - 2)) * math.pi * 0.5)
+    if kind == "hurt": fall = f / max(1, n - 1)
+    by = base - 25 * s + bob + fall * 12
+    # ขา + กีบ
+    for sg in ((-1, 1) if not side else (fw, -fw)):
+        lx = cx + sg * (7 if not side else 2) * s + (step * sg * 3 if side else 0)
+        lift = max(0, step * sg) * 3
+        c.ell(lx, base - 10 - lift + fall * 4, 5.5 * s, 8 * s, fur)
+        c.ell(lx, base - 2.5 - lift + fall * 2, 4.5 * s, 2.6 * s, dark, flat=0)
+    # ผ้าเตี่ยว + เข็มขัดหัวกะโหลก
+    c.poly([(cx - 9 * s, by + 10), (cx + 9 * s, by + 10), (cx + 6 * s, by + 20), (cx - 6 * s, by + 20)], P.get("cloth", (90, 20, 24)), 1)
+    c.line(cx - 11 * s, by + 10, cx + 11 * s, by + 10, 2.5, (70, 50, 30), 1)
+    if d != "up": c.ell(cx + fw * 3, by + 10, 2.4, 2.2, (230, 225, 210), flat=3)
+    # ลำตัวกล้ามใหญ่หลังค่อม
+    c.ell(cx, by, 12 * s, 12 * s, fur)
+    if d != "up" and not side:
+        c.ell(cx - 4.5 * s, by - 3, 5 * s, 4 * s, fur, flat=3); c.ell(cx + 4.5 * s, by - 3, 5 * s, 4 * s, fur, flat=3)  # อก
+        for i in range(3): c.line(cx - 3 + i * 2.5, by + 3, cx - 1 + i * 2.5, by + 8, 1, dark, 1)                  # ท้อง
+        c.line(cx - 8, by - 6, cx - 2, by + 1, 1, (200, 60, 60), 2); c.line(cx + 3, by - 7, cx + 8, by - 1, 1, (200, 60, 60), 2)  # แผลเป็น
+    # บ่าเกราะหนาม
+    for sg in ((-1, 1) if not side else (-fw,)):
+        sx_ = cx + sg * (13 if not side else 3) * s
+        c.ell(sx_, by - 9, 6 * s, 5 * s, metal)
+        for k in range(3): c.poly([(sx_ - 2.6 + k * 2.6, by - 12.5), (sx_ - 2 + k * 2.6 + sg * 1.5, by - 17 - (k == 1) * 2), (sx_ - 1.2 + k * 2.6, by - 12.5)], metal, 1)
+    # หัววัว
+    hx = cx + fw * 7 * s; hy = by - 16 * s - roar * 3
+    if d != "up":
+        if not side:
+            for sg in (-1, 1):  # เขาโค้งออกข้างแล้วชี้ขึ้น
+                c.poly([(hx + sg * 5, hy - 4), (hx + sg * 13, hy - 6), (hx + sg * 18, hy - 12), (hx + sg * 19, hy - 19), (hx + sg * 15, hy - 11), (hx + sg * 11, hy - 2)], horn, 2)
+            c.ell(hx, hy, 9 * s, 8 * s, fur)
+            c.ell(hx, hy - 5, 6 * s, 2.5 * s, P["dark"], flat=1)                                                             # ขนหน้าผาก
+            for sg in (-1, 1): c.poly([(hx + sg * 8, hy - 3), (hx + sg * 13, hy - 1), (hx + sg * 9, hy + 1)], fur, 1)      # หู
+            c.ell(hx, hy + 5, 6.5 * s, 4.5 * s, P.get("snout", (190, 140, 120)))                                            # จมูก
+            c.dot(hx - 2, hy + 5, (30, 10, 10), 0.9); c.dot(hx + 2, hy + 5, (30, 10, 10), 0.9)
+            c.ell(hx, hy + 8.5, 2.6, 1.6, (220, 190, 80), flat=4, alpha=0.9); c.ell(hx, hy + 8.5, 1.4, 0.8, P.get("snout", (190, 140, 120)), flat=1)  # ห่วงจมูก
+            if roar > 0.3: c.ell(hx, hy + 9, 3.5, 2.2 * roar, (60, 10, 10), flat=0)
+            for sg in (-1, 1):
+                c.line(hx + sg * 1.5, hy - 3.2, hx + sg * 5.5, hy - 1.8, 1.2, (20, 8, 8), 0)
+                c.ell(hx + sg * 3.4, hy - 1, 1.6, 1.1, eye, flat=4); c.ell(hx + sg * 3.4, hy - 1, 3, 2, eye, flat=3, alpha=0.4)
+        else:
+            L = fw
+            c.poly([(hx - L * 2, hy - 4), (hx - L * 9, hy - 9), (hx - L * 10, hy - 18), (hx - L * 6, hy - 10), (hx + L * 1, hy - 2)], horn, 2)
+            c.ell(hx, hy, 7.5 * s, 6.5 * s, fur)
+            c.ell(hx + L * 6, hy + 3, 5 * s, 3.8 * s, P.get("snout", (190, 140, 120)))
+            c.dot(hx + L * 9.5, hy + 2.5, (30, 10, 10), 0.9)
+            c.ell(hx + L * 7, hy + 7, 2, 1.5, (220, 190, 80), flat=4)
+            c.line(hx + L * 0.5, hy - 3.5, hx + L * 5, hy - 2.5, 1.2, (20, 8, 8), 0)
+            c.ell(hx + L * 2.5, hy - 1.2, 1.6, 1.1, eye, flat=4); c.ell(hx + L * 2.5, hy - 1.2, 3, 2, eye, flat=3, alpha=0.4)
+            c.poly([(hx - L * 4, hy - 1), (hx - L * 8, hy + 1), (hx - L * 4, hy + 2)], fur, 1)
+            if roar > 0.3: c.ell(hx + L * 7, hy + 6, 3, 2 * roar, (60, 10, 10), flat=0)
+    else:
+        for sg in (-1, 1): c.poly([(hx + sg * 5, hy - 4), (hx + sg * 13, hy - 6), (hx + sg * 18, hy - 12), (hx + sg * 19, hy - 19), (hx + sg * 15, hy - 11), (hx + sg * 11, hy - 2)], horn, 2)
+        c.ell(hx, hy, 8 * s, 7 * s, fur); c.ell(hx, hy + 2, 6 * s, 3 * s, dark, flat=1)
+    # แขน + ขวาน (มือขวา = ด้านที่หัน / ข้างขวาของจอเมื่อหันหน้า)
+    hand_sg = fw if side else 1
+    sxh, syh = cx + hand_sg * (16 if not side else 6) * s, by - 6
+    if swing is not None: a = swing * (1 if hand_sg > 0 else -1) + (0 if hand_sg > 0 else math.pi)
+    else: a = (-1.15 if hand_sg > 0 else -1.99) + step * 0.12 - fall * 0.8
+    hand = (sxh + math.cos(a + (0.9 if hand_sg > 0 else -0.9)) * 8, syh + 10 - (swing is not None) * 6)
+    if swing is not None: hand = (sxh + math.cos(a) * 9, syh + math.sin(a) * 9)
+    c.line(sxh, syh, hand[0], hand[1], 5 * s, fur, 2)
+    big_axe(c, hand[0], hand[1], a, s, metal=P.get("blade", (150, 150, 160)), glow=P.get("glow"))
+    c.ell(hand[0], hand[1], 3.2 * s, 3.2 * s, fur)
+    if not side:  # มืออีกข้างกำหมัด
+        ox = cx - (16 * s); c.line(ox, by - 6, ox - 2, by + 7 + step * 2, 5 * s, fur, 2); c.ell(ox - 2, by + 8 + step * 2, 3.4 * s, 3.4 * s, fur)
+    if kind == "cast" and 2 <= f <= 5:  # ไอร้อนพ่นจมูก
+        for k in range(4): c.dot(hx + (k - 1.5) * 3 + fw * 8, hy + 8 + k, (255, 220, 200), 1.4, 0.6)
+
+# ---------------- บอส: จอมลิชราตรี ----------------
+def lich_boss(c, d, kind, f, n, P):
+    ph = f / max(1, n) * math.pi * 2
+    s = P.get("size", 1)
+    robe, robe2, bone, glow, metal = P["c"], P["c2"], P.get("bone", (232, 226, 210)), P["glow"], P.get("crown", (200, 170, 70))
+    cx = 32
+    float_y = math.sin(ph) * 2.2
+    fw = {"left": -1, "right": 1}.get(d, 0); side = fw != 0
+    raise_ = 0; thrust = 0; fade = 1
+    if kind == "cast": raise_ = math.sin(min(1, f / (n - 2)) * math.pi * 0.5)
+    if kind == "slash": thrust = math.sin(f / (n - 1) * math.pi)
+    if kind == "hurt": fade = 1 - f / max(1, n - 1) * 0.8
+    by = 34 + float_y + (1 - fade) * 8
+    # เงาบนพื้น (ลอยอยู่)
+    c.ell(cx, 59, 10 * s, 2.5, (0, 0, 0), flat=0, alpha=0.35 * fade)
+    # วิญญาณลอยวน (หลังตัว)
+    for k in range(3):
+        a = ph + k * 2.1
+        ox, oy = cx + math.cos(a) * 20 * s, by - 6 + math.sin(a) * 6
+        if math.sin(a) < 0: c.ell(ox, oy, 1.6, 1.6, glow, flat=4, alpha=0.9 * fade); c.ell(ox, oy, 3.2, 3.2, glow, flat=2, alpha=0.3 * fade)
+    # ชายผ้าคลุมขาดวิ่นพลิ้ว
+    hem = []
+    for i in range(9):
+        x = cx - 13 * s + i * 26 * s / 8
+        hem.append((x + math.sin(ph + i) * 1.5, by + 20 + (4 if i % 2 else 0) + math.sin(ph * 1.5 + i * 1.3) * 2))
+    hem = []
+    for i in range(11):
+        x = cx - 16 * s + i * 32 * s / 10
+        hem.append((x + math.sin(ph + i) * 1.5, by + 20 + (5 if i % 2 else 0) + math.sin(ph * 1.5 + i * 1.3) * 2))
+    c.poly([(cx - 7 * s, by - 9), (cx + 7 * s, by - 9)] + hem[::-1], robe, 1, fade)
+    c.poly([(cx - 7 * s, by - 9), (cx + 7 * s, by - 9), (cx + 13 * s, by + 17), (cx - 13 * s, by + 17)], robe, 2, fade)
+    for sg in (-1, 1): c.line(cx + sg * 6 * s, by - 6, cx + sg * 12 * s, by + 16, 1, robe2, 3, 0.6 * fade)
+    if d != "up":
+        c.poly([(cx - 3 * s, by - 8), (cx + 3 * s, by - 8), (cx + 5 * s, by + 18), (cx - 5 * s, by + 18)], robe2, 2, fade)  # แถบกลางเสื้อ
+        for k in range(4): c.dot(cx, by - 4 + k * 5, glow, 0.9, 0.9 * fade)                                                   # อักษรรูน
+        c.ell(cx, by - 5, 3 * s, 4 * s, bone, flat=2, alpha=fade)                                                               # ซี่โครงโผล่
+        for k in range(3): c.line(cx - 2.5, by - 7 + k * 2, cx + 2.5, by - 7 + k * 2, 1, (90, 80, 70), 0, fade)
+    # ปกคอสูงแหลม
+    for sg in (-1, 1): c.poly([(cx + sg * 3, by - 8), (cx + sg * 11 * s, by - 16), (cx + sg * 9 * s, by - 6)], robe2, 1, fade)
+    # หัวกะโหลก + มงกุฎหนาม
+    hx, hy = cx + fw * 2, by - 15 - raise_ * 1.5
+    c.ell(hx, hy - 0.5, 6.8 * s, 7 * s, (30, 14, 44), flat=1, alpha=fade)   # ฮู้ดด้านหลังหัว
+    c.ell(hx, hy, 5.6 * s, 6 * s, bone, alpha=fade)
+    c.ell(hx, hy + 3.5, 3.6 * s, 2.4 * s, bone, flat=1, alpha=fade)
+    if d != "up":
+        for ex in ([-2.4, 2.4] if not side else [fw * 2.4]):
+            c.ell(hx + ex * s, hy, 1.8 * s, 2.0 * s, (10, 6, 16), flat=0, alpha=fade)
+            c.dot(hx + ex * s, hy, glow, 1.0, fade); c.ell(hx + ex * s, hy, 3.2, 3.2, glow, flat=3, alpha=0.35 * fade)
+        c.poly([(hx - 0.8 + fw, hy + 2.5), (hx + 0.8 + fw, hy + 2.5), (hx + fw, hy + 1)], (40, 30, 30), 0, fade)
+        for k in range(4): c.line(hx - 2.5 + k * 1.6 + fw, hy + 4, hx - 2.5 + k * 1.6 + fw, hy + 5.5, 1, (60, 50, 40), 0, fade)
+    c.line(hx - 6 * s, hy - 4, hx + 6 * s, hy - 4, 2, metal, 3, fade)
+    for k in range(5):
+        x = hx - 5 * s + k * 2.5 * s; h = (6 if k == 2 else 4 if k in (1, 3) else 3)
+        c.poly([(x - 1.2, hy - 4), (x, hy - 4 - h), (x + 1.2, hy - 4)], metal, 3, fade)
+        if k == 2: c.dot(x, hy - 5, glow, 0.9, fade)
+    # แขนกระดูก + คทา
+    hand_sg = fw if side else 1
+    if raise_: hx2, hy2 = cx + hand_sg * 12 * s, by - 18 - raise_ * 6
+    else: hx2, hy2 = cx + hand_sg * (12 + thrust * 6) * s, by - 2 - thrust * 2
+    c.line(cx + hand_sg * 7, by - 6, hx2, hy2, 3, robe, 2, fade)
+    c.ell(hx2, hy2, 1.8, 1.8, bone, alpha=fade)
+    sx0, sy0, sx1, sy1 = hx2, hy2 + 16, hx2 + thrust * hand_sg * 4, hy2 - 20 - raise_ * 4
+    c.line(sx0, sy0, sx1, sy1, 1.8, (70, 50, 70), 1, fade)
+    c.ell(sx1, sy1, 4 * s, 4 * s, bone, alpha=fade)                                              # หัวกะโหลกปลายคทา
+    c.dot(sx1 - 1.2, sy1, (10, 6, 16), 0.9, fade); c.dot(sx1 + 1.2, sy1, (10, 6, 16), 0.9, fade)
+    gsz = 6 + raise_ * 5 + thrust * 4
+    c.ell(sx1, sy1 - 1, gsz, gsz, glow, flat=3, alpha=0.3 * fade); c.ell(sx1, sy1 - 1, gsz * 0.4, gsz * 0.4, glow, flat=4, alpha=0.8 * fade)
+    if not side or True:  # มืออีกข้าง (กางนิ้ว)
+        ox = cx - hand_sg * 11 * s; oy = by - 2 - raise_ * 12
+        c.line(cx - hand_sg * 7, by - 6, ox, oy, 3, robe, 2, fade); c.ell(ox, oy, 1.8, 1.8, bone, alpha=fade)
+        if raise_: c.ell(ox, oy - 3, 4 + raise_ * 3, 4 + raise_ * 3, glow, flat=3, alpha=0.35 * fade)
+    # วิญญาณลอยวน (หน้าตัว)
+    for k in range(3):
+        a = ph + k * 2.1
+        ox, oy = cx + math.cos(a) * 20 * s, by - 6 + math.sin(a) * 6
+        if math.sin(a) >= 0: c.ell(ox, oy, 1.6, 1.6, glow, flat=4, alpha=0.9 * fade); c.ell(ox, oy, 3.2, 3.2, glow, flat=2, alpha=0.3 * fade)
+    if kind == "cast" and 2 <= f <= 5:
+        for k in range(6): c.dot(cx + math.cos(k + f) * 16, by - 26 + math.sin(k * 1.7 + f) * 5, glow, 1.2, 0.9)
+
+BODIES = {"slime": slime, "bat": bat, "ghost": ghost, "mushroom": mushroom, "spider": spider, "golem": golem, "eye": eye, "wisp": wisp, "plant": plant, "dragon": dragon, "minotaur_boss": minotaur_boss, "lich_boss": lich_boss}
 # ชนิดมอน: body + สี
 CREATURES = {
     "slime_green":  ("slime", dict(c=(90, 200, 90))),
@@ -586,6 +766,7 @@ CREATURES = {
     "plant_bog":    ("plant", dict(c=(170, 40, 60), leaf=(60, 130, 50), spore=(220, 255, 120))),
     "wyvern":       ("dragon", dict(c=(60, 118, 84), w=(150, 80, 44), belly=(214, 196, 132), eye=(255, 220, 60), fire=(255, 150, 40), spike=(230, 210, 150))),
     "dragon_abyss": ("dragon", dict(c=(64, 36, 96), w=(78, 28, 104), belly=(150, 92, 172), eye=(255, 80, 220), fire=(255, 110, 230), horn=(225, 205, 235), spike=(255, 70, 200))),
+    "boss_lich":     ("lich_boss", dict(c=(52, 24, 76), c2=(108, 54, 150), glow=(140, 230, 255), crown=(214, 180, 80))),
     "plant_cursed": ("plant", dict(c=(110, 40, 140), leaf=(50, 80, 60), spot=(255, 120, 230), spore=(220, 120, 255))),
 }
 LAYOUT = [("walk", 0, 9), ("slash", 4, 6), ("hurt", 8, 6), ("cast", 9, 7)]
