@@ -1810,7 +1810,9 @@ class WorldRoom extends Room {
     // ระดับของอุปกรณ์ที่ดรอป: มอนธรรมดา = สูงสุดสีน้ำเงิน (หายาก) · ชั้นยอด = ดีขึ้นไป · มินิบอส = น้ำเงินขึ้นไป (ม่วง/ทองมีโอกาส)
     const gearOf = (id) => {
       const roll = I.rollRarity();
-      const rar = r.rank === 2 ? (Math.random() < 0.03 ? 4 : Math.random() < 0.18 ? 3 : 2) : r.rank === 1 ? Math.max(1, roll) : Math.min(2, roll);
+      // มอนธรรมดา: สูงสุดสีน้ำเงิน · ยกเว้นอุปกรณ์ประจำอาชีพขั้น 2 ขึ้นได้ถึงสีม่วง
+      const cap = I.ITEMS[id] && I.ITEMS[id].cls ? 3 : 2;
+      const rar = r.rank === 2 ? (Math.random() < 0.03 ? 4 : Math.random() < 0.18 ? 3 : 2) : r.rank === 1 ? Math.max(1, roll) : Math.min(cap, roll);
       return I.makeGear(id, rar);
     };
     const table = I.DROPS[m.kind] || [];

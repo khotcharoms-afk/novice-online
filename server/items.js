@@ -546,12 +546,20 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
     DROPS[k].push(...TIERS.tierDrops(m.level, big ? 0.002 : 0.0012));
   }
 }
-// ---------- อุปกรณ์ประจำอาชีพขั้น 2 Lv.50/70/90 (server/classgear.js) — ดรอปจากมินิบอสและ World Boss ----------
+// ---------- อุปกรณ์ประจำอาชีพขั้น 2 Lv.50/70/90 (server/classgear.js) — ดรอปจากมอนธรรมดา มินิบอส และ World Boss ----------
 {
   const CG = require("./classgear"), TIERS = require("./tiers"), D = require("./data");
   const { items, sets } = CG.build(ITEMS, TIERS.SHAPES, D.JOBS);
   Object.assign(ITEMS, items);
   Object.assign(ITEM_SETS, sets);
+  // มอนธรรมดา Lv.46+ ดรอปอุปกรณ์ประจำอาชีพแทนของรวมเดิม · โอกาสรวมต่อการฆ่าเท่าเดิม (ของรวมเดิม 25 ชิ้น/ขั้น → กระจายให้ 70 ชิ้น)
+  const LOCKED_PER_TIER = Object.values(TIERS.PIECES).filter((P) => P.wt || P.ot || P.ac).length;
+  for (const [k, m] of Object.entries(D.MONSTERS)) {
+    if (m.level < 46 || !DROPS[k] || TIERS.tierOf(m.level) < 50) continue;
+    const big = (m.scale || 1) >= 1.2, lv = CG.classTierOf(m.level);
+    const ch = ((big ? 0.002 : 0.0012) * LOCKED_PER_TIER) / (Object.keys(CG.CLASSES).length * CG.SLOTS.length);
+    for (const job of Object.keys(CG.CLASSES)) for (const s of CG.SLOTS) DROPS[k].push([CG.cid(lv, job, s), ch, 1, 1]);
+  }
 }
 // ---------- ภูติ (server/spirits.js) + ผลึกวิญญาณสำหรับอัประดับ ----------
 {
