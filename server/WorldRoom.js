@@ -3195,6 +3195,8 @@ store.getConfig && store.getConfig("expEvent").then((e) => { if (e && e.mult > 1
 // เครื่องเก่าถาม /api/version ผ่าน URL สาธารณะของตัวเองทุก 5 วิ → ถ้าได้เวอร์ชันอื่น = เครื่องใหม่พร้อมแล้ว → นับถอยหลังกลางจอ
 const BUILD = process.env.RENDER_GIT_COMMIT || String(Date.now());
 WorldRoom.BUILD = BUILD;
+console.log(`[update] build=${BUILD.slice(0, 8)} · ${process.env.RENDER_EXTERNAL_URL ? "ตรวจเวอร์ชันใหม่ที่ " + process.env.RENDER_EXTERNAL_URL : "ไม่ได้ตรวจเวอร์ชันใหม่ (ไม่มี RENDER_EXTERNAL_URL)"}`);
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => console.log(`[shutdown] ได้รับ ${sig} — นับถอยหลัง/บันทึกแล้วปิด`));
 if (process.env.RENDER_EXTERNAL_URL) {
   const UPDATE_SEC = Math.max(10, Math.min(75, Number(process.env.UPDATE_COUNTDOWN || 60)));
   const watch = setInterval(async () => {

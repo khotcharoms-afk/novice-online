@@ -2155,6 +2155,18 @@ let myCharId = null;
 let GAME_VERSION = null;
 const serverVersion = async () => { try { return (await (await fetch("/api/version", { cache: "no-store" })).json()).v; } catch { return null; } };
 serverVersion().then((v) => { GAME_VERSION = v; });
+// ตรวจเวอร์ชันใหม่ฝั่งหน้าเกมด้วย (ไม่ต้องรอเซิร์ฟเวอร์เก่าบอก): ทุก 20 วิ ถาม /api/version
+// Render: พอเครื่องใหม่พร้อม คำขอใหม่จะไปเครื่องใหม่ → ได้เวอร์ชันใหม่ → นับถอยหลัง 1 นาทีกลางจอ แล้วรีโหลดเข้าเวอร์ชันใหม่
+let updLocal = 0;
+setInterval(async () => {
+  if (!room || !myCharId || !GAME_VERSION || updLocal || reconnecting) return;
+  const v = await serverVersion();
+  if (!v || v === GAME_VERSION || updLocal) return;
+  updLocal = Date.now() + 60000;
+  console.log("new version", v, "— reload in 60s");
+  if (!restartSoon) onRestartSoon({ left: 60000 });
+  setTimeout(() => { addChat("system", "🔄 กำลังโหลดเกมเวอร์ชันใหม่…"); autoReenter(); location.reload(); }, 60000);
+}, 20000);
 const autoReenter = () => { try { if (myCharId) sessionStorage.setItem("pn_auto", myCharId); saveChat(); } catch {} };
 // หลุด / เซิร์ฟเวอร์อัปเดต → เชื่อมต่อกลับในหน้าเดิม (ไม่ต้องโหลดหน้าใหม่) · ไม่สำเร็จค่อยใช้หน้าจอรอแบบเดิม
 let reconnecting = false;
