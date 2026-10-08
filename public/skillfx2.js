@@ -137,6 +137,99 @@ const T2 = (tv) => (tv ? { x: tv.root.x, y: tv.root.y - 26 } : null);
 const ME2 = (v, dy = 26) => ({ x: v.root.x, y: v.root.y - dy });
 
 const SKILL2_FX = {
+  // ================= Mage (นักเวทย์ ขั้น 1) =================
+  firebolt(sc, f, v, tv) { // รวมไฟที่ปลายคทา → ลูกไฟพุ่งพร้อมหางประกาย → ระเบิดเป็นวง + ไฟกระเด็น
+    sc.playOnce(f.id, sc.hasAnim(f.id, "thrust") ? "thrust" : "cast", f.dir, 460);
+    const from = ME2(v, 34), to = tv ? T2(tv) : { x: f.x ?? v.root.x, y: (f.y ?? v.root.y) - 26 };
+    FX2.converge(sc, from.x, from.y, 0xffa040, 10, 26, 180);
+    sc.time.delayedCall(170, () => {
+      const make = () => {
+        const g = sc.add.container(0, 0);
+        g.add(sc.add.circle(0, 0, 15, 0xff4a10, 0.45));
+        g.add(sc.add.circle(0, 0, 10, 0xff8a20, 0.95));
+        g.add(sc.add.circle(-1, -1, 5, 0xfff4c0, 1));
+        return g;
+      };
+      const ms = Math.max(180, Math.min(420, Math.hypot(to.x - from.x, to.y - from.y) * 1.6));
+      for (let i = 1; i <= 8; i++) sc.time.delayedCall((ms * i) / 9, () => { // หางไฟ
+        const k = i / 9, x = from.x + (to.x - from.x) * k, y = from.y + (to.y - from.y) * k - Math.sin(k * Math.PI) * 10;
+        FX2.sparks(sc, x, y, [0xff7a20, 0xffc050], 2, 6, 10, 320, 2.6);
+      });
+      FX2.fly(sc, from, to, make, ms, 10, () => {
+        FX2.disc(sc, to.x, to.y + 20, 30, 0xff7a20, 420, 0.4);
+        FX2.shock(sc, to.x, to.y + 22, 52, 0xffa040, 360, 3);
+        const boom = sc.add.circle(to.x, to.y, 8, 0xff7a20, 0.9).setDepth(FX2.TOP);
+        const core = sc.add.circle(to.x, to.y, 5, 0xfff0b0, 1).setDepth(FX2.TOP);
+        sc.tweens.add({ targets: boom, scale: 3.6, alpha: 0, duration: 300, ease: "Quad.easeOut", onComplete: () => boom.destroy() });
+        sc.tweens.add({ targets: core, scale: 2.6, alpha: 0, duration: 200, ease: "Quad.easeOut", onComplete: () => core.destroy() });
+        FX2.sparks(sc, to.x, to.y, [0xff5a10, 0xffb040, 0xfff0a0], 16, 44, 22, 520, 3);
+        for (let i = 0; i < 3; i++) { const sm = sc.add.circle(to.x + (Math.random() - 0.5) * 20, to.y, 7, 0x3a2a24, 0.45).setDepth(FX2.TOP - 1); sc.tweens.add({ targets: sm, y: sm.y - 30, scale: 2, alpha: 0, duration: 700, delay: 80 + i * 60, onComplete: () => sm.destroy() }); }
+      });
+    });
+  },
+  frostnova(sc, f, v, tv) { // วงเวทเกล็ดหิมะบนพื้น → หนามน้ำแข็งพุ่งขึ้นเป็นวง → แตกเป็นเกล็ด · มอนในวงเกาะน้ำแข็ง
+    sc.playOnce(f.id, "cast", f.dir, 520);
+    const x = f.x ?? v.root.x, y = f.y ?? v.root.y, r = f.r || 90;
+    FX2.converge(sc, v.root.x, v.root.y - 30, 0x9fe8ff, 10, 30, 200);
+    FX2.sigil(sc, x, y, r * 0.75, 0x9fe8ff, 700, 6);
+    sc.time.delayedCall(180, () => {
+      FX2.disc(sc, x, y, r, 0x7fd0ff, 700, 0.25);
+      FX2.shock(sc, x, y, r, 0xcff4ff, 420, 4);
+      const n = 12;
+      for (let i = 0; i < n; i++) { // หนามน้ำแข็งรอบวง
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.2, d = r * (0.55 + Math.random() * 0.4);
+        const sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d * 0.6, h = 16 + Math.random() * 14;
+        const sp = sc.add.triangle(sx, sy, 0, 0, 5, -h, 10, 0, 0xbfeeff, 0.95).setOrigin(0.5, 1).setDepth(sy).setStrokeStyle(1, 0xffffff, 0.9);
+        sp.setScale(1, 0.1);
+        sc.tweens.add({ targets: sp, scaleY: 1, duration: 120, delay: i * 18, ease: "Back.easeOut" });
+        sc.tweens.add({ targets: sp, alpha: 0, scaleY: 0.4, delay: 520 + i * 10, duration: 260, onComplete: () => { FX2.sparks(sc, sx, sy - h / 2, [0xffffff, 0x9fe8ff], 3, 10, 6, 300, 1.8); sp.destroy(); } });
+      }
+      FX2.mobsIn(sc, x, y, r + 10).forEach((m) => { // มอนในวงติดน้ำแข็ง
+        const ice = sc.add.ellipse(0, -22, 34 * (m.e.scale || 1), 46 * (m.e.scale || 1), 0x9fe8ff, 0.32).setStrokeStyle(2, 0xe8fbff, 0.9).setBlendMode(Phaser.BlendModes.ADD);
+        m.root.add(ice); ice.setScale(0.2);
+        sc.tweens.add({ targets: ice, scale: 1, duration: 160, ease: "Back.easeOut" });
+        sc.tweens.add({ targets: ice, alpha: 0, delay: 900, duration: 300, onComplete: () => ice.destroy() });
+      });
+      for (let i = 0; i < 18; i++) sc.time.delayedCall(i * 25, () => FX2.sparks(sc, x + (Math.random() - 0.5) * r * 1.6, y + (Math.random() - 0.5) * r, 0xeaffff, 1, 6, 26, 700, 1.6));
+    });
+  },
+  meteor(sc, f, v, tv) { // วงเวทแดงเตือนที่พื้น 0.8 วิ → อุกกาบาตลุกไฟตกเฉียงจากฟ้า → ระเบิดใหญ่ หลุมไหม้ เศษหินกระเด็น
+    sc.playOnce(f.id, "cast", f.dir, 820);
+    const x = f.x ?? v.root.x, y = f.y ?? v.root.y, r = f.r || 110;
+    FX2.converge(sc, v.root.x, v.root.y - 30, 0xff6a30, 14, 40, 600);
+    FX2.sigil(sc, x, y, r * 0.8, 0xff5a30, 900, 5);
+    const warn = sc.add.ellipse(x, y, r * 2, r * 1.2, 0xc01808, 0.22).setDepth(FX2.GROUND).setStrokeStyle(3, 0xff3010, 0.9);
+    warn.setScale(0.3); sc.tweens.add({ targets: warn, scale: 1, duration: 260, ease: "Back.easeOut" });
+    sc.tweens.add({ targets: warn, alpha: 0.5, duration: 180, yoyo: true, repeat: 2, delay: 260, onComplete: () => warn.destroy() });
+    const sx = x + 170, sy = y - 330, fall = 560; // จุดเริ่มตก (ขวาบน)
+    sc.time.delayedCall(800 - fall, () => {
+      const rock = sc.add.container(sx, sy).setDepth(FX2.TOP);
+      rock.add(sc.add.circle(0, 0, 26, 0xff3a10, 0.35));
+      rock.add(sc.add.circle(0, 0, 18, 0xff8a20, 0.85));
+      rock.add(sc.add.circle(2, 2, 12, 0x5a3a2a, 1).setStrokeStyle(2, 0x2a1a10));
+      rock.add(sc.add.circle(-3, -3, 4, 0xffc070, 0.9));
+      const st = { k: 0 };
+      sc.tweens.add({ targets: st, k: 1, duration: fall, ease: "Quad.easeIn", onUpdate: () => {
+        rock.x = sx + (x - sx) * st.k; rock.y = sy + (y - 10 - sy) * st.k; rock.rotation += 0.12;
+        FX2.sparks(sc, rock.x + 8, rock.y - 8, [0xff5a10, 0xffb040], 1, 10, -18, 380, 3.5);
+      }, onComplete: () => {
+        rock.destroy();
+        const boom = sc.add.ellipse(x, y - 10, 20, 16, 0xff5a10, 0.85).setDepth(FX2.TOP);
+        const core = sc.add.ellipse(x, y - 12, 14, 12, 0xfff0b0, 1).setDepth(FX2.TOP);
+        sc.tweens.add({ targets: boom, scale: r / 14, alpha: 0, duration: 420, ease: "Quad.easeOut", onComplete: () => boom.destroy() });
+        sc.tweens.add({ targets: core, scale: r / 22, alpha: 0, duration: 260, ease: "Quad.easeOut", onComplete: () => core.destroy() });
+        FX2.shock(sc, x, y, r + 10, 0xff8a40, 480, 6);
+        FX2.shock(sc, x, y, r * 0.6, 0xffe0a0, 360, 3);
+        const crater = sc.add.ellipse(x, y, r * 0.9, r * 0.5, 0x2a1810, 0.55).setDepth(FX2.GROUND);
+        sc.tweens.add({ targets: crater, alpha: 0, delay: 900, duration: 700, onComplete: () => crater.destroy() });
+        FX2.sparks(sc, x, y - 10, [0xff5a10, 0xffb040, 0xfff0a0], 26, r * 0.8, 40, 700, 3.4);
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; FX2.fly(sc, { x, y: y - 8 }, { x: x + Math.cos(a) * r * 0.7, y: y + Math.sin(a) * r * 0.4 }, () => sc.add.rectangle(0, 0, 5, 4, 0x5a3a2a), 420, 34); }
+        for (let i = 0; i < 5; i++) { const sm = sc.add.circle(x + (Math.random() - 0.5) * r * 0.6, y - 6, 12, 0x3a2a24, 0.5).setDepth(FX2.TOP - 1); sc.tweens.add({ targets: sm, y: sm.y - 50, scale: 2.4, alpha: 0, duration: 1000, delay: 100 + i * 70, onComplete: () => sm.destroy() }); }
+        FX2.shake(sc, f, 320, 0.012);
+        if (f.id === room.sessionId) sc.cameras.main.flash(120, 255, 170, 90);
+      } });
+    });
+  },
   // ================= ชาวบ้าน (Novice) =================
   stonethrow(sc, f, v, tv) { // ขว้างหินโค้ง → กระแทก ฝุ่น + เศษหิน
     if (!tv) return;
