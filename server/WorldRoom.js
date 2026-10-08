@@ -2057,8 +2057,17 @@ class WorldRoom extends Room {
     };
     const table = I.DROPS[m.kind] || [];
     const myCls = tp && CG.CLASSES[tp.job] ? tp.job : null;
+    // ของที่เควสของคนที่ช่วยตีกำลังต้องการ (เควสอาชีพ 1/2 · เควสภูติ) → โอกาสดรอป ×2
+    const questWant = new Set();
+    r.dmgBy.forEach((_d, pid) => {
+      const pp = this.state.players.get(pid);
+      if (!pp) return;
+      const q = pp.quest, Q = q && (D.JOB_QUESTS[q.job] || D.JOB2_QUESTS[q.job]);
+      if (Q && Q.item) questWant.add(Q.item[0]);
+      for (const sid of Object.keys((pp.bag && pp.bag.spq) || {})) { const SQ = SP.SPIRIT_QUESTS[sid]; if (SQ && SQ.item) questWant.add(SQ.item[0]); }
+    });
     for (const [id0, chance, lo, hi] of table) {
-      if (!(Math.random() < chance * dropMul)) continue;
+      if (!(Math.random() < chance * dropMul * (questWant.has(id0) ? 2 : 1))) continue;
       let id = id0;
       // ชุดอาชีพ: 1/3 ถูกสลับเป็นของอาชีพคนที่ตีมากสุด → รวมแล้ว ~40% เป็นของอาชีพตัวเอง
       if (myCls && I.ITEMS[id].cls && I.ITEMS[id].cls !== myCls && Math.random() < 1 / 3) id = id.replace(`_${I.ITEMS[id].cls}_`, `_${myCls}_`);
