@@ -1,5 +1,5 @@
 // =============================================================
-//  เซเลส · ผู้หลอมชะตา: รีสเตตัส / รีคลาส (ครั้งละ 1,000,000 gold)
+//  เซเลส · ผู้หลอมชะตา: รีสเตตัส+สกิล / รีคลาส (ครั้งละ 1,000,000 gold)
 //  รีคลาส = เปลี่ยนเป็นอาชีพอื่นขั้นเดียวกัน · คืนแต้มสเตตัส + แต้มสกิลทั้งหมด · อุปกรณ์ที่ใส่ไม่ได้ถอดเข้ากระเป๋า
 //  (ใช้ตัวแปร room, gameData, INV, $ จาก game.js / items-ui.js)
 // =============================================================
@@ -32,15 +32,16 @@ function renderRebirth() {
         <b>${J[k].name}</b><small>${k === me.job ? "อาชีพปัจจุบัน" : J[k].role}</small></button>`).join("")}</div>
       <button type="button" class="btn-gold" id="rbClass" ${rbSel && rich ? "" : "disabled"}>${rbSel ? `🔮 เปลี่ยนเป็น ${J[rbSel].name} · 1,000,000 gold` : "เลือกอาชีพก่อน"}</button>`;
   }
+  const skSpent = Object.entries((typeof mySkillData !== "undefined" && mySkillData.skills) || {}).some(([k, L]) => L > ((gameData.skills[k] && gameData.skills[k].innate) || 0));
   $("rbBody").innerHTML = `
-    <div class="rb-sec"><h4>♻️ รีสเตตัส</h4><p class="ap-note">คืนแต้มสเตตัสทั้งหมดให้ลงใหม่ (อาชีพและสกิลเหมือนเดิม)</p>
+    <div class="rb-sec"><h4>♻️ รีสเตตัส + สกิล</h4><p class="ap-note">คืนแต้มสเตตัสและแต้มสกิลทั้งหมดให้ลงใหม่ (อาชีพเหมือนเดิม)</p>
       <div class="rb-stats">${stats}</div>
-      <button type="button" class="btn-gold" id="rbStat" ${rich && spent ? "" : "disabled"}>♻️ รีสเตตัส · 1,000,000 gold</button></div>
+      <button type="button" class="btn-gold" id="rbStat" ${rich && (spent || skSpent) ? "" : "disabled"}>♻️ รีสเตตัส + สกิล · 1,000,000 gold</button></div>
     <div class="rb-sec"><h4>🔮 รีคลาส</h4>${cls}</div>
     ${rich ? "" : `<p class="need">gold ไม่พอ — ต้องมี 1,000,000</p>`}`;
   $("rbBody").querySelectorAll(".rb-job:not(.cur)").forEach((b) => (b.onclick = () => { rbSel = b.dataset.j; renderRebirth(); }));
   $("rbStat").onclick = async () => {
-    if (await askConfirm(`รีสเตตัส?<br><small>จ่าย 1,000,000 gold · คืนแต้มสเตตัสทั้งหมดให้ลงใหม่</small>`, { okText: "รีสเตตัส" })) room.send("rebirth", { act: "stat" });
+    if (await askConfirm(`รีสเตตัส + สกิล?<br><small>จ่าย 1,000,000 gold · คืนแต้มสเตตัสและแต้มสกิลทั้งหมดให้ลงใหม่ · แถบสกิลต้องจัดใหม่</small>`, { okText: "รีเซ็ต" })) room.send("rebirth", { act: "stat" });
   };
   if ($("rbClass")) $("rbClass").onclick = async () => {
     if (!rbSel) return;

@@ -2793,7 +2793,7 @@ class WorldRoom extends Room {
     const Q = D.JOB_QUESTS[p.quest.job], b = p.bag;
     if (p.quest.kills < Q.kill[1]) return client.send("toast", `ยังปราบ${D.MONSTERS[Q.kill[0]].name}ไม่ครบ (${p.quest.kills}/${Q.kill[1]})`);
     if (Bag.countOf(b, Q.item[0]) < Q.item[1]) return client.send("toast", `${I.ITEMS[Q.item[0]].name} ยังไม่ครบ (${Bag.countOf(b, Q.item[0])}/${Q.item[1]})`);
-    if (!b.inv.some((x) => !x)) return client.send("toast", "กระเป๋าเต็ม — เว้นที่ว่างไว้รับอาวุธประจำอาชีพก่อน");
+    if (b.inv.filter((x) => !x).length < (Q.offhand ? 2 : 1)) return client.send("toast", `กระเป๋าเต็ม — เว้นที่ว่าง ${Q.offhand ? 2 : 1} ช่องไว้รับอาวุธประจำอาชีพก่อน`);
     // หักของ
     let need = Q.item[1];
     for (let i = b.inv.length - 1; i >= 0 && need > 0; i--) {
@@ -2809,13 +2809,14 @@ class WorldRoom extends Room {
     p.skills = D.sanitizeSkills(p.skills, job, p.level); this.syncSkillPts(p);
     const stripped = Bag.stripInvalid(b, job);
     Bag.addItem(b, Q.reward, 1, I.makeGear(Q.reward, 0));
+    if (Q.offhand) Bag.addItem(b, Q.offhand, 1, I.makeGear(Q.offhand, 0)); // อาวุธรองประจำอาชีพ
     p.gear = Bag.gearString(b);
     const r = this.pr.get(pid); r.cds = {}; r.buffs = {}; r.combo = 0;
     this.setAuto(pid, false);
     this.applyStats(p, true);
     this.sendInv(pid);
     client.send("quest", null);
-    client.send("jobChanged", { job, reward: Q.reward, stripped });
+    client.send("jobChanged", { job, reward: Q.reward, offhand: Q.offhand || null, bonusSp: D.JOB1_BONUS_SP, stripped });
     this.sendSkills(pid);
     this.broadcast("lvup", { id: pid, level: p.level, job: true });
     rooms.forEach((rm) => rm.broadcast("system", `🎉 ${p.name} เปลี่ยนอาชีพเป็น${p.jobName}แล้ว!`));
@@ -2831,15 +2832,18 @@ class WorldRoom extends Room {
     const b = p.bag, cost = D.REBIRTH_COST;
     if (b.gold < cost) return client.send("toast", `gold ไม่พอ (ต้องใช้ ${cost.toLocaleString()})`);
     const st = D.baseStats();
-    if (m.act === "stat") {
-      if (D.spentPoints(Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]]))) === 0) return client.send("toast", "ยังไม่ได้ลงแต้มสเตตัสเลย");
+    if (m.act === "stat") { // คืนแต้มสเตตัส + แต้มสกิลทั้งหมด (อาชีพเดิม)
+      if (D.spentPoints(Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]]))) === 0 && D.skillSpent(p.skills) === 0) return client.send("toast", "ยังไม่ได้ลงแต้มสเตตัส/สกิลเลย");
       b.gold -= cost;
       for (const k of D.STAT_KEYS) p[k] = st[k];
       p.statPoints = D.totalPoints(p.level);
+      p.skills = D.innateSkills(); this.syncSkillPts(p);
+      r.cds = {}; r.buffs = {}; r.combo = 0;
       this.applyStats(p, true);
       this.sendInv(pid);
+      this.sendSkills(pid);
       client.send("rebirthDone", { act: "stat" });
-      client.send("toast", "✨ คืนแต้มสเตตัสทั้งหมดแล้ว — ลงใหม่ได้เลย");
+      client.send("toast", "✨ คืนแต้มสเตตัสและแต้มสกิลทั้งหมดแล้ว — ลงใหม่ได้เลย");
       this.save(pid);
       return;
     }

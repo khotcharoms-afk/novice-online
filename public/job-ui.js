@@ -71,7 +71,7 @@ function renderJob() {
     quest = `<h4>บททดสอบ${j.name}</h4><p class="story">“${q.story}”</p>
       ${row(`<i class="qi">⚔</i>`, `ปราบ${mob.name} (Lv.${mob.level}) · ${q.where}`, kills, q.kill[1])}
       ${row(`<img src="${ICON(q.item[0])}" alt="">`, `นำ${item.name}มา`, have, q.item[1])}
-      <div class="qrow reward"><img src="${ICON(q.reward)}" alt=""><span>รางวัล: ${reward.name} + คืนแต้มสเตตัสทั้งหมดให้ลงใหม่</span></div>`;
+      <div class="qrow reward"><img src="${ICON(q.reward)}" alt="">${q.offhand ? `<img src="${ICON(q.offhand)}" alt="">` : ""}<span>รางวัล: ${reward.name}${q.offhand ? ` + ${itemOf(q.offhand).name}` : ""} · แต้มสกิลโบนัส +10 · คืนแต้มสเตตัสทั้งหมดให้ลงใหม่</span></div>`;
     let btns;
     if (!lvOk) btns = `<div class="need">ต้องเลเวล ${gameData.jobChangeLevel} ขึ้นไป (ตอนนี้ Lv.${me.level})</div>`;
     else if (!myQuest) btns = `<button type="button" class="btn-gold" id="jobStart">รับบททดสอบ${j.name}</button>`;
@@ -117,7 +117,7 @@ function renderJob2(me) {
       ${row(`<i class="qi">👹</i>`, `ปราบ${mb.name} (Lv.${mb.level}) · ${q.where}`, kills >= 1, active ? `${Math.min(kills, 1)}/1` : "1")}
       ${row(`<img src="${ICON(q.item[0])}" alt="">`, `นำ${itemOf(q.item[0]).name}มา`, have >= q.item[1], `${Math.min(have, q.item[1])}/${q.item[1]}`)}
       ${row(`<img src="/assets/icons/gold.png" alt="">`, "ค่าพิธีเลื่อนขั้น", gold >= q.gold, q.gold.toLocaleString())}
-      <div class="qrow reward"><i class="qi">🌟</i><span>รางวัล: อาชีพ${j.name} · สกิลใหม่ 4 สกิล + แต้มสกิลโบนัส 10 · ค่าพลังสูงขึ้น · คืนแต้มสเตตัสให้ลงใหม่ (สกิลเดิมยังอยู่)</span></div>`;
+      <div class="qrow reward"><i class="qi">🌟</i><span>รางวัล: อาชีพ${j.name} · สกิลใหม่ 4 สกิล + แต้มสกิลโบนัสอีก 10 · ค่าพลังสูงขึ้น · คืนแต้มสเตตัสให้ลงใหม่ (สกิลเดิมยังอยู่)</span></div>`;
     let btns;
     if (me.level < lvNeed) btns = `<div class="need">ต้องเลเวล ${lvNeed} ขึ้นไป (ตอนนี้ Lv.${me.level})</div>`;
     else if (!myQuest) btns = `<button type="button" class="btn-gold" id="jobStart">รับบททดสอบ${j.name}</button>`;
@@ -178,7 +178,7 @@ function onJobChanged(d) {
     buildSkillBar(); renderJob(); renderStats && renderStats();
     if (d.reclass) { toast(`🔮 หลอมชะตาเป็น ${J.name} แล้ว · ลงแต้มสเตตัสและสกิล (K) ใหม่ได้เลย`); if (d.stripped && d.stripped.length) addChat("system", `ถอดอุปกรณ์ที่ ${J.name} ใส่ไม่ได้เข้ากระเป๋า: ${d.stripped.join(", ")}`); return; }
     if (J.tier === 2) { toast(`🌟 เลื่อนขั้นเป็น${J.name}แล้ว! เปิดหน้าต่างสกิล (K) เพื่อลงสกิลใหม่ · ลงแต้มสเตตัสใหม่ได้เลย`); return; }
-    toast(`ยินดีด้วย! คุณเป็น${J.name}แล้ว${d.reward ? ` · ได้รับ ${itemOf(d.reward).name} (ดูในกระเป๋า)` : ""} · ลงแต้มสเตตัสใหม่ได้เลย`);
+    toast(`ยินดีด้วย! คุณเป็น${J.name}แล้ว${d.reward ? ` · ได้รับ ${itemOf(d.reward).name}${d.offhand ? ` + ${itemOf(d.offhand).name}` : ""} (ดูในกระเป๋า)` : ""} · แต้มสกิลโบนัส +${d.bonusSp || 10} · ลงแต้มสเตตัสใหม่ได้เลย`);
     if (d.stripped && d.stripped.length) addChat("system", `ถอดอุปกรณ์ที่${J.name}ใส่ไม่ได้เข้ากระเป๋า: ${d.stripped.join(", ")}`);
   }, 300);
 }

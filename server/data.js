@@ -466,7 +466,9 @@ const treeKeys = (job) => [...SKILL_TREE.villager.flat(), ...(JOBS[job] && JOBS[
 // สกิลที่กดใช้ได้ (ตามลำดับช่องในแถบสกิล) — เฉพาะที่เรียนแล้ว
 const JOB_SKILLS = Object.fromEntries(Object.keys(SKILL_TREE).map((j) => [j, treeKeys(j).filter((k) => !SKILLS[k].passive)]));
 const JOB2_BONUS_SP = 10; // เลื่อนขั้น 2 ได้แต้มสกิลโบนัส (Lv.50 แต้มเดิมมักใช้หมดแล้ว)
-const skillPointsAt = (lv, job) => Math.max(0, lv - 1) + (job && JOBS[job] && JOBS[job].tier === 2 ? JOB2_BONUS_SP : 0); // ได้ 1 แต้มต่อเลเวล
+const JOB1_BONUS_SP = 10; // เปลี่ยนอาชีพ (ออกจาก Novice) ได้แต้มสกิลโบนัส
+// ได้ 1 แต้มต่อเลเวล + โบนัสตามขั้นอาชีพ (ขั้น 1 = +10 · ขั้น 2 = +10 +10)
+const skillPointsAt = (lv, job) => Math.max(0, lv - 1) + (job && job !== "villager" && JOBS[job] ? JOB1_BONUS_SP : 0) + (job && JOBS[job] && JOBS[job].tier === 2 ? JOB2_BONUS_SP : 0);
 const innateSkills = () => Object.fromEntries(Object.entries(SKILLS).filter(([, s]) => s.innate).map(([k, s]) => [k, s.innate]));
 const skillSpent = (sk) => Object.entries(sk || {}).reduce((t, [k, L]) => t + Math.max(0, L - ((SKILLS[k] && SKILLS[k].innate) || 0)), 0);
 // เรียนสกิลนี้ขั้นถัดไปได้ไหม → คืนข้อความเหตุผล (null = ได้)
@@ -510,15 +512,15 @@ function passiveBonus(sk, job, wt) {
 // ---------- เควสเปลี่ยนอาชีพ (คุยกับครูฝึกอาชีพในเมือง) ----------
 // kill = [มอน, จำนวน] · item = [ของที่ต้องนำมา, จำนวน] · reward = อาวุธประจำอาชีพที่ได้เมื่อผ่าน
 const JOB_QUESTS = {
-  guardian: { kill: ["orc", 15], item: ["orc_scrap", 10], reward: "saber", where: "ค่ายออร์ค",
+  guardian: { kill: ["orc", 15], item: ["orc_scrap", 10], reward: "saber", offhand: "shield_knight", where: "ค่ายออร์ค",
     story: "ผู้พิทักษ์ต้องยืนหยัดต่อหน้าศัตรูที่แข็งแกร่ง จงไปที่ค่ายออร์ค ปราบออร์คนักรบ แล้วนำเศษเกราะของพวกมันกลับมาเป็นหลักฐาน" },
-  slayer: { kill: ["skeleton", 20], item: ["old_bone", 10], reward: "greatsword", where: "เนินกระดูก",
+  slayer: { kill: ["skeleton", 20], item: ["old_bone", 10], reward: "greatsword", offhand: "war_emblem", where: "เนินกระดูก",
     story: "ดาบใหญ่ต้องฟาดไม่ยั้ง จงไปเนินกระดูก ฟาดโครงกระดูกให้แหลก แล้วนำกระดูกเก่ากลับมา" },
-  hunter: { kill: ["redwolf", 20], item: ["wolf_fang", 15], reward: "bow_hunter", where: "ป่าใบไม้แดง",
+  hunter: { kill: ["redwolf", 20], item: ["wolf_fang", 15], reward: "bow_hunter", offhand: "quiver_leather", where: "ป่าใบไม้แดง",
     story: "นักล่าที่ดีต้องตามรอยเหยื่อได้ จงล่าหมาป่าแดงในป่าใบไม้แดง แล้วนำเขี้ยวหมาป่ามาให้ข้าดู" },
-  mage: { kill: ["jack", 20], item: ["pumpkin", 10], reward: "staff_oak", where: "ป่าใบไม้แดง",
+  mage: { kill: ["jack", 20], item: ["pumpkin", 10], reward: "staff_oak", offhand: "orb_mana", where: "ป่าใบไม้แดง",
     story: "ฟักทองเรืองแสงในตัวหุ่นไล่กาเต็มไปด้วยพลังเวท จงปราบหุ่นไล่กาฟักทองแล้วนำฟักทองเรืองแสงมาให้ข้า" },
-  healer: { kill: ["zombie", 15], item: ["rotten_cloth", 10], reward: "book_light", where: "ป่าใบไม้แดง / เนินกระดูก",
+  healer: { kill: ["zombie", 15], item: ["rotten_cloth", 10], reward: "book_light", offhand: "relic_light", where: "ป่าใบไม้แดง / เนินกระดูก",
     story: "แสงแห่งการรักษาเผาผลาญความตาย จงไปชำระผีดิบที่เร่ร่อน แล้วนำผ้าเปื่อยของพวกมันมาเผาทำพิธี" },
 };
 for (const Q of [...Object.values(JOB_QUESTS), ...Object.values(J2.JOB2_QUESTS)]) { Q.story = jobText(Q.story); if (Q.where) Q.where = jobText(Q.where); }
@@ -528,5 +530,5 @@ module.exports = { WORLD_BOSSES, MINI_BOSSES,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, defReduce, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
   jobText, REBIRTH_COST, JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS, baseJob, JOB2_LEVEL: J2.JOB2_LEVEL, JOB2_QUESTS: J2.JOB2_QUESTS,
-  SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus,
+  SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus, JOB1_BONUS_SP, JOB2_BONUS_SP,
 };
