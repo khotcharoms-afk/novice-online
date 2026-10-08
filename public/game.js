@@ -376,6 +376,7 @@ function bindRoom(room) {
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
     room.onMessage("bossSkill", (c) => scene && scene.bossSkill(c));
     room.onMessage("bossSkillHit", (c) => scene && scene.bossSkillHit(c));
+    if (typeof hideDeath === "function") hideDeath(); // เข้าห้องใหม่ (ย้ายแผนที่/เชื่อมต่อกลับ) = ฟื้นแล้ว ปิดหน้าต่าง "คุณถูกล้ม" ที่อาจค้าง
     const thisRoom = room;
     lastRecv = Date.now();
     try { thisRoom.connection.transport.ws.addEventListener("message", () => { if (thisRoom === curRoom()) lastRecv = Date.now(); }); } catch {}
@@ -398,6 +399,8 @@ let lastRecv = Date.now(), lastClose = null;
 setInterval(() => {
   if (!room || !myCharId || leavingForWarp || reconnecting) { lastRecv = Date.now(); return; }
   try { if (room.connection && room.connection.isOpen) room.send("hb"); } catch {}
+  // หน้าต่าง "คุณถูกล้ม" ค้างทั้งที่ตัวละครฟื้นแล้ว → ปิด
+  { const d = $("deathMsg"), me = typeof myPlayer === "function" && myPlayer(); if (d && !d.hidden && me && !me.dead && me.hp > 0 && performance.now() - Number(d.dataset.at || 0) > 3000) hideDeath(); }
   if (document.visibilityState === "visible" && Date.now() - lastRecv > 25000) {
     console.warn("no data from server for", Date.now() - lastRecv, "ms — reconnecting");
     lastRecv = Date.now();
@@ -2314,7 +2317,7 @@ function showDeath(d) {
   const el = $("deathMsg");
   if (!el) return;
   if (d) deathInfo = { ...d, at: performance.now() };
-  el.hidden = false;
+  el.hidden = false; el.dataset.at = performance.now();
   clearInterval(deathTimer);
   if (!deathInfo) { el.innerHTML = `<b>คุณถูกล้ม</b><div>กำลังฟื้นที่ลานกลางเมือง…</div>`; return; }
   const hasC = deathInfo.crystals > 0;

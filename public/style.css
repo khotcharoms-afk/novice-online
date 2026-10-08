@@ -857,8 +857,8 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 [hidden] { display: none !important; }
 
 /* อีเวนต์ EXP (แอดมินเปิด) */
-.exp-ev { margin-top: 6px; padding: 3px 8px; border-radius: 6px; font-size: 12px; text-align: center; color: #fff3c4;
-  background: linear-gradient(90deg, rgba(190, 120, 20, .35), rgba(160, 60, 200, .35)); border: 1px solid rgba(255, 210, 110, .45);
+.exp-ev { padding: 4px 8px; min-width: 190px; box-sizing: border-box; border-radius: 6px; font-size: 12px; text-align: center; color: #fff3c4;
+  background: linear-gradient(90deg, rgba(110, 66, 12, .92), rgba(84, 32, 110, .92)); border: 1px solid rgba(255, 210, 110, .45);
   animation: expEvGlow 2.4s ease-in-out infinite; }
 .exp-ev b { color: #ffd76a; font-weight: 600; }
 @keyframes expEvGlow { 0%, 100% { box-shadow: 0 0 0 rgba(255, 200, 90, 0); } 50% { box-shadow: 0 0 10px rgba(255, 200, 90, .45); } }

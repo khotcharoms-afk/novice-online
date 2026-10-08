@@ -611,7 +611,7 @@ class WorldRoom extends Room {
     client.send("quest", p.quest);
     this.clock.setTimeout(() => partyBack(c.id, c.party), 800);
     this.sendSkills(client.sessionId);
-    if (!(options && options.warp)) this.broadcast("system", `${p.name} เข้าสู่เกม`); // ย้ายแผนที่ไม่ต้องประกาศ
+    // (ไม่ประกาศ "เข้าสู่เกม" ให้ทุกคนแล้ว — เพื่อนในปาร์ตี้เห็นข้อความกลับเข้าเกมจากระบบปาร์ตี้)
     this.state.monsters.forEach((m) => { if (m.boss && !m.dead) client.send("system", `⚠️ World Boss ${m.name} อยู่ในแผนที่นี้! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`); });
   }
 
@@ -1046,7 +1046,7 @@ class WorldRoom extends Room {
       const o = online.get(r.charId);
       if (o && o.room === this && o.sessionId === client.sessionId) online.delete(r.charId);
     }
-    if (p && !p.warp && !shuttingDown) this.broadcast("system", `${p.name} ออกจากเกม`);
+
     if (p && !p.warp && r && r.charId) { invites.delete(r.charId); partyDrop(r.charId); }
     this.state.players.delete(client.sessionId);
     this.state.pets.delete(client.sessionId);
@@ -2116,9 +2116,8 @@ class WorldRoom extends Room {
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
       const loss = Math.min(p.exp, Math.floor(p.expNext * 0.01));
       p.exp -= loss;
-      this.broadcast("system", `${p.name} ถูก${m.name}ล้ม`);
       const cl = this.clients.find((c) => c.sessionId === pid);
-      if (cl && loss > 0) cl.send("system", `เสีย EXP ${loss} (1%)`);
+      if (cl) cl.send("system", `💀 คุณถูก${m.name}ล้ม${loss > 0 ? ` · เสีย EXP ${loss} (1%)` : ""}`);
     }
   }
 
@@ -2146,7 +2145,7 @@ class WorldRoom extends Room {
       this.sendSkills(pid);
       this.broadcast("lvup", { id: pid, level: p.level });
       this.save(pid);
-      this.broadcast("system", `${p.name} เลเวลอัปเป็น Lv.${p.level}!`);
+      if (client) client.send("system", `🎉 เลเวลอัปเป็น Lv.${p.level}!`);
       if (p.level === D.JOB_CHANGE_LEVEL && client)
         client.send("system", `ถึงเลเวล ${D.JOB_CHANGE_LEVEL} แล้ว! ไปคุยกับอัลดริค (ครูฝึกอาชีพ) กลางเมืองอรุณรุ่งเพื่อเปลี่ยนอาชีพ`);
     }
