@@ -23,7 +23,7 @@ function sanitizeLook(look) {
 }
 
 // ---------- เลเวล & ค่าสถานะ ----------
-const MAX_LEVEL = 99;
+const MAX_LEVEL = 120;
 const JOB_CHANGE_LEVEL = 20;
 const expToNext = (lv) => (lv >= MAX_LEVEL ? 0 : Math.round(30 * Math.pow(lv, 2.2)));
 
