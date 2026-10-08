@@ -230,7 +230,7 @@ const MINI_BOSSES = {
 // ตั้งแต่ Lv.30 ขึ้นไป มอนอึดขึ้น ×2 ตีแรงขึ้น ×1.5 (ช่วงเลเวลต่ำค่อย ๆ เพิ่ม — มือใหม่ยังเล่นสบาย) · EXP เพิ่มตาม (×1.5) เพราะตีนานขึ้น
 const mobScale = (lv) => Math.min(1, lv / 30);
 // ช่วงกลาง–ปลายเกม (Lv.10+) อุปกรณ์ผู้เล่นโตเร็วกว่ามอน → มอนอึด/ตีแรงขึ้นตามเลเวลอีกชั้น (เต็มที่ Lv.60: HP/ATK ×1.8 · EXP ×1.5)
-const MOB_HP_K = Number(process.env.MOB_HP_K ?? 0.8), MOB_ATK_K = Number(process.env.MOB_ATK_K ?? 0.8);
+const MOB_HP_K = Number(process.env.MOB_HP_K ?? 0.4), MOB_ATK_K = Number(process.env.MOB_ATK_K ?? 0.4); // เดิม 0.8 (แข็งเกินไป)
 const lateScale = (lv) => Math.max(0, Math.min(1, (lv - 10) / 50));
 const monsterStats = (lv) => ({
   maxHp: Math.round((30 + lv * 20 + 0.5 * lv * lv) * (1 + mobScale(lv)) * (1 + MOB_HP_K * lateScale(lv))),
