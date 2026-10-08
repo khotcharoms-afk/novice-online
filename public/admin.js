@@ -1,4 +1,4 @@
-const JOBS_ADMIN = { villager: "ชาวบ้าน", guardian: "ผู้พิทักษ์", slayer: "นักดาบใหญ่", hunter: "นักล่า", mage: "นักเวทย์", healer: "หมอ" };
+const JOBS_ADMIN = { villager: "Novice", guardian: "Guardian", slayer: "Slayer", hunter: "Hunter", mage: "Mage", healer: "Healer", paladin: "Paladin", darkknight: "Dark Knight", berserker: "Berserker", blademaster: "Blademaster", sniper: "Sniper", assassin: "Assassin", archmage: "Archmage", summoner: "Summoner", saint: "Saint", battlepriest: "Battle Priest" };
 const MAPS_ADMIN = { town: "เมืองอรุณรุ่ง", meadow: "ทุ่งหญ้าต้นกล้า (Lv.1–6)", pine: "ป่าสนเขียวขจี (Lv.5–12)", maple: "ป่าใบไม้แดง (Lv.10–18)", bones: "เนินกระดูก (Lv.14–22)", orcamp: "ค่ายออร์ค (Lv.18–28)", snow: "หุบเขาหิมะ (Lv.26–35)", frost: "ยอดเขาน้ำแข็ง (Lv.34–44)", swamp: "บึงพิษมรณะ (Lv.42–52)", ruins: "ซากปราสาทร้าง (Lv.50–60)", cursed: "ป่าต้องสาป (Lv.58–68)", lava: "ทุ่งลาวา (Lv.66–76)", desert: "ทะเลทรายแดง (Lv.74–84)", dragon: "ยอดเขามังกร (Lv.82–92)", abyss: "ห้วงอเวจี (Lv.90–99)" };
 // =============================================================
 //  เมนูแอดมิน — ใช้ได้เฉพาะ ID ที่ตั้งไว้ใน ADMIN_IDS บน Render
@@ -477,7 +477,7 @@ function renderSpawnFoot() {
   const jobs = gear ? (i.jobs.length >= 5 ? "ทุกอาชีพ" : i.jobs.map((j) => `<b style="color:${JOBS_INFO[j].color}">${JOBS_INFO[j].name}</b>`).join(" / ")) : "";
   foot.innerHTML = `<div class="sp-sel"><img src="/assets/icons/${esc(i.id)}.png" alt="">
       <div><h3>${esc(i.name)}</h3><div class="muted">${[i.lv ? "Lv." + i.lv : "", i.wt ? WT_TH[i.wt] : "", i.ac ? AC_TH[i.ac] : "", bonus, i.desc].filter(Boolean).join(" · ")}</div>
-      ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (ชาวบ้านใช้ได้ด้วย)" : ""}</div>` : ""}
+      ${gear ? `<div class="muted">ใช้ได้: ${jobs}${i.lv < 20 ? " (Novice ใช้ได้ด้วย)" : ""}</div>` : ""}
       ${i.special ? `<div class="sx-fixed">สเตตัสแฝงติดตัว: ${Object.entries(i.special).map(([k, v]) => `${SPECIAL[k].name} +${v}%`).join(" · ")}</div>` : ""}
       ${i.refineFx ? `<div class="muted">โบนัสตีบวก: ${Object.entries(i.refineFx).map(([n, t]) => `+${n} → ${[...Object.entries(t.b || {}).map(([k, v]) => `${STAT_TH[k] || k} +${v}`), ...Object.entries(t.sp || {}).map(([k, v]) => `${SPECIAL[k].name} +${v}%`)].join(", ")}`).join(" · ")}</div>` : ""}
       ${i.sets && i.sets.length ? `<div style="color:#7dff9a;font-size:12.5px">เซ็ต: ${i.sets.join(", ")}</div>` : ""}</div></div>

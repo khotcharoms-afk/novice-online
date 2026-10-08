@@ -176,6 +176,7 @@ function onJobChanged(d) {
   const J = gameData.jobs[d.job];
   setTimeout(() => {
     buildSkillBar(); renderJob(); renderStats && renderStats();
+    if (d.reclass) { toast(`🔮 หลอมชะตาเป็น ${J.name} แล้ว · ลงแต้มสเตตัสและสกิล (K) ใหม่ได้เลย`); if (d.stripped && d.stripped.length) addChat("system", `ถอดอุปกรณ์ที่ ${J.name} ใส่ไม่ได้เข้ากระเป๋า: ${d.stripped.join(", ")}`); return; }
     if (J.tier === 2) { toast(`🌟 เลื่อนขั้นเป็น${J.name}แล้ว! เปิดหน้าต่างสกิล (K) เพื่อลงสกิลใหม่ · ลงแต้มสเตตัสใหม่ได้เลย`); return; }
     toast(`ยินดีด้วย! คุณเป็น${J.name}แล้ว${d.reward ? ` · ได้รับ ${itemOf(d.reward).name} (ดูในกระเป๋า)` : ""} · ลงแต้มสเตตัสใหม่ได้เลย`);
     if (d.stripped && d.stripped.length) addChat("system", `ถอดอุปกรณ์ที่${J.name}ใส่ไม่ได้เข้ากระเป๋า: ${d.stripped.join(", ")}`);

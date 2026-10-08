@@ -183,7 +183,7 @@ function lineWearError(job, it) {
   }
   if (it.wt === "shield") {
     if (!J.shield) return `${J.name}ใช้โล่ไม่ได้`;
-    if (job === "villager" && lv >= D.JOB_FREE_LV) return `ต้องเป็นผู้พิทักษ์`;
+    if (job === "villager" && lv >= D.JOB_FREE_LV) return `ต้องเป็น${D.JOBS.guardian.name}`;
     return null;
   }
   if (it.wt) {

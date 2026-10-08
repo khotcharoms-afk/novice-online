@@ -349,6 +349,7 @@ function bindRoom(room) {
     room.onMessage("bossBoard", (d) => onBossBoard(d));
     room.onMessage("party", (d) => onParty(d));
     room.onMessage("storage", (d) => onStorage(d));
+    room.onMessage("rebirthDone", (d) => onRebirthDone(d));
     room.onMessage("tradeRequest", (d) => onTradeRequest(d));
     room.onMessage("trade", (d) => onTrade(d));
     room.onMessage("tradeClosed", (d) => onTradeClosed(d));
@@ -411,6 +412,7 @@ class WorldScene extends Phaser.Scene {
     this.load.image("npcsrc_jobmaster", "/assets/npc_jobmaster.png");
     this.load.image("npcsrc_spiritkeeper", "/assets/npc_spiritkeeper.png");
     this.load.image("npcsrc_storage", "/assets/npc_storage.png");
+    this.load.image("npcsrc_reclass", "/assets/npc_reclass.png");
     this.load.image("crystal", "/assets/crystal.png");
     (MANIFEST.spirits || []).forEach((k) => this.load.spritesheet("spirit/" + k, `/assets/spirits/${k}.png`, { frameWidth: 40, frameHeight: 40 })); // แถว = ร่าง 0–4
     for (const k of ["potion", "weapon", "armor"]) this.load.image("npcsrc_" + k, `/assets/npc_${k}.png`);
@@ -1531,7 +1533,7 @@ class WorldScene extends Phaser.Scene {
     if (this.pendingNpc) {
       const mv = this.views.get(room.sessionId);
       if (mv && Math.hypot(mv.root.x - this.pendingNpc.x, mv.root.y - this.pendingNpc.y) < 100) {
-        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else if (this.pendingNpc.id === "spiritkeeper") openSpirit(); else if (this.pendingNpc.id === "storage") openStorage(); else openShop(this.pendingNpc.id);
+        if (this.pendingNpc.id === "smith") openSmith(); else if (this.pendingNpc.id === "jobmaster") openJob(); else if (this.pendingNpc.id === "spiritkeeper") openSpirit(); else if (this.pendingNpc.id === "storage") openStorage(); else if (this.pendingNpc.id === "reclass") openRebirth(); else openShop(this.pendingNpc.id);
         this.pendingNpc = null;
       }
     }

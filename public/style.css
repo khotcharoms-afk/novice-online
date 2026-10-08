@@ -816,3 +816,18 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 .ap-skills .ap-note, .ap-skills #apSkOpen { grid-column: 1 / -1; }
 .ap-skills #apSkOpen { padding: 6px; }
 @media (max-width: 1100px) { body.sk-edit #skillBar .slot:not(.skill) { height: 30px; } }
+
+/* เซเลส · ผู้หลอมชะตา */
+#rebirthPanel { left: 50%; top: max(10px, calc(50% - 260px)); transform: translateX(-50%); width: min(560px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#rebirthPanel.dragged { transform: none; }
+.rb-sec { border: 1px solid var(--brass-dim, #6a5a3a); border-radius: 10px; padding: 10px; margin-top: 8px; background: #0003; }
+.rb-sec h4 { margin: 0 0 6px; }
+.rb-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; font-size: 12px; }
+.rb-stats span { background: #ffffff10; border-radius: 6px; padding: 2px 8px; }
+.rb-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 8px 0; }
+.rb-job { text-align: left; padding: 6px 8px; border-radius: 8px; border: 1px solid #ffffff22; background: #ffffff08; color: inherit; cursor: pointer; }
+.rb-job b { color: var(--jc); display: block; }
+.rb-job small { opacity: .75; }
+.rb-job.sel { border-color: var(--jc); box-shadow: 0 0 0 1px var(--jc) inset; background: #ffffff14; }
+.rb-job.cur { opacity: .45; cursor: default; }
+.rb-sec .btn-gold { width: 100%; margin-top: 4px; }

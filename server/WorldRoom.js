@@ -244,6 +244,7 @@ class WorldRoom extends Room {
       { id: "jobmaster", name: "อัลดริค · ครูฝึกอาชีพ", sprite: "npc_jobmaster", x: cx, y: cy - 150 },
       { id: "spiritkeeper", name: "ลูน่า · ผู้ผนึกภูติ", sprite: "npc_spiritkeeper", x: cx + 128, y: cy + 150 },
       { id: "storage", name: "แมกนัส · คลังเก็บของ", sprite: "npc_storage", x: cx - 128, y: cy + 150 },
+      { id: "reclass", name: "เซเลส · ผู้หลอมชะตา", sprite: "npc_reclass", x: cx + 256, y: cy - 110 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
     this.drSeq = 0;
@@ -415,6 +416,7 @@ class WorldRoom extends Room {
     this.onMessage("skill", (client, m) => this.useSkill(client, m));
     // ---------- เปลี่ยนอาชีพ ----------
     this.onMessage("jobQuest", (client, m) => this.jobQuest(client, m || {}));
+    this.onMessage("rebirth", (client, m) => this.rebirth(client, m || {}));
     this.onMessage("learnSkill", (client, m) => m && this.learnSkill(client, String(m.skill)));
     this.onMessage("chat", (client, text) => {
       const r = this.pr.get(client.sessionId), p = this.state.players.get(client.sessionId);
@@ -2534,6 +2536,52 @@ class WorldRoom extends Room {
     this.sendSkills(pid);
     this.broadcast("lvup", { id: pid, level: p.level, job: true });
     rooms.forEach((rm) => rm.broadcast("system", `🎉 ${p.name} เปลี่ยนอาชีพเป็น${p.jobName}แล้ว!`));
+    this.save(pid);
+  }
+
+  // ================= เซเลส · ผู้หลอมชะตา: รีสเตตัส / รีคลาส (ครั้งละ 1M gold) =================
+  // act "stat" = คืนแต้มสเตตัสทั้งหมด · act "class" = เปลี่ยนเป็นอาชีพอื่นขั้นเดียวกัน (คืนแต้มสเตตัส + แต้มสกิลทั้งหมด)
+  rebirth(client, m) {
+    const pid = client.sessionId, p = this.state.players.get(pid), r = this.pr.get(pid);
+    if (!p || !r || p.dead) return;
+    if (!this.nearNpc(p, "reclass")) return client.send("toast", "เดินเข้าใกล้เซเลส (ผู้หลอมชะตา) ก่อน");
+    const b = p.bag, cost = D.REBIRTH_COST;
+    if (b.gold < cost) return client.send("toast", `gold ไม่พอ (ต้องใช้ ${cost.toLocaleString()})`);
+    const st = D.baseStats();
+    if (m.act === "stat") {
+      if (D.spentPoints(Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]]))) === 0) return client.send("toast", "ยังไม่ได้ลงแต้มสเตตัสเลย");
+      b.gold -= cost;
+      for (const k of D.STAT_KEYS) p[k] = st[k];
+      p.statPoints = D.totalPoints(p.level);
+      this.applyStats(p, true);
+      this.sendInv(pid);
+      client.send("rebirthDone", { act: "stat" });
+      client.send("toast", "✨ คืนแต้มสเตตัสทั้งหมดแล้ว — ลงใหม่ได้เลย");
+      this.save(pid);
+      return;
+    }
+    if (m.act !== "class") return;
+    const job = String(m.job || ""), J = D.JOBS[job], cur = D.JOBS[p.job];
+    if (!J || job === p.job) return;
+    if (p.job === "villager" || job === "villager") return client.send("toast", "Novice ต้องเปลี่ยนอาชีพที่อัลดริค (ครูฝึกอาชีพ)");
+    if ((J.tier || 1) !== (cur.tier || 1)) return client.send("toast", `เปลี่ยนได้เฉพาะอาชีพขั้นเดียวกัน (ขั้น ${cur.tier || 1})`);
+    b.gold -= cost;
+    p.job = job; p.jobName = J.name; p.quest = null;
+    for (const k of D.STAT_KEYS) p[k] = st[k];
+    p.statPoints = D.totalPoints(p.level);
+    p.skills = D.innateSkills(); this.syncSkillPts(p);
+    const stripped = Bag.stripInvalid(b, job);
+    p.gear = Bag.gearString(b);
+    r.cds = {}; r.buffs = {}; r.combo = 0; r.summon = null;
+    this.setAuto(pid, false);
+    this.applyStats(p, true);
+    this.sendInv(pid);
+    client.send("quest", null);
+    client.send("jobChanged", { job, stripped, reclass: true });
+    this.sendSkills(pid);
+    client.send("rebirthDone", { act: "class", job });
+    this.broadcast("lvup", { id: pid, level: p.level, job: true });
+    rooms.forEach((rm) => rm.broadcast("system", `🔮 ${p.name} หลอมชะตาใหม่เป็น ${p.jobName}!`));
     this.save(pid);
   }
 

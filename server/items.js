@@ -568,4 +568,10 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
     ITEMS[id] = { name: S.name, type: "spirit", qlv: S.lv, sell: 500, desc: S.desc, spirit: { role: S.role, color: S.color, skill: S.skill } };
   ITEMS.spirit_shard = { name: "ผลึกวิญญาณ", type: "material", sell: 300, desc: "ใช้อัประดับสีของภูติที่ลูน่า (ผู้ผนึกภูติ) · ดรอปจากมอนชั้นยอด มินิบอส และ World Boss" };
 }
+// ชื่ออาชีพในชื่อเซ็ต/คำอธิบายไอเทม → ภาษาอังกฤษ
+{
+  const D = require("./data");
+  for (const S of Object.values(ITEM_SETS)) S.job = D.jobText(S.job);
+  for (const it of Object.values(ITEMS)) if (it.desc) it.desc = D.jobText(it.desc);
+}
 module.exports = { ACC_SLOTS, SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

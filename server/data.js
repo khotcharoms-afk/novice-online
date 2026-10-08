@@ -305,6 +305,13 @@ for (const [k, j] of Object.entries(J2.JOBS2)) {
   JOBS[k] = { offhand: B.offhand, armor: B.armor, weapons: B.weapons, shield: B.shield, rec: B.rec, ...j, tier: 2 };
 }
 const baseJob = (job) => (JOBS[job] && JOBS[job].base) || job; // อาชีพขั้น 1 ของอาชีพนี้
+// ชื่ออาชีพแสดงเป็นภาษาอังกฤษ (th = ชื่อไทยเดิม) · jobText() แปลชื่อไทยในข้อความอื่น ๆ (คำอธิบาย/เรื่องเควส/ชื่อเซ็ต)
+JOBS.villager.en = "Novice";
+for (const j of Object.values(JOBS)) { j.th = j.name; j.name = j.en; }
+const JOB_TH = Object.values(JOBS).map((j) => [j.th, j.en]).sort((a, b) => b[0].length - a[0].length);
+const jobText = (s) => (typeof s === "string" ? JOB_TH.reduce((t, [th, en]) => t.split(th).join(` ${en} `), s).replace(/ {2,}/g, " ").replace(/ ([,·/)])/g, " $1").trim() : s);
+for (const j of Object.values(JOBS)) { j.desc = jobText(j.desc); j.role = jobText(j.role); }
+const REBIRTH_COST = 1000000; // รีคลาส/รีสเตตัสที่ NPC เซเลส
 const JOB_NAME = Object.fromEntries(Object.entries(JOBS).map(([k, j]) => [k, j.name]));
 const RECOMMEND = JOBS.villager.rec;
 const ARMOR_NAME = { heavy: "เกราะหนัก", light: "เกราะเบา", cloth: "ชุดผ้า" };
@@ -486,11 +493,12 @@ const JOB_QUESTS = {
   healer: { kill: ["zombie", 15], item: ["rotten_cloth", 10], reward: "book_light", where: "ป่าใบไม้แดง / เนินกระดูก",
     story: "แสงแห่งการรักษาเผาผลาญความตาย จงไปชำระผีดิบที่เร่ร่อน แล้วนำผ้าเปื่อยของพวกมันมาเผาทำพิธี" },
 };
+for (const Q of [...Object.values(JOB_QUESTS), ...Object.values(J2.JOB2_QUESTS)]) { Q.story = jobText(Q.story); if (Q.where) Q.where = jobText(Q.where); }
 
 module.exports = { WORLD_BOSSES, MINI_BOSSES,
   APPEARANCE, sanitizeLook, MAX_LEVEL, JOB_CHANGE_LEVEL, expToNext, playerStats,
   STAT_KEYS, STAT_INFO, START_POINTS, STAT_MAX, STAT_COST_STEP, pointsAtLevel, statCost, costTo, allocate, totalPoints, baseStats, spentPoints, RECOMMEND,
   MONSTERS, monsterStats, defReduce, MONSTER_RESPAWN_MS, SKILLS, JOB_SKILLS, JOB_NAME,
-  JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS, baseJob, JOB2_LEVEL: J2.JOB2_LEVEL, JOB2_QUESTS: J2.JOB2_QUESTS,
+  jobText, REBIRTH_COST, JOBS, ARMOR_NAME, JOB_FREE_LV, WEAPON_TYPES, UNDEAD, BUFFS, JOB_QUESTS, baseJob, JOB2_LEVEL: J2.JOB2_LEVEL, JOB2_QUESTS: J2.JOB2_QUESTS,
   SKILL_TREE, sanitizeSkills, skillsForClient, skillAt, treeKeys, skillPointsAt, innateSkills, skillSpent, learnError, passiveBonus,
 };

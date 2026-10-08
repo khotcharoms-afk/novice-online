@@ -42,7 +42,7 @@ function wearHtml(id, it) {
   const pool = Object.keys(J).filter((j) => j !== "villager" && (t2 ? J[j].tier === 2 : !J[j].tier));
   const jobs = pool.filter((j) => !W[j]);
   const tags = jobs.length === pool.length && !t2 ? `<span class="jtag">ทุกอาชีพ</span>`
-    : (!W.villager ? `<span class="jtag">ชาวบ้าน</span>` : "") + jobs.map((j) => `<span class="jtag" style="color:${J[j].color};border-color:${J[j].color}">${J[j].name}</span>`).join("");
+    : (!W.villager ? `<span class="jtag">${J.villager.name}</span>` : "") + jobs.map((j) => `<span class="jtag" style="color:${J[j].color};border-color:${J[j].color}">${J[j].name}</span>`).join("");
   const wt = it.wt && it.wt !== "shield" && gameData.weaponTypes[it.wt];
   const typ = it.ot ? "มือรอง · " + ({ emblem: "ตรานักรบ", quiver: "กระบอกธนู", orb: "ลูกแก้วเวท", relic: "เครื่องรางศักดิ์สิทธิ์" }[it.ot] || "") : it.wt === "shield" ? "โล่" : wt ? wt.name + (wt.twoHand ? " (สองมือ)" : "") + (wt.range > 60 ? " · ระยะไกล" : "") : it.ac ? gameData.armorName[it.ac] : "";
   const err = wearErr(id);

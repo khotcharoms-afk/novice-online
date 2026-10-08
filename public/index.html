@@ -44,7 +44,7 @@
 
       <!-- 3) สร้างตัวละคร -->
       <section id="scrCreate" class="scr" hidden>
-        <p class="sub">ทุกคนเริ่มต้นเป็นชาวบ้าน — เลือกหน้าตาของคุณ</p>
+        <p class="sub">ทุกคนเริ่มต้นเป็น Novice — เลือกหน้าตาของคุณ</p>
         <div class="creator">
           <div class="preview">
             <canvas id="previewCanvas" width="64" height="64"></canvas>
@@ -196,7 +196,7 @@
     </section>
     <section id="jobPanel" class="frame" hidden aria-label="เปลี่ยนอาชีพ">
       <div class="ap-head"><b>อัลดริค · ครูฝึกอาชีพ</b><button id="jobClose" type="button" aria-label="ปิด">✕</button></div>
-      <p class="ap-note" id="jobNote">ชาวบ้านที่ถึง Lv.20 เลือกอาชีพได้ 1 อาชีพ · ทำบททดสอบให้ผ่านแล้วกลับมาส่งที่นี่ · ของ Lv ต่ำกว่า 20 ทุกอาชีพใส่ได้ · อาวุธและชุด Lv20 ขึ้นไปล็อกตามอาชีพ</p>
+      <p class="ap-note" id="jobNote">Novice ที่ถึง Lv.20 เลือกอาชีพได้ 1 อาชีพ · ทำบททดสอบให้ผ่านแล้วกลับมาส่งที่นี่ · ของ Lv ต่ำกว่า 20 ทุกอาชีพใส่ได้ · อาวุธและชุด Lv20 ขึ้นไปล็อกตามอาชีพ</p>
       <div id="jobTabs" class="job-tabs"></div>
       <div id="jobBody" class="job-body"></div>
     </section>
@@ -218,6 +218,11 @@
       <div id="stGrid" class="inv-grid st-grid"></div>
       <div class="st-gold"><img src="/assets/icons/gold.png" alt="" width="16" height="16"> ในคลัง <b id="stGold">0</b>
         <input type="number" id="stAmt" min="1" placeholder="จำนวน"><button type="button" class="btn-ghost sm" id="stPut">ฝาก</button><button type="button" class="btn-ghost sm" id="stTake">ถอน</button></div>
+    </section>
+    <section id="rebirthPanel" class="frame" hidden aria-label="หลอมชะตา">
+      <div class="ap-head"><b>🔮 เซเลส · ผู้หลอมชะตา</b><button id="rbClose" type="button" aria-label="ปิด">✕</button></div>
+      <p class="ap-note">หลอมชะตาครั้งละ <b>1,000,000 gold</b> · เงินที่มี <b id="rbGold">0</b></p>
+      <div id="rbBody"></div>
     </section>
     <section id="tradePanel" class="frame" hidden aria-label="แลกเปลี่ยน">
       <div class="ap-head"><b>🤝 แลกเปลี่ยน</b><button id="trClose" type="button" aria-label="ปิด">✕</button></div>
@@ -279,6 +284,7 @@
   <script src="/boss-ui.js"></script>
   <script src="/party-ui.js"></script>
   <script src="/exchange-ui.js"></script>
+  <script src="/rebirth-ui.js"></script>
   <script src="/skill-ui.js"></script>
   <script src="/windows.js"></script>
 </body>

@@ -145,7 +145,7 @@ function build(ITEMS, SHAPE_FLAGS, JOBS) {
       }
       const f = lv / 50;
       sets[`cls_${job}${lv}`] = {
-        name: `ชุด${jname}${tname}`, job: jname, pieces: SLOTS.map((s) => [cid(lv, job, s)]),
+        name: `ชุด${tname} · ${jname}`, job: jname, pieces: SLOTS.map((s) => [cid(lv, job, s)]),
         tiers: Object.fromEntries(Object.entries(C.set).map(([n, v]) => [n, {
           ...(v.b ? { b: Object.fromEntries(Object.entries(v.b).map(([k, x]) => [k, Math.round(x * f)])) } : {}),
           ...(v.sp ? { sp: Object.fromEntries(Object.entries(v.sp).map(([k, x]) => [k, Math.round(x * (1 + (lv - 50) / 100))])) } : {}),
