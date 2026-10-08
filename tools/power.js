@@ -65,7 +65,7 @@ if (process.argv[2] === "boss") {
         if (j === "slayer") { taken = atk * (1 - D.defReduce(p.def, B.level)) * (1 - (sx.dmgReduce || 0) / 100); hpP = p.maxHp; }
       }
       dps /= 5;
-      line.push(`  [${mode}] 1 คน ${(hp / dps / 60).toFixed(1)} นาที · 3 คน ${(hp / dps / 3 / 60).toFixed(1)} · 5 คน ${(hp / dps / 5 / 60).toFixed(1)} นาที | บอสตีนักดาบ ${Math.round(taken)}/ที (ทุบพื้น ${Math.round(taken * B.slam.mult)}) HP ${hpP} → ยืนได้ ~${Math.round(hpP / taken * 1.5)} วิ`);
+      line.push(`  [${mode}] 1 คน ${(hp / dps / 60).toFixed(1)} นาที · 3 คน ${(hp / dps / 3 / 60).toFixed(1)} · 5 คน ${(hp / dps / 5 / 60).toFixed(1)} นาที | บอสตีนักดาบ ${Math.round(taken)}/ที (ทุบพื้น ${B.slam ? Math.round(taken * B.slam.mult) : '-'}) HP ${hpP} → ยืนได้ ~${Math.round(hpP / taken * 1.5)} วิ`);
     }
     console.log(line.join("\n"));
   }

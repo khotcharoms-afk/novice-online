@@ -249,14 +249,14 @@ const WORLD_BOSSES = {
   bloodking: {
     name: "ราชันโลหิตมิโนทอร์", level: 32, sprite: "boss_minotaur", tint: 0xffffff, scale: 2.1, speed: 80, aggressive: true,
     maps: ["orcamp", "snow"], every: [60, 90], // เกิดเองตามเวลา: สุ่มแผนที่ · ทุก 60–90 นาทีหลังถูกปราบ/หายไป
-    hpMul: 250, atkMul: 1.5, defMul: 1.6, expMul: 40, goldMul: 25, range: 70,
-    slam: { every: 9000, cast: 1300, r: 140, mult: 2.2 },
-    summon: { at: [0.6, 0.3], kind: "orcchief", n: 3 },
+    hpMul: 110, atkMul: 1.15, defMul: 1.3, expMul: 40, goldMul: 25, range: 70, // เนิฟ: เดิม HP×250 ATK×1.5 DEF×1.6
+    slam: { every: 10000, cast: 1400, r: 140, mult: 1.7 },
+    summon: { at: [0.6, 0.3], kind: "orcchief", n: 2 },
     enrage: 0.3,
     // สกิลเฉพาะตัว (ดู WorldRoom.bossSkill): พุ่งชนเป็นแนวยาว · คำรามโลหิต (ทำให้หวาดกลัว + ฟื้นเลือดตามคนที่โดน)
     skills: [
-      { key: "bullrush", name: "พุ่งชนกระทิงคลั่ง", every: 11000, cast: 1000, range: 380, len: 380, w: 80, mult: 2.3 },
-      { key: "bloodroar", name: "คำรามโลหิต", every: 20000, cast: 900, range: 260, r: 270, mult: 0.8, debuff: "b_weak", heal: 0.02 },
+      { key: "bullrush", name: "พุ่งชนกระทิงคลั่ง", every: 13000, cast: 1100, range: 380, len: 380, w: 80, mult: 1.7 },
+      { key: "bloodroar", name: "คำรามโลหิต", every: 22000, cast: 1000, range: 260, r: 270, mult: 0.6, debuff: "b_weak", heal: 0.01 },
     ],
     // set = ชุดพิเศษของบอส: ดรอปแน่นอน 1 ชิ้นต่อการปราบ (สุ่มชิ้น ระดับน้ำเงินขึ้นไป · ใครก็เก็บได้)
     loot: { gear: 4, set: ["azure_helm", "azure_plate", "azure_gaunt", "azure_boots", "azure_cape", "azure_blade"], pool: ["goldhelm", "goldplate", "goldgaunt", "goldboots", "cape_shadow", "shades_hawk", "moonblade", "shield_spartan", "war_horn",
