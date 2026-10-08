@@ -532,10 +532,12 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
   for (const [mob, ch] of [["vamplord", 0.006], ["bat_vampire", 0.004], ["cursedwolf", 0.002], ["dryad", 0.002]])
     add(mob, [["blood_ring", ch, 1, 1], ["blood_necklace", ch, 1, 1], ["blood_earring", ch, 1, 1]]);
 }
+let LEGACY_TIER = {}, migrateLegacy = (id) => id; // อุปกรณ์รวม Lv.50+ รุ่นเก่า → ชุดอาชีพ (ตั้งค่าด้านล่าง)
 // ---------- อุปกรณ์เลเวลสูง Lv.40–90 (server/tiers.js) ----------
 {
   const TIERS = require("./tiers");
-  const { items, sets } = TIERS.build(ITEMS);
+  const { items, sets, legacy } = TIERS.build(ITEMS);
+  LEGACY_TIER = legacy;
   Object.assign(ITEMS, items);
   Object.assign(ITEM_SETS, sets);
   // มอน Lv.34+ ดรอปอุปกรณ์ขั้นใกล้เลเวลตัวเอง (ตัวใหญ่ประจำโซน = โอกาสสูงขึ้น)
@@ -550,6 +552,7 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
 {
   const CG = require("./classgear"), TIERS = require("./tiers"), D = require("./data");
   const { items, sets } = CG.build(ITEMS, TIERS.SHAPES, D.JOBS);
+  migrateLegacy = (id, job) => { const L = LEGACY_TIER[id]; return L ? CG.legacyTarget(L.P, L.lv, job, D.JOBS) || id : id; };
   Object.assign(ITEMS, items);
   Object.assign(ITEM_SETS, sets);
   // มอนธรรมดา Lv.46+ ดรอปอุปกรณ์ประจำอาชีพแทนของรวมเดิม · โอกาสรวมต่อการฆ่าเท่าเดิม (ของรวมเดิม 25 ชิ้น/ขั้น → กระจายให้ 70 ชิ้น)
@@ -574,4 +577,4 @@ const fitsSlot = (it, slot) => it && it.type === "equip" && it.slot === slot;
   for (const S of Object.values(ITEM_SETS)) S.job = D.jobText(S.job);
   for (const it of Object.values(ITEMS)) if (it.desc) it.desc = D.jobText(it.desc);
 }
-module.exports = { ACC_SLOTS, SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };
+module.exports = { migrateLegacy: (id, job) => migrateLegacy(id, job), ACC_SLOTS, SPECIAL_MIN_RARITY, ITEM_SETS, setsOf, setBonus, refineFxOf, SPECIAL, rollSpecial, cleanSpecial, gearSpecial, SHOPS, STONE_FUSE, RARITY, rollRarity, makeGear, MAX_REFINE, REFINE, SAFE_REFINE, canRefine, refineGold, refineBonus, gearStats, EQUIP_SLOTS, SLOT_NAME, INVENTORY_SIZE, MAX_STACK, ITEMS, SHOP, DROPS, goldDrop, sellPrice, fitsSlot };

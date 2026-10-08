@@ -12,9 +12,10 @@ const STARTER = { inv: [{ id: "mace", n: 1 }, { id: "potion_s", n: 5 }], gold: 5
 
 const isGearId = (id) => I.ITEMS[id] && I.ITEMS[id].type === "equip";
 // อุปกรณ์ 1 ชิ้น = { id, r: ระดับความหายาก, up: ตีบวก, x: ค่าพิเศษ } (ข้อมูลเก่าที่เป็นแค่ชื่อ → ระดับธรรมดา +0)
-function normGear(o) {
+function normGear(o, job) {
   if (!o) return null;
   if (typeof o === "string") o = { id: o };
+  { const nid = I.migrateLegacy(o.id, job); if (nid !== o.id) o = { ...o, id: nid }; } // อุปกรณ์รวม Lv.50+ เก่า → ชุดอาชีพ
   if (!isGearId(o.id)) return null;
   const x = {};
   for (const [k, v] of Object.entries(o.x || {})) if (Number.isFinite(v)) x[k] = Math.round(v);
@@ -33,11 +34,12 @@ function loadBag(c) {
     return bag;
   }
   c.inv.slice(0, I.INVENTORY_SIZE).forEach((s, i) => {
+    if (s && I.migrateLegacy(s.id, c.job) !== s.id) s = { ...s, id: I.migrateLegacy(s.id, c.job) };
     if (!s || !I.ITEMS[s.id] || !Number.isInteger(s.n) || s.n <= 0) return;
     bag.inv[i] = isGearId(s.id) ? gearSlot(normGear(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
   });
   for (const slot of I.EQUIP_SLOTS) {
-    const g = normGear(c.equip && c.equip[slot]);
+    const g = normGear(c.equip && c.equip[slot], c.job);
     if (g && I.fitsSlot(I.ITEMS[g.id], slot)) bag.equip[slot] = g;
   }
   // ข้อมูลเก่า: เครื่องประดับ acc1/acc2 → ย้ายเข้าช่องตามประเภท (ช่องซ้ำ → คืนเข้ากระเป๋า)
@@ -63,6 +65,7 @@ const saveBag = (b) => ({
 
 // ช่องของ 1 ช่อง (ใช้กับคลัง/เทรด): ทำให้ถูกรูปแบบ / แปลงเป็นข้อมูลบันทึก
 function normSlot(s) {
+  if (s && I.migrateLegacy(s.id) !== s.id) s = { ...s, id: I.migrateLegacy(s.id) }; // คลัง: อุปกรณ์รวมเก่า → ชุดอาชีพ
   if (!s || !I.ITEMS[s.id] || !Number.isInteger(s.n) || s.n <= 0) return null;
   return isGearId(s.id) ? gearSlot(normGear(s)) : isSpiritId(s.id) ? SP.norm(s) : { id: s.id, n: Math.min(s.n, maxStack(s.id)) };
 }

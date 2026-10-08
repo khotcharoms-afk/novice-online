@@ -156,6 +156,18 @@ function build(ITEMS, SHAPE_FLAGS, JOBS) {
   return { items, sets };
 }
 
+// แปลงอุปกรณ์รวมรุ่นเก่า (t50–t90) → ชิ้นเดียวกันของชุดอาชีพ · Lv.60→50, 80→70 · เลือกอาชีพของเจ้าของก่อน แล้วค่อยสายเดียวกัน
+function legacyTarget(P, lv, job, JOBS) {
+  const tier = lv >= 90 ? 90 : lv >= 70 ? 70 : 50;
+  let slot, cands;
+  if (P.slot === "weapon") { slot = "weapon"; cands = Object.keys(CLASSES).filter((j) => CLASSES[j].wt === P.wt); }
+  else if (P.slot === "offhand") { slot = "offhand"; cands = Object.keys(CLASSES).filter((j) => CLASSES[j].off === (P.ot || P.wt)); }
+  else { slot = P.slot; cands = Object.keys(CLASSES).filter((j) => CLASSES[j].armor === P.ac); }
+  if (!cands.length) return null;
+  const base = JOBS[job] ? JOBS[job].base || job : null;
+  const pick = cands.includes(job) ? job : cands.find((j) => JOBS[j].base === base) || cands[0];
+  return cid(tier, pick, slot);
+}
 // ขั้นอุปกรณ์ที่มอนเลเวลนี้ดรอป (มินิบอส/World Boss)
 const classTierOf = (lv) => (lv >= 85 ? 90 : lv >= 65 ? 70 : 50);
 // สุ่มชิ้นอุปกรณ์ประจำอาชีพ: prefer = อาชีพของคนที่ทำดาเมจสูงสุด (ขั้น 2) → ได้ของอาชีพตัวเอง 60%
@@ -164,4 +176,4 @@ function pickClassItem(lv, prefer) {
   const job = prefer && CLASSES[prefer] && Math.random() < 0.6 ? prefer : jobs[Math.floor(Math.random() * jobs.length)];
   return cid(lv, job, SLOTS[Math.floor(Math.random() * SLOTS.length)]);
 }
-module.exports = { CLASSES, CLASS_TIERS, SLOTS, build, classTierOf, pickClassItem, cid };
+module.exports = { CLASSES, CLASS_TIERS, SLOTS, build, classTierOf, pickClassItem, cid, legacyTarget };

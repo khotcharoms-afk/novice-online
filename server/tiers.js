@@ -69,9 +69,11 @@ const spScale = (o, lv) => Object.fromEntries(Object.entries(o).map(([s, v]) => 
 
 const tid = (t, piece) => `t${t.lv}_${piece}`;
 function build(ITEMS) {
-  const items = {}, sets = {};
+  const items = {}, sets = {}, legacy = {};
   TIERS.forEach((t, ti) => {
     for (const [pk, P] of Object.entries(PIECES)) {
+      // Lv.50+ อาวุธ/ชุด/มือรองแบบใช้ร่วมกัน → เลิกใช้ (แทนด้วยอุปกรณ์ประจำอาชีพ classgear.js) · ของเก่าที่ผู้เล่นมีแปลงเป็นชุดอาชีพตอนโหลด
+      if (t.lv >= 50 && LOCKED(P)) { legacy[tid(t, pk)] = { P, lv: t.lv }; continue; }
       const base = P.base.length === TIERS.length ? P.base[ti] : P.base[ti % 2], B = ITEMS[base] || SHAPES[base] || {};
       const it = { name: `${SHAPE_NAME[base] || P.name}${t.name}`, type: "equip", slot: P.slot, lv: t.lv, tier: t.key, glowColor: t.color,
         bonus: scaleObj(P.b, t.lv), price: PRICE_AT(t.lv, P.slot), base };
@@ -85,10 +87,10 @@ function build(ITEMS) {
       if (B.back) it.back = true;
       if (t.aura && P.slot === "weapon") it.aura = t.aura;
       if (P.slot === "weapon" && t.lv >= 70) it.desc = `อาวุธระดับ${t.name} — มีออร่าเรืองแสงรอบตัวตอนถือ`;
-      if (t.lv >= 50 && LOCKED(P)) { it.legacy = true; it.desc = (it.desc ? it.desc + " · " : "") + "อุปกรณ์รุ่นเก่า (ไม่ดรอปแล้ว — แทนด้วยอุปกรณ์ประจำอาชีพขั้น 2)"; }
       items[tid(t, pk)] = it;
     }
-    // เซ็ตของขั้นนี้
+    // เซ็ตของขั้นนี้ (Lv.50+ ไม่มีแล้ว — ใช้เซ็ตประจำอาชีพ)
+    if (t.lv >= 50) return;
     const f = t.lv / 40;
     for (const [sk, S] of Object.entries(SET_KINDS)) {
       sets[`${t.key}_${sk}`] = {
@@ -102,7 +104,7 @@ function build(ITEMS) {
     }
   });
   // ชิ้นอาวุธ/มือรองเป็นส่วนหนึ่งของเซ็ต (ใช้ setsOf ที่ค้นจาก pieces) — ไม่ต้องตั้ง it.set
-  return { items, sets };
+  return { items, sets, legacy };
 }
 // มอนเลเวล lv ดรอปอุปกรณ์ขั้นไหน
 const tierOf = (lv) => Math.min(90, Math.max(40, Math.floor((lv + 4) / 10) * 10));
