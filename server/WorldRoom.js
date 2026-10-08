@@ -1769,12 +1769,26 @@ class WorldRoom extends Room {
     this.bossCleanup();
     return n;
   }
+  // จุดเกิด World Boss: ตายตัวทุกครั้ง = กลางแผนที่ด้านบน (ห่างขอบบน ~22% ของความสูง) · หาช่องยืนได้ที่ใกล้ที่สุดรอบจุดนั้น
+  bossSpot() {
+    const { tile: T, width: MW, height: MH } = this.map;
+    const cx = Math.floor(MW / 2), cy = Math.max(6, Math.round(MH * 0.22));
+    for (let rad = 0; rad < 14; rad++)
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+        const tx = cx + dx, ty = cy + dy;
+        if (tx < 3 || ty < 3 || tx >= MW - 3 || ty >= MH - 3) continue;
+        const x = tx * T + T / 2, y = ty * T + T - 4;
+        if (this.canStand(x, y) && (!this.reach || this.reach[ty * MW + tx])) return { x, y };
+      }
+    return this.mobSpot();
+  }
   spawnBoss(key) {
     const B = D.WORLD_BOSSES[key], base = D.monsterStats(B.level);
     const id = "boss" + this.mobSeq++;
     const m = new Monster();
     m.kind = "boss_" + key; m.name = B.name; m.level = B.level; m.sprite = B.sprite; m.tint = B.tint; m.scale = B.scale; m.boss = true;
-    const spot = this.mobSpot();
+    const spot = this.bossSpot();
     m.x = spot.x; m.y = spot.y; m.dir = "down"; m.moving = false; m.dead = false;
     const stats = { maxHp: base.maxHp * B.hpMul, atk: Math.round(base.atk * B.atkMul), def: Math.round(base.def * B.defMul), exp: base.exp * B.expMul };
     m.maxHp = stats.maxHp; m.hp = m.maxHp;
