@@ -327,6 +327,19 @@ class WorldRoom extends Room {
       { id: "reclass", name: "เซเลส · ผู้หลอมชะตา", sprite: "npc_reclass", x: cx + 256, y: cy - 110 },
     ];
     this.clock.setInterval(() => this.broadcast("online", online.size), 5000);
+    // heartbeat: client ส่ง "hb" ทุก 5 วิ (แท็บพื้นหลังอาจช้าลงเหลือนาทีละครั้ง) · เงียบเกิน 90 วิ = การเชื่อมต่อตายแล้ว → ตัดทิ้ง
+    this.onMessage("hb", (client) => { const r = this.pr.get(client.sessionId); if (r) r.seen = Date.now(); });
+    this.clock.setInterval(() => {
+      const t = Date.now();
+      for (const c of [...this.clients]) {
+        const r = this.pr.get(c.sessionId);
+        if (r && t - (r.seen || 0) > 90000) {
+          const p = this.state.players.get(c.sessionId);
+          console.log(`[timeout] ${p ? p.name : c.sessionId} ไม่ตอบสนอง ${Math.round((t - r.seen) / 1000)} วิ — ตัดการเชื่อมต่อ`);
+          try { c.ref.terminate(); } catch { c.leave(4006); }
+        }
+      }
+    }, 10000);
     this.drSeq = 0;
     this.dr = new Map(); // ข้อมูลภายในของของบนพื้น: owner, until, expire
     const T = this.map.tile;
@@ -590,7 +603,7 @@ class WorldRoom extends Room {
       charId: c.id, uid: auth.user.uid, loginId: auth.user.loginId, admin: adminLogin(auth.user), auth,
       moveTarget: null, dx: 0, dy: 0, target: null, pending: null, anchor: null,
       autoCfg: { radius: WHOLE_MAP, kinds: [] },
-      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0,
+      atkReady: 0, cds: {}, lastHurt: 0, deadUntil: 0, lastChat: 0, pick: null, useReady: 0, buffs: {}, combo: 0, seen: Date.now(), joinAt: Date.now(),
     });
     this.syncPet(client.sessionId);
     this.syncSpirit(client.sessionId);
@@ -1024,8 +1037,9 @@ class WorldRoom extends Room {
   onLeave(client, consented) {
     const p = this.state.players.get(client.sessionId), r = this.pr.get(client.sessionId);
     if (p && !p.warp && !consented && !shuttingDown) { // หลุดเอง (ไม่ได้กดออก/ย้ายแผนที่)
-      netStats.drops.push({ t: Date.now(), name: p.name });
-      console.log(`[drop] ${p.name} หลุดการเชื่อมต่อ (${this.mapId})`);
+      const code = client.ref && client.ref._closeCode, live = r && r.joinAt ? Math.round((Date.now() - r.joinAt) / 1000) : 0;
+      netStats.drops.push({ t: Date.now(), name: p.name, code, live });
+      console.log(`[drop] ${p.name} หลุดการเชื่อมต่อ (${this.mapId}) code=${code} อยู่ได้ ${live} วิ · ข้อความล่าสุด ${r && r.seen ? Math.round((Date.now() - r.seen) / 1000) : "?"} วิก่อน`);
     }
     if (r && r.charId) {
       this.save(client.sessionId);

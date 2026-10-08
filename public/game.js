@@ -376,7 +376,12 @@ function bindRoom(room) {
     room.onMessage("bossRage", (c) => scene && scene.bossRage(c));
     room.onMessage("bossSkill", (c) => scene && scene.bossSkill(c));
     room.onMessage("bossSkillHit", (c) => scene && scene.bossSkillHit(c));
+    const thisRoom = room;
+    lastRecv = Date.now();
+    try { thisRoom.connection.transport.ws.addEventListener("message", () => { if (thisRoom === curRoom()) lastRecv = Date.now(); }); } catch {}
     room.onLeave((code) => {
+      if (thisRoom !== curRoom()) return; // ห้องเก่าที่ถูกแทนที่แล้ว (เชื่อมต่อใหม่/ย้ายแผนที่) — ไม่ต้องทำอะไร
+      lastClose = { code, at: Date.now() };
       if (code === 4001) addChat("system", "ตัวละครนี้ถูกเข้าเกมจากหน้าต่างอื่น — การเชื่อมต่อนี้ถูกปิดแล้ว");
       else if (code === 4002) addChat("system", "ถูกแอดมินนำออกจากเกม — รีเฟรชหน้าเพื่อเข้าใหม่");
       else if (code === 4003) showDownScreen("maint");
@@ -386,6 +391,22 @@ function bindRoom(room) {
 }
 
 initAuth();
+// ---------- heartbeat ----------
+// ส่ง "hb" ทุก 5 วิ ให้เซิร์ฟเวอร์รู้ว่ายังอยู่ · ถ้าไม่ได้ข้อความจากเซิร์ฟเวอร์เลยเกิน 25 วิ (เซิร์ฟส่ง "online" ทุก 5 วิ) = สายตายเงียบ → ต่อใหม่เอง
+const curRoom = () => room;
+let lastRecv = Date.now(), lastClose = null;
+setInterval(() => {
+  if (!room || !myCharId || leavingForWarp || reconnecting) { lastRecv = Date.now(); return; }
+  try { if (room.connection && room.connection.isOpen) room.send("hb"); } catch {}
+  if (document.visibilityState === "visible" && Date.now() - lastRecv > 25000) {
+    console.warn("no data from server for", Date.now() - lastRecv, "ms — reconnecting");
+    lastRecv = Date.now();
+    const old = room;
+    reconnectGame("lost");
+    try { old.connection.close(); } catch {}
+  }
+}, 5000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") lastRecv = Math.max(lastRecv, Date.now() - 15000); });
 // กันเซิร์ฟเวอร์ (Render) หลับเพราะคิดว่าไม่มีคนใช้: ระหว่างอยู่ในเกม ยิง /health เบา ๆ ทุก 4 นาที
 setInterval(() => { if (room && myCharId) fetch("/health", { cache: "no-store" }).catch(() => {}); }, 240000);
 
