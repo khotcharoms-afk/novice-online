@@ -571,6 +571,21 @@ let LEGACY_TIER = {}, migrateLegacy = (id) => id; // อุปกรณ์รว
     ITEMS[id] = { name: S.name, type: "spirit", qlv: S.lv, sell: 500, desc: S.desc, spirit: { role: S.role, color: S.color, skill: S.skill } };
   ITEMS.spirit_shard = { name: "ผลึกวิญญาณ", type: "material", sell: 300, desc: "ใช้อัประดับสีของภูติที่ลูน่า (ผู้ผนึกภูติ) · ดรอปจากมอนชั้นยอด มินิบอส และ World Boss" };
 }
+// ---------- ลดของดรอปที่เยอะเกิน: วัตถุดิบมอน + คริสตัลตีบวก ----------
+// วัตถุดิบ: โอกาส ×0.25 และครั้งละ 1 ชิ้น (เดิมเฉลี่ย ~0.9 ชิ้น/ตัว → ~0.15) · ราคาขาย ×5 รายได้ใกล้เดิม กระเป๋าไม่เต็ม
+// คริสตัล: โอกาส ×0.3 · ขั้นกลาง/สูงขายได้ ×3 (ขั้นต้นซื้อในร้านได้ จึงไม่ขึ้นราคาขาย)
+{
+  const MAT_RATE = 0.25, MAT_SELL = 5, STONE_RATE = 0.3, STONE_SELL = 3;
+  const isStone = (id) => /^stone_[123]$/.test(id);
+  const isMat = (id) => ITEMS[id] && ITEMS[id].type === "material" && !isStone(id) && id !== "spirit_shard";
+  const seen = new Set();
+  for (const rows of Object.values(DROPS)) for (const r of rows) {
+    if (isStone(r[0])) r[1] *= STONE_RATE;
+    else if (isMat(r[0])) { r[1] *= MAT_RATE; r[3] = r[2] = 1; seen.add(r[0]); }
+  }
+  for (const id of seen) { const it = ITEMS[id]; it.sell = Math.round((it.sell ?? Math.floor((it.price || 0) * 0.5)) * MAT_SELL); }
+  for (const id of ["stone_2", "stone_3"]) ITEMS[id].sell = Math.round((ITEMS[id].sell || 0) * STONE_SELL);
+}
 // ชื่ออาชีพในชื่อเซ็ต/คำอธิบายไอเทม → ภาษาอังกฤษ
 {
   const D = require("./data");
