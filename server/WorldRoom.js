@@ -1810,14 +1810,22 @@ class WorldRoom extends Room {
     // ระดับของอุปกรณ์ที่ดรอป: มอนธรรมดา = สูงสุดสีน้ำเงิน (หายาก) · ชั้นยอด = ดีขึ้นไป · มินิบอส = น้ำเงินขึ้นไป (ม่วง/ทองมีโอกาส)
     const gearOf = (id) => {
       const roll = I.rollRarity();
-      // มอนธรรมดา: สูงสุดสีน้ำเงิน · ยกเว้นอุปกรณ์ประจำอาชีพขั้น 2 ขึ้นได้ถึงสีม่วง
-      const cap = I.ITEMS[id] && I.ITEMS[id].cls ? 3 : 2;
-      const rar = r.rank === 2 ? (Math.random() < 0.03 ? 4 : Math.random() < 0.18 ? 3 : 2) : r.rank === 1 ? Math.max(1, roll) : Math.min(cap, roll);
+      if (r.rank !== 2 && I.ITEMS[id] && I.ITEMS[id].cls) { // อุปกรณ์ประจำอาชีพขั้น 2 จากมอนธรรมดา/ชั้นยอด: เขียว 70% · น้ำเงิน 25% · ม่วง 5% (ไม่มีสีธรรมดา)
+        const x = Math.random(), cr = x < 0.05 ? 3 : x < 0.3 ? 2 : 1;
+        return I.makeGear(id, r.rank === 1 ? Math.max(cr, roll) : cr);
+      }
+      const rar = r.rank === 2 ? (Math.random() < 0.03 ? 4 : Math.random() < 0.18 ? 3 : 2) : r.rank === 1 ? Math.max(1, roll) : Math.min(2, roll);
       return I.makeGear(id, rar);
     };
     const table = I.DROPS[m.kind] || [];
-    for (const [id, chance, lo, hi] of table)
-      if (Math.random() < chance * dropMul) this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, gearOf(id));
+    const myCls = tp && CG.CLASSES[tp.job] ? tp.job : null;
+    for (const [id0, chance, lo, hi] of table) {
+      if (!(Math.random() < chance * dropMul)) continue;
+      let id = id0;
+      // ชุดอาชีพ: 1/3 ถูกสลับเป็นของอาชีพคนที่ตีมากสุด → รวมแล้ว ~40% เป็นของอาชีพตัวเอง
+      if (myCls && I.ITEMS[id].cls && I.ITEMS[id].cls !== myCls && Math.random() < 1 / 3) id = id.replace(`_${I.ITEMS[id].cls}_`, `_${myCls}_`);
+      this.spawnDrop(id, lo + Math.floor(Math.random() * (hi - lo + 1)), m.x, m.y, top, gearOf(id));
+    }
     // ผลึกวิญญาณ (อัประดับภูติ): มอนธรรมดา Lv.10+ 0.5% · ชั้นยอด 20% · มินิบอส 2–4 · World Boss 8–12
     {
       const sh = r.boss ? 8 + Math.floor(Math.random() * 5) : r.rank === 2 ? 2 + Math.floor(Math.random() * 3)
