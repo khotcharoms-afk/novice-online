@@ -229,11 +229,14 @@ const MINI_BOSSES = {
 };
 // ตั้งแต่ Lv.30 ขึ้นไป มอนอึดขึ้น ×2 ตีแรงขึ้น ×1.5 (ช่วงเลเวลต่ำค่อย ๆ เพิ่ม — มือใหม่ยังเล่นสบาย) · EXP เพิ่มตาม (×1.5) เพราะตีนานขึ้น
 const mobScale = (lv) => Math.min(1, lv / 30);
+// ช่วงกลาง–ปลายเกม (Lv.10+) อุปกรณ์ผู้เล่นโตเร็วกว่ามอน → มอนอึด/ตีแรงขึ้นตามเลเวลอีกชั้น (เต็มที่ Lv.60: HP/ATK ×1.8 · EXP ×1.5)
+const MOB_HP_K = Number(process.env.MOB_HP_K ?? 0.8), MOB_ATK_K = Number(process.env.MOB_ATK_K ?? 0.8);
+const lateScale = (lv) => Math.max(0, Math.min(1, (lv - 10) / 50));
 const monsterStats = (lv) => ({
-  maxHp: Math.round((30 + lv * 20 + 0.5 * lv * lv) * (1 + mobScale(lv))),
-  atk: Math.round((3 + lv * 3.2) * (1 + 0.5 * mobScale(lv))),
+  maxHp: Math.round((30 + lv * 20 + 0.5 * lv * lv) * (1 + mobScale(lv)) * (1 + MOB_HP_K * lateScale(lv))),
+  atk: Math.round((3 + lv * 3.2) * (1 + 0.5 * mobScale(lv)) * (1 + MOB_ATK_K * lateScale(lv))),
   def: lv,
-  exp: Math.round(6 * Math.pow(lv, 1.5) * (1 + 0.5 * mobScale(lv))),
+  exp: Math.round(6 * Math.pow(lv, 1.5) * (1 + 0.5 * mobScale(lv)) * (1 + 0.5 * lateScale(lv))),
 });
 // ป้องกันลดดาเมจเป็น % (ไม่ใช่ลบตรง ๆ) — ยิ่งป้องกันสูงยิ่งลดได้มาก แต่ไม่เกิน 75% · ผู้โจมตีเลเวลสูงทะลุป้องกันได้ดีขึ้น
 const defReduce = (def, atkLv) => Math.min(0.75, Math.max(0, def) / (Math.max(0, def) + 100 + 8 * atkLv));
