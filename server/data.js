@@ -364,6 +364,13 @@ const SKILLS = {
     heal: [0.04, 0.02], desc: (L) => `ปฐมพยาบาลตัวเอง ฟื้น HP ${Math.round((0.04 + 0.02 * L) * 100)}% (+INT×2) · คูลดาวน์ 20 วิ`, fx: { type: "heal", color: 0x7dffa8 } },
   doublehit:  { name: "ฟันซ้ำ", max: 5, sp: [5, 0], cooldown: 5000, target: "mob", range: 60, auto: "dmg", icon: "skill_doublehit", color: "#7a4a2a",
     mult: [0.8, 0.05], desc: (L) => `ตี 2 ครั้งติด ครั้งละ ${Math.round((0.8 + 0.05 * L) * 100)}%` },
+  // ชาวบ้าน (เพิ่มเติม) — ใช้ได้กับอาวุธทุกแบบ · ช่วยฟาร์มก่อนเปลี่ยนอาชีพ (ทุกอาชีพเรียนได้เพราะอยู่แท็บชาวบ้าน)
+  stonethrow: { name: "ขว้างหิน", max: 5, sp: [4, 0.4], cooldown: 3000, target: "mob", range: 170, kind: "hit", auto: "dmg", icon: "skill_stonethrow", color: "#7a6a4a",
+    mult: [1.0, 0.08], desc: (L) => `ขว้างหินใส่มอนระยะ 5 ช่อง ดาเมจ ${Math.round((1.0 + 0.08 * L) * 100)}% (ใช้ดึงมอนมาหาได้)` },
+  spinswing:  { name: "หมุนตัวฟาด", max: 5, req: ["doublehit", 2], sp: [9, 0.6], cooldown: 8000, target: "self", kind: "aoeSelf", area: [72, 4], hits: 2, every: 220, auto: "dmg", icon: "skill_spinswing", color: "#8a5a2a",
+    mult: [0.6, 0.05], desc: (L) => `หมุนตัวฟาด 2 รอบ รอบละ ${Math.round((0.6 + 0.05 * L) * 100)}% ทุกตัวรอบตัว ${((72 + 4 * L) / 32).toFixed(1)} ช่อง` },
+  rally:      { name: "ฮึดสู้", max: 5, req: ["basic", 3], sp: [12, 0], cooldown: 45000, target: "self", kind: "buff", buff: "rally", auto: "buff", icon: "skill_rally", color: "#a0602a",
+    bv: (L) => ({ atk: 1.05 + 0.02 * L, aspd: 0.98 - 0.015 * L, ms: 15000 }), desc: (L) => `ATK +${5 + 2 * L}% · ตีเร็วขึ้น ${(2 + 1.5 * L).toFixed(1)}% นาน 15 วิ` },
   // ===== ผู้พิทักษ์ =====
   swordmastery: { name: "ชำนาญดาบ", passive: true, max: 10, icon: "skill_swordmastery", color: "#3a5a9a",
     desc: (L) => `ATK +${3 * L} เมื่อถือดาบหรือกระบอง`, pas: (L, wt) => (wt === "sword" || wt === "mace" ? { atk: 3 * L } : {}) },
@@ -437,6 +444,7 @@ const BUFFS = {
   shieldwall: { name: "กำแพงโล่", ms: 8000, taken: 0.5 },
   fury: { name: "โทสะ", ms: 10000, atk: 1.3, aspd: 0.8 },
   swift: { name: "ฝีเท้าลม", ms: 10000, speed: 1.4, flee: 0.15 },
+  rally: { name: "ฮึดสู้", ms: 15000, atk: 1.1, aspd: 0.95 },
   bless: { name: "พรแห่งแสง", ms: 60000, atk: 1.15, def: 1.15 },
   // ดีบัฟจาก World Boss
   b_weak: { name: "หวาดกลัว", ms: 6000, atk: 0.75, debuff: true },
@@ -445,9 +453,9 @@ const BUFFS = {
 Object.assign(BUFFS, J2.BUFFS2);
 // ต้นไม้สกิล: แต่ละแท็บ = รายการแถว (I, II, III) ของสกิล
 const SKILL_TREE = {
-  villager: [["basic", "firstaid"]],
-  guardian: [["swordmastery", "ironbody", "shieldbash"], ["doublehit", "provoke", "shieldwall"]],
-  slayer: [["gsmastery", "doublehit", "cleave"], ["fury", "execute"], ["bloodlust"]],
+  villager: [["basic", "firstaid", "doublehit"], ["stonethrow", "spinswing"], ["rally"]], // ฟันซ้ำย้ายมาเป็นสกิลชาวบ้าน (ทุกอาชีพเรียนได้)
+  guardian: [["swordmastery", "ironbody", "shieldbash"], ["provoke", "shieldwall"]],
+  slayer: [["gsmastery", "cleave"], ["fury", "execute"], ["bloodlust"]],
   hunter: [["bowmastery", "doubleshot"], ["hawkeye", "arrowrain"], ["swiftstep"]],
   mage: [["staffmastery", "meditation", "firebolt"], ["frostnova"], ["meteor"]],
   healer: [["faith", "heal", "holylight"], ["bless"]],
@@ -476,7 +484,6 @@ function sanitizeSkills(raw, job, lv) {
   const out = innateSkills();
   for (const k of treeKeys(job)) {
     const v = Math.floor(Number(raw && raw[k]) || 0);
-    if (k === "doublehit" && v <= 1) continue; // ฟันซ้ำ Lv1 เดิมเคยได้ฟรีตอนเป็นชาวบ้าน → ไม่นับ
     if (v > 0) out[k] = Math.max(out[k] || 0, Math.min(SKILLS[k].max, v));
   }
   return skillSpent(out) > skillPointsAt(lv, job) ? innateSkills() : out;

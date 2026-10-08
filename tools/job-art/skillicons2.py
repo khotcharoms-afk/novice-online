@@ -13,10 +13,14 @@ MAP = {
     "summonfire": "lorc/fire-silhouette", "doomcurse": "delapouite/devil-mask", "souldrain": "delapouite/soul", "blackhole": "lorc/vortex",
     "massheal": "delapouite/healing-shield", "resurrect": "lorc/angel-outfit", "sanctuary": "lorc/holy-symbol", "judgment": "lorc/hammer-drop",
     "holyfist": "lorc/fulguro-punch", "heavenhammer": "delapouite/thor-hammer", "hasteaura": "delapouite/speedometer", "regenaura": "sbed/regeneration",
+    # สกิลชาวบ้าน (Novice) เพิ่มเติม — SVG จากแพ็กเกจ npm @iconify-json/game-icons
+    "stonethrow": "lorc/slingshot", "spinswing": "lorc/sword-spin", "rally": "delapouite/biceps",
 }
+ONLY = set(sys.argv[3:]) if len(sys.argv) > 2 and sys.argv[2] == "only" else None
 if __name__ == "__main__" and len(sys.argv) > 2 and sys.argv[2] == "list":
     print(" ".join(f"{v}.svg" for v in MAP.values())); sys.exit()
 for k, src in MAP.items():
+    if ONLY and k not in ONLY: continue
     svg = open(G + src + ".svg").read()
     svg = svg.replace('<path d="M0 0h512v512H0z"/>', "")
     svg = re.sub(r'fill="#fff"', 'fill="#fff8e6"', svg)

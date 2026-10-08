@@ -137,6 +137,48 @@ const T2 = (tv) => (tv ? { x: tv.root.x, y: tv.root.y - 26 } : null);
 const ME2 = (v, dy = 26) => ({ x: v.root.x, y: v.root.y - dy });
 
 const SKILL2_FX = {
+  // ================= ชาวบ้าน (Novice) =================
+  stonethrow(sc, f, v, tv) { // ขว้างหินโค้ง → กระแทก ฝุ่น + เศษหิน
+    if (!tv) return;
+    sc.playOnce(f.id, sc.hasAnim(f.id, "thrust") ? "thrust" : "slash", f.dir, 360);
+    const from = ME2(v, 34), to = T2(tv);
+    sc.time.delayedCall(130, () => {
+      const make = () => { const g = sc.add.container(0, 0); g.add(sc.add.ellipse(0, 0, 14, 11, 0x7a6d5a).setStrokeStyle(2, 0x2e261c)); g.add(sc.add.ellipse(-2.5, -2.5, 6, 4, 0xc8bba4)); g._spin = 0.3; return g; };
+      const t0 = sc.time.now, steps = 7; // ฝุ่นตามทางที่หินบิน
+      for (let i = 1; i <= steps; i++) sc.time.delayedCall((260 * i) / (steps + 1), () => {
+        const k = i / (steps + 1), x = from.x + (to.x - from.x) * k, y = from.y + (to.y - from.y) * k - Math.sin(k * Math.PI) * 34;
+        const d = sc.add.circle(x, y, 3.5, 0xd8c8a8, 0.55).setDepth(FX2.TOP - 1);
+        sc.tweens.add({ targets: d, alpha: 0, scale: 0.3, duration: 260, onComplete: () => d.destroy() });
+      });
+      FX2.fly(sc, from, to, make, 260, 34, () => {
+        FX2.sparks(sc, to.x, to.y + 6, [0x9a8a70, 0xc8b898], 8, 22, 14, 380, 2.2);
+        FX2.shock(sc, tv.root.x, tv.root.y, 26, 0xd8c8a0, 260, 2);
+        for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4; FX2.fly(sc, to, { x: to.x + Math.cos(a) * 24, y: to.y + 16 }, () => sc.add.rectangle(0, 0, 3, 3, 0x7a6a50), 300, 14); }
+      });
+    });
+  },
+  spinswing(sc, f, v) { // หมุนตัวฟาด 2 รอบ: เสี้ยวสีฟาง + ฝุ่นวงกลมบนพื้น
+    const dirs = ["down", "left", "up", "right"], r = f.r || 76;
+    for (let i = 0; i < 2; i++) sc.time.delayedCall(i * 220, () => {
+      for (let k = 0; k < 4; k++) sc.time.delayedCall(k * 50, () => { if (v.sprite) { v.dir = dirs[k]; sc.playOnce(f.id, "slash", dirs[k], 60); } });
+      const a0 = Math.random() * Math.PI * 2;
+      FX2.crescent(sc, v.root.x, v.root.y - 18, r * 0.5, a0, a0 + Math.PI * 1.7, 0xffd27a, 220, 6);
+      FX2.shock(sc, v.root.x, v.root.y, r, 0xe8c890, 280, 2.5);
+      FX2.sparks(sc, v.root.x, v.root.y - 2, 0xb89a70, 7, r * 0.8, 5, 380, 2);
+      FX2.mobsIn(sc, v.root.x, v.root.y, r).forEach((m) => FX2.cut(sc, m.root.x, m.root.y - 24, Math.random() * Math.PI, 26, 0xffe0a0, 170, 3));
+    });
+    FX2.shake(sc, f, 160, 0.0025);
+  },
+  rally(sc, f, v) { // ฮึดสู้: ยกแขนตะโกน วงส้มพุ่ง + ประกายลอยขึ้น
+    sc.playOnce(f.id, "cast", f.dir, 480);
+    FX2.converge(sc, v.root.x, v.root.y - 24, 0xffb050, 10, 40, 260);
+    sc.time.delayedCall(220, () => {
+      FX2.shock(sc, v.root.x, v.root.y, 60, 0xffa040, 420, 4);
+      FX2.disc(sc, v.root.x, v.root.y, 34, 0xff8a30, 520, 0.28);
+      for (let i = 0; i < 10; i++) sc.time.delayedCall(i * 40, () => FX2.sparks(sc, v.root.x + (Math.random() - 0.5) * 26, v.root.y - 8, [0xffc060, 0xff8a30], 1, 6, 50, 560, 3));
+      sc.floatText(v.root.x, v.root.y - 84, "ฮึบ!", "#ffb050", 14, 800);
+    });
+  },
   // ================= Paladin =================
   holysword(sc, f, v, tv) { // ฟันดาบแล้วลำแสงศักดิ์สิทธิ์ตกลงกลางเป้า + ไม้กางเขนแสง
     sc.playOnce(f.id, "slash", f.dir, 520);
