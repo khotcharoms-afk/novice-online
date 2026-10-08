@@ -1506,7 +1506,16 @@ class WorldRoom extends Room {
       const d = this.state.drops.get(r.pick);
       if (!d) { r.pick = null; r.nav = null; }
       else if (dist(p, d) <= PICK_RANGE) { this.tryPickup(id, p, r.pick); r.pick = null; r.nav = null; p.moving = false; }
-      else if (!this.navTo(p, r, d, step, t)) { r.pick = null; r.nav = null; p.moving = false; }
+      else {
+        const giveUp = () => { r.pickSkip = r.pickSkip || {}; r.pickSkip[r.pick] = t + 30000; r.pick = null; r.nav = null; r.pickChase = null; p.moving = false; };
+        if (!this.navTo(p, r, d, step, t)) giveUp();
+        else { // เดินได้แต่ไม่เข้าใกล้ของชิ้นนี้เลย 2.5 วิ (ของตกในที่เดินไม่ถึง) → ข้ามชิ้นนี้
+          const dd = dist(p, d), c = r.pickChase;
+          if (!c || c.id !== r.pick) r.pickChase = { id: r.pick, best: dd, at: t };
+          else if (dd < c.best - 12) { c.best = dd; c.at = t; }
+          else if (t - c.at > 2500) giveUp();
+        }
+      }
       return;
     }
 
@@ -1525,6 +1534,16 @@ class WorldRoom extends Room {
             r.target = null; r.pending = null; r.stuckMs = 0; p.moving = false;
           }
         } else r.stuckMs = 0;
+        // เดินได้แต่ไม่เข้าใกล้ขึ้นเลย (ติดมุม/ติดต้นไม้/มอนอยู่อีกฝั่งน้ำ) 2.5 วิ → เลิกไล่ตัวนี้ (AUTO เท่านั้น — กดตีเองยังไล่ต่อ)
+        if (p.auto && r.target) {
+          const c = r.chase;
+          if (!c || c.id !== r.target) r.chase = { id: r.target, best: d, at: t };
+          else if (d < c.best - 12) { c.best = d; c.at = t; }
+          else if (t - c.at > 2500) {
+            r.ignore = r.ignore || {}; r.ignore[r.target] = t + 12000;
+            r.target = null; r.pending = null; r.nav = null; r.chase = null; p.moving = false;
+          }
+        }
         return;
       }
       r.stuckMs = 0; r.nav = null;
@@ -2458,6 +2477,7 @@ class WorldRoom extends Room {
       let best = null, bd = 260;
       this.state.drops.forEach((d, did) => {
         if (!this.canPick(pid, did) || !Bag.canFit(p.bag, d.item, 1) || !this.wantLoot(r, d)) return;
+        if (r.pickSkip && r.pickSkip[did] > t) return; // เคยเดินไปไม่ถึง
         const dd = dist(p, d);
         if (dd < bd) { bd = dd; best = did; }
       });
