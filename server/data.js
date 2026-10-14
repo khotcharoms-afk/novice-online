@@ -309,7 +309,7 @@ const JOBS = {
   hunter: { name: "นักล่า", en: "Hunter", color: "#7dff9a", offhand: "quiver", atk: 1, armor: ["light"], weapons: ["bow", "dagger"], shield: false, hp: 1, sp: 1, def: 1,
     rec: { dex: 0.45, agi: 0.3, vit: 0.15, str: 0.1, int: 0 }, role: "ยิงไกล · คล่องตัว",
     desc: "ยิงธนูจากระยะไกล เคลื่อนที่เร็ว พลังโจมตีมาจาก DEX" },
-  mage: { name: "นักเวทย์", en: "Mage", color: "#c38bff", offhand: "orb", atk: 1, armor: ["cloth"], weapons: ["staff"], shield: false, hp: 0.85, sp: 1.5, def: 0.9,
+  mage: { name: "นักเวทย์", en: "Mage", color: "#c38bff", offhand: "orb", atk: 1.25, armor: ["cloth"], weapons: ["staff"], shield: false, hp: 1.0, sp: 1.5, def: 1.0, // ปรับขึ้น (เดิม atk 1 · hp 0.85 · def 0.9) — ฟาร์มช้าและตายง่ายเกินไป
     rec: { int: 0.5, dex: 0.25, vit: 0.2, agi: 0.05, str: 0 }, role: "เวทโจมตีหมู่",
     desc: "ใช้คทา ร่ายเวทโจมตีระยะไกล เวทวงกว้างเก็บมอนทีละหลายตัว พลังมาจาก INT" },
   healer: { name: "หมอ", en: "Healer", color: "#ffe28a", offhand: "relic", atk: 0.75, armor: ["cloth"], weapons: ["book", "mace"], shield: false, hp: 0.95, sp: 1.4, def: 1,
@@ -344,7 +344,7 @@ const WEAPON_TYPES = {
   greatsword: { name: "ดาบใหญ่", stat: "str", range: 50, delay: 1.15, twoHand: true, trait: { critPct: 5, critDmg: 15 }, style: "คริแรง" },
   axe:        { name: "ขวาน", stat: "str", range: 48, delay: 1.25, twoHand: true, trait: { atkPct: 12, ignoreDef: 10 }, style: "ตีหนักแต่ช้า" },
   bow:        { name: "ธนู", stat: "dex", range: 190, delay: 1.05, twoHand: true, fx: "arrow", trait: { critPct: 3 }, style: "ยิงไกล" },
-  staff:      { name: "คทา", stat: "int", range: 170, delay: 1.3, twoHand: true, fx: "magic", trait: { spPct: 10 }, style: "เวทแรง SP เยอะ" },
+  staff:      { name: "คทา", stat: "int", range: 170, delay: 1.1, twoHand: true, fx: "magic", trait: { spPct: 10 }, style: "เวทแรง SP เยอะ" },
   book:       { name: "คัมภีร์", stat: "int", range: 150, delay: 1.25, fx: "holy", trait: { healPct: 10 }, style: "ฮีลแรงขึ้น" },
 };
 const UNDEAD = ["ghost_white", "ghost_dark", "ghost_abyss", "skeleton", "zombie", "vampire", "skelwarrior", "frostskel", "snowwraith", "bogzombie", "skelknight", "lich", "vamplord", "mummy", "deathknight"];
