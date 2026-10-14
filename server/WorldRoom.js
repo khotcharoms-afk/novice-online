@@ -1769,10 +1769,10 @@ class WorldRoom extends Room {
     this.bossCleanup();
     return n;
   }
-  // จุดเกิด World Boss: ตายตัวทุกครั้ง = กลางแผนที่ด้านบน (ห่างขอบบน ~22% ของความสูง) · หาช่องยืนได้ที่ใกล้ที่สุดรอบจุดนั้น
+  // จุดเกิด World Boss: ตายตัวทุกครั้ง = มุมซ้ายบนของแผนที่ (ห่างขอบซ้าย ~16% · ขอบบน ~20%) · หาช่องยืนได้ที่ใกล้ที่สุดรอบจุดนั้น
   bossSpot() {
     const { tile: T, width: MW, height: MH } = this.map;
-    const cx = Math.floor(MW / 2), cy = Math.max(6, Math.round(MH * 0.22));
+    const cx = Math.max(8, Math.round(MW * 0.16)), cy = Math.max(7, Math.round(MH * 0.2));
     for (let rad = 0; rad < 14; rad++)
       for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
