@@ -171,4 +171,68 @@ const JOB2_QUESTS = {
     story: "นักบวชที่ลงสนามต้องแข็งแกร่งดั่งงาหมูป่า จงทุบแม่มดหนองมรณะ แล้วนำงาหมูบึงมาทำประคำศึก" },
 };
 
+// ================= สกิลขั้น 2 แถวที่ III (ระดับสูง) — ต้อง Lv.70 + สกิลแถว II ตาม req =================
+const T3_LV = 70;
+const SKILLS3 = {
+  // Paladin
+  holynova: { name: "ระเบิดดาบศักดิ์สิทธิ์", max: 5, req: ["holysword", 5], sp: [26, 1.2], cooldown: 12000, target: "self", kind: "aoeSelf", area: [120, 5], hits: 2, every: 300, undead: 1.5, auto: "dmg", icon: "skill_holynova", color: "#ffe070",
+    mult: [1.2, 0.1], desc: (L) => `ปักดาบลงพื้นระเบิดแสง 2 ครั้ง ครั้งละ ${pct(1.2, 0.1, L)}% รอบตัว ${((120 + 5 * L) / 32).toFixed(1)} ช่อง · อันเดดแรงขึ้น 50%` },
+  aegis: { name: "โล่แห่งเทพ", max: 5, req: ["divineshield", 3], sp: [30, 0], cooldown: 50000, target: "self", kind: "partyBuff", area: [230, 0], buff: "aegis", auto: "def", icon: "skill_aegis", color: "#fff1a0",
+    bv: (L) => ({ taken: 0.75 - 0.03 * L, ms: 8000 + 1000 * L }), desc: (L) => `ทุกคนรอบตัว 7 ช่องรับดาเมจลดลง ${25 + 3 * L}% นาน ${8 + L} วิ` },
+  // Dark Knight
+  soulreap: { name: "เคียวเก็บวิญญาณ", max: 5, req: ["bloodblade", 5], sp: [24, 1.2], cooldown: 12000, target: "mob", range: 70, kind: "aoeTarget", area: [110, 5], drain: 25, auto: "dmg", icon: "skill_soulreap", color: "#8040c0",
+    mult: [1.5, 0.12], desc: (L) => `เหวี่ยงเคียวทมิฬ ${pct(1.5, 0.12, L)}% ทุกตัวรอบเป้า ${((110 + 5 * L) / 32).toFixed(1)} ช่อง · ดูดเป็น HP 25% ของดาเมจ` },
+  darkpact: { name: "สัญญาทมิฬ", max: 5, req: ["thornarmor", 3], sp: [0, 0], hpCost: 0.1, cooldown: 40000, target: "self", kind: "buff", buff: "darkpact", auto: "buff", icon: "skill_darkpact", color: "#602080",
+    bv: (L) => ({ atk: 1.15 + 0.04 * L, lifesteal: 8 + 2 * L, ms: 12000 }), desc: (L) => `เสีย HP 10% แลกพลัง: ATK +${15 + 4 * L}% · ดูดเลือด ${8 + 2 * L}% นาน 12 วิ` },
+  // Berserker
+  rampage: { name: "ตะลุยคลั่ง", max: 5, req: ["leapstrike", 5], sp: [22, 1], cooldown: 11000, target: "mob", range: 260, kind: "dash", area: [90, 4], stun: [500, 50], auto: "dmg", icon: "skill_rampage", color: "#e04020",
+    mult: [1.7, 0.13], desc: (L) => `พุ่งทะลวงไปหาเป้า ${pct(1.7, 0.13, L)}% ทุกตัวรอบเป้า + มึนงง ${(0.5 + 0.05 * L).toFixed(2)} วิ` },
+  warcry: { name: "เสียงคำรามศึก", max: 5, req: ["bloodboil", 3], sp: [24, 0], cooldown: 45000, target: "self", kind: "partyBuff", area: [230, 0], buff: "warcry", auto: "buff", icon: "skill_warcry", color: "#ff6040",
+    bv: (L) => ({ atk: 1.1 + 0.03 * L, aspd: 0.95 - 0.015 * L, ms: 15000 }), desc: (L) => `ทุกคนรอบตัว ATK +${10 + 3 * L}% · ตีเร็วขึ้น ${(5 + 1.5 * L).toFixed(1)}% นาน 15 วิ` },
+  // Blademaster
+  phantomblades: { name: "ดาบเงาพันเล่ม", max: 5, req: ["shadowslash", 5], sp: [24, 1.2], cooldown: 12000, target: "mob", range: 200, kind: "aoeTarget", area: [95, 4], hits: 6, every: 120, auto: "dmg", icon: "skill_phantomblades", color: "#70b0ff",
+    mult: [0.45, 0.04], desc: (L) => `ดาบเงาฟันรัว 6 ครั้ง ครั้งละ ${pct(0.45, 0.04, L)}% ทุกตัวในวง ${((95 + 4 * L) / 32).toFixed(1)} ช่อง` },
+  skysplitter: { name: "ฟันผ่าฟ้า", max: 5, req: ["bladefocus", 3], sp: [22, 1], cooldown: 16000, target: "mob", range: 70, kind: "hit", crit: true, ignore: 0.4, auto: "dmg", icon: "skill_skysplitter", color: "#c0e8ff",
+    mult: [3.0, 0.25], desc: (L) => `ฟันเต็มกำลัง ${pct(3.0, 0.25, L)}% คริติคอลแน่นอน · เจาะเกราะ 40%` },
+  // Sniper
+  arrowstorm: { name: "พายุศร", max: 5, req: ["thunderarrow", 5], sp: [26, 1.2], cooldown: 14000, target: "mob", range: 240, ground: true, kind: "aoeTarget", area: [120, 5], hits: 5, every: 260, auto: "dmg", icon: "skill_arrowstorm", color: "#90e070",
+    mult: [0.55, 0.05], desc: (L) => `ห่าธนูตกลงพื้น 5 ระลอก ระลอกละ ${pct(0.55, 0.05, L)}% ทุกตัวในวง ${((120 + 5 * L) / 32).toFixed(1)} ช่อง (เลือกจุดลงได้)` },
+  deadeye: { name: "ตาพญาเหยี่ยว", max: 5, req: ["stuntrap", 3], sp: [20, 0], cooldown: 40000, target: "self", kind: "buff", buff: "deadeye", auto: "buff", icon: "skill_deadeye", color: "#60c080",
+    bv: (L) => ({ crit: 0.12 + 0.02 * L, critDmg: 0.2 + 0.05 * L, ms: 14000 }), desc: (L) => `โอกาสคริ +${12 + 2 * L}% · ดาเมจคริ +${20 + 5 * L}% นาน 14 วิ` },
+  // Assassin
+  shadowstorm: { name: "พายุเงา", max: 5, req: ["bladefan", 5], sp: [22, 1], cooldown: 11000, target: "self", kind: "aoeSelf", area: [105, 4], hits: 4, every: 150, auto: "dmg", icon: "skill_shadowstorm", color: "#9050c0",
+    mult: [0.6, 0.05], desc: (L) => `หมุนตัวเป็นพายุมีด 4 รอบ รอบละ ${pct(0.6, 0.05, L)}% รอบตัว ${((105 + 4 * L) / 32).toFixed(1)} ช่อง` },
+  assassinate: { name: "ลอบสังหาร", max: 5, req: ["poisonblade", 3], sp: [22, 1], cooldown: 15000, target: "mob", range: 70, kind: "hit", crit: true, stealthMul: 1.5, auto: "dmg", icon: "skill_assassinate", color: "#402060",
+    mult: [3.2, 0.28], desc: (L) => `แทงจุดตาย ${pct(3.2, 0.28, L)}% คริติคอลแน่นอน · ใช้ตอนล่องหนแรงขึ้น 50%` },
+  // Archmage
+  starfall: { name: "ดาวตก", max: 5, req: ["blizzard", 5], sp: [30, 1.4], cooldown: 15000, target: "mob", range: 230, ground: true, kind: "aoeTarget", area: [130, 5], hits: 3, every: 400, delay: 500, auto: "dmg", icon: "skill_starfall", color: "#a0b0ff",
+    mult: [1.0, 0.08], desc: (L) => `ดาวตกลงมา 3 ลูก ลูกละ ${pct(1.0, 0.08, L)}% ทุกตัวในวง ${((130 + 5 * L) / 32).toFixed(1)} ช่อง (เลือกจุดลงได้)` },
+  arcanesurge: { name: "พลังเวทล้นทะลัก", max: 5, req: ["blink", 3], sp: [24, 0], cooldown: 45000, target: "self", kind: "buff", buff: "arcane", auto: "buff", icon: "skill_arcanesurge", color: "#6080ff",
+    bv: (L) => ({ atk: 1.2 + 0.04 * L, aspd: 0.92 - 0.02 * L, ms: 12000 }), desc: (L) => `พลังเวท +${20 + 4 * L}% · ร่ายเร็วขึ้น ${8 + 2 * L}% นาน 12 วิ` },
+  // Summoner
+  netherstorm: { name: "พายุอเวจี", max: 5, req: ["blackhole", 5], sp: [28, 1.3], cooldown: 15000, target: "mob", range: 230, ground: true, kind: "aoeTarget", area: [130, 5], hits: 4, every: 350, slow: [1500, 100], auto: "dmg", icon: "skill_netherstorm", color: "#c040a0",
+    mult: [0.8, 0.07], desc: (L) => `พายุวิญญาณ 4 ระลอก ระลอกละ ${pct(0.8, 0.07, L)}% ทุกตัวในวง + ช้าลง (เลือกจุดลงได้)` },
+  soulharvest: { name: "เก็บเกี่ยววิญญาณ", max: 5, req: ["doomcurse", 3], sp: [24, 1], cooldown: 12000, target: "self", kind: "aoeSelf", area: [140, 5], drain: 20, auto: "dmg", icon: "skill_soulharvest", color: "#e070c0",
+    mult: [1.3, 0.1], desc: (L) => `ดึงวิญญาณมอนรอบตัว ${((140 + 5 * L) / 32).toFixed(1)} ช่อง ${pct(1.3, 0.1, L)}% · ดูดเป็น HP 20%` },
+  // Saint
+  divinelight: { name: "แสงสวรรค์", max: 5, req: ["sanctuary", 3], sp: [34, 1.5], cooldown: 18000, target: "self", kind: "massHeal", area: [260, 0], heal: [0.25, 0.03], auto: "heal", icon: "skill_divinelight", color: "#fff6c0",
+    desc: (L) => `ฮีลทุกคนรอบตัว 8 ช่อง ${pct(0.25, 0.03, L)}% ของ HP + INT×3` },
+  heavenjudgment: { name: "พิพากษาสวรรค์", max: 5, req: ["judgment", 5], sp: [28, 1.2], cooldown: 13000, target: "mob", range: 230, ground: true, kind: "aoeTarget", area: [130, 5], undead: 1.8, delay: 400, auto: "dmg", icon: "skill_heavenjudgment", color: "#ffe890",
+    mult: [1.6, 0.12], desc: (L) => `ลำแสงพิพากษา ${pct(1.6, 0.12, L)}% ทุกตัวในวง ${((130 + 5 * L) / 32).toFixed(1)} ช่อง · อันเดดแรงขึ้น 80% (เลือกจุดลงได้)` },
+  // Battle Priest
+  titanfist: { name: "หมัดไททัน", max: 5, req: ["heavenhammer", 5], sp: [22, 1], cooldown: 11000, target: "mob", range: 64, kind: "hit", hits: 3, every: 150, stun: [600, 50], auto: "dmg", icon: "skill_titanfist", color: "#ffb040",
+    mult: [1.1, 0.09], desc: (L) => `ต่อย 3 หมัดรัว หมัดละ ${pct(1.1, 0.09, L)}% + มึนงง ${(0.6 + 0.05 * L).toFixed(2)} วิ` },
+  warhymn: { name: "บทเพลงศึก", max: 5, req: ["regenaura", 3], sp: [26, 0], cooldown: 45000, target: "self", kind: "partyBuff", area: [230, 0], buff: "warhymn", auto: "buff", icon: "skill_warhymn", color: "#ffd070",
+    bv: (L) => ({ atk: 1.1 + 0.03 * L, def: 1.1 + 0.02 * L, ms: 20000 }), desc: (L) => `ทุกคนรอบตัว ATK +${10 + 3 * L}% · DEF +${10 + 2 * L}% นาน 20 วิ` },
+};
+for (const s of Object.values(SKILLS3)) s.minLv = T3_LV;
+Object.assign(SKILLS2, SKILLS3);
+Object.assign(BUFFS2, {
+  aegis: { name: "โล่แห่งเทพ", ms: 10000, taken: 0.7 }, darkpact: { name: "สัญญาทมิฬ", ms: 12000 }, warcry: { name: "คำรามศึก", ms: 15000 },
+  deadeye: { name: "ตาพญาเหยี่ยว", ms: 14000 }, arcane: { name: "เวทล้นทะลัก", ms: 12000 }, warhymn: { name: "บทเพลงศึก", ms: 20000 },
+});
+const ROW3 = { paladin: ["holynova", "aegis"], darkknight: ["soulreap", "darkpact"], berserker: ["rampage", "warcry"], blademaster: ["phantomblades", "skysplitter"],
+  sniper: ["arrowstorm", "deadeye"], assassin: ["shadowstorm", "assassinate"], archmage: ["starfall", "arcanesurge"], summoner: ["netherstorm", "soulharvest"],
+  saint: ["divinelight", "heavenjudgment"], battlepriest: ["titanfist", "warhymn"] };
+for (const [j, row] of Object.entries(ROW3)) TREE2[j].push(row);
 module.exports = { JOB2_LEVEL, JOBS2, SKILLS2, BUFFS2, TREE2, JOB2_QUESTS };

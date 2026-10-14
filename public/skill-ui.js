@@ -55,6 +55,7 @@ function renderSkills() {
   const rows = gameData.skillTree[skillTab] || [];
   const cell = (k, lockWhy) => {
     const s = S[k], L = skLv(k), maxed = L >= s.max;
+    if (!lockWhy && s.minLv && me.level < s.minLv) lockWhy = `ต้อง Lv.${s.minLv}`;
     const reqOk = !s.req || skLv(s.req[0]) >= s.req[1];
     const ok = reqOk && !lockWhy;
     const can = !maxed && ok && mySkillData.points > 0;

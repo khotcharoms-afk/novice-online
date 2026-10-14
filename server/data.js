@@ -496,11 +496,12 @@ const skillPointsAt = (lv, job) => Math.max(0, lv - 1) + (job && job !== "villag
 const innateSkills = () => Object.fromEntries(Object.entries(SKILLS).filter(([, s]) => s.innate).map(([k, s]) => [k, s.innate]));
 const skillSpent = (sk) => Object.entries(sk || {}).reduce((t, [k, L]) => t + Math.max(0, L - ((SKILLS[k] && SKILLS[k].innate) || 0)), 0);
 // เรียนสกิลนี้ขั้นถัดไปได้ไหม → คืนข้อความเหตุผล (null = ได้)
-function learnError(job, sk, key, points) {
+function learnError(job, sk, key, points, lv) {
   const S = SKILLS[key];
   if (!S || !treeKeys(job).includes(key)) return "อาชีพนี้เรียนสกิลนี้ไม่ได้";
   const L = sk[key] || 0;
   if (L >= S.max) return "สกิลนี้เลเวลสูงสุดแล้ว";
+  if (S.minLv && lv !== undefined && lv < S.minLv) return `ต้องเลเวล ${S.minLv} ขึ้นไป`;
   if (S.req && (sk[S.req[0]] || 0) < S.req[1]) return `ต้องมี ${SKILLS[S.req[0]].name} Lv.${S.req[1]} ก่อน`;
   if (points < 1) return "แต้มสกิลไม่พอ";
   return null;
@@ -517,7 +518,7 @@ function sanitizeSkills(raw, job, lv) {
 // ข้อมูลสกิลสำหรับ client (ฟังก์ชันส่งผ่านเครือข่ายไม่ได้ → คำนวณคำอธิบาย/SP ทุกเลเวลไว้ให้)
 const skillsForClient = () => Object.fromEntries(Object.entries(SKILLS).map(([k, s]) => {
   const o = { name: s.name, passive: !!s.passive, max: s.max, innate: s.innate || 0, req: s.req || null, icon: s.icon, color: s.color,
-    target: s.target || null, cooldown: s.cooldown || 0, range: s.range || 0, fx: s.fx || null, descs: [], sps: [], ground: !!s.ground, areas: [] };
+    target: s.target || null, cooldown: s.cooldown || 0, range: s.range || 0, fx: s.fx || null, descs: [], sps: [], ground: !!s.ground, areas: [], minLv: s.minLv || 0 };
   for (let L = 1; L <= s.max; L++) { o.descs.push(s.desc(L)); if (s.sp) o.sps.push(Math.round(lvVal(s.sp, L))); if (s.area) o.areas.push(Math.round(lvVal(s.area, L))); }
   o.desc = o.descs[0]; o.sp = o.sps[0] || 0;
   return [k, o];

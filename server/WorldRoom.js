@@ -687,7 +687,7 @@ class WorldRoom extends Room {
   learnSkill(client, key) {
     const p = this.state.players.get(client.sessionId);
     if (!p) return;
-    const err = D.learnError(p.job, p.skills, key, p.skillPts);
+    const err = D.learnError(p.job, p.skills, key, p.skillPts, p.level);
     if (err) return client.send("toast", err);
     p.skills[key] = (p.skills[key] || 0) + 1;
     this.syncSkillPts(p);
