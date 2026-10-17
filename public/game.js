@@ -1376,7 +1376,7 @@ class WorldScene extends Phaser.Scene {
     if (typeof SKILL2_FX !== "undefined" && SKILL2_FX[f.skill]) { // อาชีพขั้น 2: ท่า + เอฟเฟกต์เฉพาะสกิล (skillfx2.js)
       const tv2 = f.tgt && this.views.get(f.tgt), S2 = gameData && gameData.skills[f.skill];
       if (S2 && !f.again && (f.id === room.sessionId || tv2)) this.floatText(v.root.x, v.root.y - 92, S2.name, "#9fe3ff", 11, 700);
-      try { SKILL2_FX[f.skill](this, f, v, tv2); } catch (e) { console.warn("skillfx2", f.skill, e); }
+      try { SKILL2_FX[f.skill](slowFxScene(this), f, v, tv2); } catch (e) { console.warn("skillfx2", f.skill, e); }
       return;
     }
     if (self || fx.type === "proj" || fx.type === "aoe" || fx.type === "meteor") {
@@ -1959,8 +1959,49 @@ function castSkill(key, el) {
     if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
     return;
   }
+  // ยังไม่ได้เลือกเป้า (หรือเป้าตายแล้ว) → เลือกมอนที่ใกล้ที่สุดให้อัตโนมัติ
+  if (S && S.target === "mob") {
+    const cur = scene.myTarget && room.state.monsters.get(scene.myTarget);
+    if (!cur || cur.dead) { const id = nearestMob(Math.max(520, (S.range || 60) + 320)); if (id) scene.myTarget = id; }
+  }
   room.send("skill", { skill: key, target: scene.myTarget });
   if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+}
+// ---------- ความเร็วเอฟเฟกต์สกิล ----------
+// เอฟเฟกต์สกิล (skillfx2.js) เล่นช้าลง: ส่ง "ฉากจำลอง" ที่ยืดเวลา tween / delayedCall / ท่าทาง ×FX_SLOW
+// (ใช้กับทุกจังหวะของเอฟเฟกต์ เพราะโค้ดเอฟเฟกต์เรียกผ่านตัวแปร sc ตัวเดียวกันทั้งหมด)
+const FX_SLOW = 1.45;
+let _slowFx = null;
+function slowFxScene(sc) {
+  if (_slowFx && _slowFx.sc === sc) return _slowFx.p;
+  const k = FX_SLOW, sc2 = (cfg) => {
+    if (!cfg || typeof cfg !== "object") return cfg;
+    const c = { ...cfg };
+    for (const f of ["duration", "delay", "hold", "repeatDelay"]) if (typeof c[f] === "number") c[f] *= k;
+    return c;
+  };
+  const tweens = new Proxy(sc.tweens, { get(t, prop) {
+    if (prop === "add") return (cfg) => t.add(sc2(cfg));
+    const v = t[prop]; return typeof v === "function" ? v.bind(t) : v;
+  } });
+  const time = new Proxy(sc.time, { get(t, prop) {
+    if (prop === "delayedCall") return (d, cb, args, scope) => t.delayedCall(d * k, cb, args, scope);
+    const v = t[prop]; return typeof v === "function" ? v.bind(t) : v;
+  } });
+  const p = new Proxy(sc, { get(t, prop) {
+    if (prop === "tweens") return tweens;
+    if (prop === "time") return time;
+    if (prop === "playOnce") return (id, kind, dir, ms, rep) => t.playOnce(id, kind, dir, ms * k, rep);
+    const v = t[prop]; return typeof v === "function" ? v.bind(t) : v;
+  } });
+  _slowFx = { sc, p };
+  return p;
+}
+function nearestMob(maxD) {
+  const me = myPlayer(); if (!me) return null;
+  let best = null, bd = maxD;
+  room.state.monsters.forEach((m, id) => { if (m.dead) return; const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = id; } });
+  return best;
 }
 // ---------- เล็งสกิลวงกว้าง ----------
 (() => { const q = document.getElementById("skQuick"); if (q) { q.checked = storeGet("pn_quickcast") === "1"; q.onchange = () => storeSet("pn_quickcast", q.checked ? "1" : "0"); } })();
