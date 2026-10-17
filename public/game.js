@@ -1369,6 +1369,8 @@ class WorldScene extends Phaser.Scene {
   }
   // เอฟเฟกต์สกิล (self = สกิลใช้กับตัวเอง/ร่ายเวท)
   skillFx(f, self) {
+    // ทุกเอฟเฟกต์สกิลเล่นผ่านฉากจำลองที่ยืดเวลา (ช้าลง ×FX_SLOW)
+    if (!this.__slow) return WorldScene.prototype.skillFx.call(slowFxScene(this), f, self);
     const v = this.views.get(f.id);
     if (!v) return;
     const fx = f.fx || {};
@@ -1376,7 +1378,7 @@ class WorldScene extends Phaser.Scene {
     if (typeof SKILL2_FX !== "undefined" && SKILL2_FX[f.skill]) { // อาชีพขั้น 2: ท่า + เอฟเฟกต์เฉพาะสกิล (skillfx2.js)
       const tv2 = f.tgt && this.views.get(f.tgt), S2 = gameData && gameData.skills[f.skill];
       if (S2 && !f.again && (f.id === room.sessionId || tv2)) this.floatText(v.root.x, v.root.y - 92, S2.name, "#9fe3ff", 11, 700);
-      try { SKILL2_FX[f.skill](slowFxScene(this), f, v, tv2); } catch (e) { console.warn("skillfx2", f.skill, e); }
+      try { SKILL2_FX[f.skill](this, f, v, tv2); } catch (e) { console.warn("skillfx2", f.skill, e); }
       return;
     }
     if (self || fx.type === "proj" || fx.type === "aoe" || fx.type === "meteor") {
@@ -1988,11 +1990,15 @@ function slowFxScene(sc) {
     if (prop === "delayedCall") return (d, cb, args, scope) => t.delayedCall(d * k, cb, args, scope);
     const v = t[prop]; return typeof v === "function" ? v.bind(t) : v;
   } });
+  const own = (prop) => Object.prototype.hasOwnProperty.call(WorldScene.prototype, prop);
   const p = new Proxy(sc, { get(t, prop) {
+    if (prop === "__slow") return true;
     if (prop === "tweens") return tweens;
     if (prop === "time") return time;
     if (prop === "playOnce") return (id, kind, dir, ms, rep) => t.playOnce(id, kind, dir, ms * k, rep);
-    const v = t[prop]; return typeof v === "function" ? v.bind(t) : v;
+    const v = t[prop];
+    // เมธอดของเกมเอง (burst/sparkle/projectile/groundAoe ...) เรียกด้วย this = ฉากจำลอง → ช้าลงตามด้วย
+    return typeof v === "function" ? (own(prop) ? v : v.bind(t)) : v;
   } });
   _slowFx = { sc, p };
   return p;
