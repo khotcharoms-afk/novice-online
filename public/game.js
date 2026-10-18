@@ -944,6 +944,7 @@ class WorldScene extends Phaser.Scene {
     v.busyUntil = this.time.now + ms;
     v.sprite.play({ key: `${v.key}:${kind}:${v.dir}`, repeat });
     this.weaponSwing(v, kind === "slash", repeat);
+    if (!repeat) motionAttack(this, v, kind, ms);
   }
 
   // อาวุธประชิดตอนฟัน (ภาพในตัวละครไม่มีอาวุธในท่าฟัน เพราะภาพท่าฟันใหญ่กว่ากรอบ 64 px)
@@ -1013,6 +1014,7 @@ class WorldScene extends Phaser.Scene {
     if (!v.dead) {
       v.sprite.setTintFill(0xffffff);
       this.time.delayedCall(70, () => v.sprite.clearTint());
+      motionHit(this, v, src && this.views.get(src), crit);
     }
   }
 
@@ -1715,6 +1717,7 @@ class WorldScene extends Phaser.Scene {
     this.updateTargetBar(time);
     if (this.amb) updateAmbient(this, time, dt);
     const k = Math.min(1, (dt / 1000) * 14);
+    this.views.forEach(motionUnapply);
     this.views.forEach((v) => {
       const r = v.root;
       if (Math.abs(v.tx - r.x) > 200 || Math.abs(v.ty - r.y) > 200) { r.x = v.tx; r.y = v.ty; }
@@ -1735,6 +1738,7 @@ class WorldScene extends Phaser.Scene {
       else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
       ambBreath(v, time, !v.moving);
     });
+    this.views.forEach((v) => motionApply(this, v, time, dt));
 
     // วงขอบเขต AUTO
     const meP = room.state.players && room.state.players.get(room.sessionId);

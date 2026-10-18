@@ -255,3 +255,94 @@ function ambBreath(v, time, idle) {
   const k = Math.sin(time / (v.isMob ? 380 : 520) + v.bph);
   sp.setScale(base * (1 - k * 0.012), base * (1 + k * 0.028));
 }
+
+// =============================================================
+//  ท่าทางตัวละคร/มอน: เดินเด้งตามจังหวะก้าว + เอนตัว · ฝุ่นที่เท้า · ออกตัว/หยุดมีย่อตัว
+//  โดนตีสะดุ้งถอยหลัง · ฟัน/แทงพุ่งตัวไปข้างหน้า
+//  (ขยับแค่ "ภาพ" ไม่กระทบตำแหน่งจริงบนเซิร์ฟเวอร์)
+// =============================================================
+const MOVE_VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const DUST_TINT = { winter: 0xffffff, lava: 0x5a4040, shadow: 0x6a5a7a, desert: 0xe8c890, swamp: 0x8a9a6a };
+
+// ถอดออฟเซ็ตของเฟรมก่อน (เรียกก่อนคำนวณตำแหน่ง)
+function motionUnapply(v) {
+  if (v.mOX || v.mOY) { v.root.x -= v.mOX; v.root.y -= v.mOY; v.mOX = v.mOY = 0; }
+}
+
+// คำนวณ + ใส่ออฟเซ็ตของเฟรมนี้ (เรียกหลังตั้ง depth แล้ว)
+function motionApply(sc, v, time, dt) {
+  const sp = v.sprite, r = v.root;
+  if (!sp || !sp.scene) return;
+  let ox = 0, oy = 0, rot = 0;
+  const busy = time < v.busyUntil;
+  if (!v.dead) {
+    // เริ่มเดิน/หยุดเดิน → ย่อตัวเล็กน้อย
+    if (v.moving !== v.mWasMoving) {
+      if (v.mWasMoving !== undefined && !busy) motionSquash(sc, v, v.moving ? 0.92 : 0.94, v.moving ? 1.06 : 1.05, 90);
+      v.mWasMoving = v.moving;
+    }
+    if (v.moving && !busy) {
+      v.mPh = (v.mPh || 0) + dt * (v.isMob ? 0.011 : 0.0125);
+      oy -= Math.abs(Math.sin(v.mPh)) * (v.isMob ? 1.6 : 2.2) * (v.e.scale || 1);
+      rot = v.dir === "left" ? -0.045 : v.dir === "right" ? 0.045 : Math.sin(v.mPh) * 0.02;
+      // ฝุ่นที่เท้าทุกก้าว (ผู้เล่นเท่านั้น จอจะได้ไม่รก)
+      if (!v.isMob && AMB_ON) {
+        const step = Math.floor(v.mPh / Math.PI);
+        if (step !== v.mStep) { v.mStep = step; motionDust(sc, v); }
+      }
+    }
+    // พุ่งตัวตอนฟัน/แทง
+    if (v.lunge) {
+      const t = (time - v.lunge.t0) / v.lunge.ms;
+      if (t >= 1) v.lunge = null;
+      else { const k = t < 0.35 ? -0.35 * Math.sin((t / 0.35) * Math.PI) : Math.sin(((t - 0.35) / 0.65) * Math.PI); ox += v.lunge.dx * k; oy += v.lunge.dy * k; }
+    }
+    // สะดุ้งตอนโดนตี
+    if (v.kick) {
+      const t = (time - v.kick.t0) / 220;
+      if (t >= 1) v.kick = null;
+      else { const k = Math.sin(t * Math.PI) * (1 - t); ox += v.kick.dx * k; oy += v.kick.dy * k; rot += v.kick.rot * k; }
+    }
+  }
+  const R = busy && !v.kick ? 0 : rot;
+  sp.setRotation(R);
+  if (v.glows) for (const g of v.glows) if (g.setRotation) g.setRotation(R);
+  if (ox || oy) { r.x += ox; r.y += oy; v.mOX = ox; v.mOY = oy; }
+}
+
+function motionSquash(sc, v, sx, sy, ms) {
+  const sp = v.sprite;
+  if (!sp || sc.tweens.isTweening(sp)) return;
+  const base = v.scaleNow || (v.e && v.e.scale) || 1;
+  v.breathing = false;
+  sp.setScale(base * sx, base * sy);
+  sc.tweens.add({ targets: sp, scaleX: base, scaleY: base, duration: ms, ease: "Back.easeOut" });
+}
+
+function motionDust(sc, v) {
+  const wv = sc.cameras.main.worldView, x = v.root.x, y = v.root.y;
+  if (x < wv.x - 40 || x > wv.right + 40 || y < wv.y - 40 || y > wv.bottom + 40) return;
+  const tint = DUST_TINT[sc.amb && sc.amb.season] || 0xd8c8a0;
+  const [dx] = MOVE_VEC[v.dir] || [0, 0];
+  for (let i = 0; i < 2; i++) {
+    const p = sc.add.image(x + (Math.random() - 0.5) * 10 - dx * 6, y - 2, "amb_flake").setTint(tint).setAlpha(0.55).setScale(0.9).setDepth(y - 1);
+    sc.tweens.add({ targets: p, x: p.x - dx * 8 + (Math.random() - 0.5) * 14, y: y - 6 - Math.random() * 6, scale: 2 + Math.random(), alpha: 0, duration: 420 + Math.random() * 200, ease: "Sine.easeOut", onComplete: () => p.destroy() });
+  }
+}
+
+// เรียกจาก onHit: สะดุ้งถอยออกจากคนตี
+function motionHit(sc, v, srcView, crit) {
+  let dx = 0, dy = -1;
+  if (srcView) { const a = Math.atan2(v.root.y - srcView.root.y, v.root.x - srcView.root.x); dx = Math.cos(a); dy = Math.sin(a); }
+  const f = crit ? 9 : 5;
+  v.kick = { t0: sc.time.now, dx: dx * f, dy: dy * f * 0.6, rot: (dx >= 0 ? 1 : -1) * (crit ? 0.14 : 0.08) };
+  motionSquash(sc, v, crit ? 1.14 : 1.08, crit ? 0.86 : 0.92, crit ? 160 : 110);
+}
+
+// เรียกจาก playOnce: ฟัน/แทง/ยิง พุ่งตัวตามทิศ
+function motionAttack(sc, v, kind, ms) {
+  const [dx, dy] = MOVE_VEC[v.dir] || [0, 1];
+  const f = kind === "thrust" ? 7 : kind === "slash" ? 6 : kind === "cast" ? 0 : 2;
+  if (f) v.lunge = { t0: sc.time.now, ms: Math.min(ms, 420), dx: dx * f, dy: dy * f * 0.7 };
+  if (kind === "cast") motionSquash(sc, v, 0.94, 1.07, 220);
+}
