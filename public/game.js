@@ -773,7 +773,7 @@ class WorldScene extends Phaser.Scene {
         }
       }
     }
-    const flat = /^(wf|flower)/;
+    const flat = /^wf/; // ดอกไม้เล็กมาก วาดติดพื้น · ดอกไม้อื่นเป็นภาพแยกเพื่อไหวตามลม
     for (const o of objects) {
       if (!flat.test(o.k)) continue;
       const f = this.textures.getFrame(this.oKey, o.k);
@@ -796,6 +796,7 @@ class WorldScene extends Phaser.Scene {
     $("mapName").textContent = map.name + (map.lv ? ` Lv.${map.lv[0]}–${map.lv[1]}` : " · ปลอดภัย");
     if (map.online) $("online").textContent = map.online;
     buildMinimap(map);
+    if (typeof setupAmbient === "function") setupAmbient(this, map);
   }
 
   // ทางออกไปแผนที่อื่น: วงเวทเรืองแสง + ป้ายชื่อปลายทาง
@@ -1712,6 +1713,7 @@ class WorldScene extends Phaser.Scene {
     this.updateSummons(time);
     this.updateBossBar();
     this.updateTargetBar(time);
+    if (this.amb) updateAmbient(this, time, dt);
     const k = Math.min(1, (dt / 1000) * 14);
     this.views.forEach((v) => {
       const r = v.root;
@@ -1727,10 +1729,11 @@ class WorldScene extends Phaser.Scene {
       if (!v.isMob && gameData && (v.e.glow || "") !== v.glowStr && !(this.lazyPending && this.lazyPending.size) && time >= (v.glowRetry || 0)) { v.glowRetry = time + 500; this.buildGlow(v, v.e); }
       if (v.isMob && v.e.boss) this.bossAura(v, time);
       if (!v.isMob) { this.weaponAura(v, time); if (v.glows && v.glows.length) for (const g of v.glows) if (g.frame.name !== v.sprite.frame.name && g.texture.has(v.sprite.frame.name)) g.setFrame(v.sprite.frame.name); }
-      if (time < v.busyUntil) return;
+      if (time < v.busyUntil) { ambBreath(v, time, false); return; }
       if (v.wfg && v.wfg.visible) this.weaponSwing(v, false);
       if (v.moving) v.sprite.play(`${v.key}:walk:${v.dir}`, true);
       else { v.sprite.stop(); v.sprite.setFrame(DIR_ROW[v.dir] * COLS); }
+      ambBreath(v, time, !v.moving);
     });
 
     // วงขอบเขต AUTO
