@@ -16,6 +16,7 @@ const I = require("./items");
 const Bag = require("./inventory");
 const SP = require("./spirits");
 const SD = require("./sdungeon");
+const RF = require("./rift");
 // ดันเจี้ยนภูติที่เปิดอยู่: inst -> { inst, el, diff, leader, members: Set(charId), created, over }
 const dungeons = new Map();
 const CG = require("./classgear");
@@ -316,7 +317,7 @@ class WorldRoom extends Room {
   }
 
   onCreate(options) {
-    this.maxClients = W.MAPS[options && options.mapId] && W.MAPS[options.mapId].type === "dungeon" ? SD.PARTY_MAX : 100;
+    this.maxClients = W.MAPS[options && options.mapId] && W.MAPS[options.mapId].type === "dungeon" ? Math.max(SD.PARTY_MAX, RF.PARTY_MAX) : 100;
     rooms.add(this);
     this.mapId = W.MAPS[options && options.mapId] ? options.mapId : W.START_MAP;
     this.def = W.MAPS[this.mapId];
@@ -400,7 +401,7 @@ class WorldRoom extends Room {
         statCostStep: D.STAT_COST_STEP, items: I.ITEMS, stoneFuse: I.STONE_FUSE, rarity: I.RARITY, maxRefine: I.MAX_REFINE, safeRefine: I.SAFE_REFINE, shop: I.SHOP, shops: I.SHOPS, equipSlots: I.EQUIP_SLOTS, slotName: I.SLOT_NAME, invSize: I.INVENTORY_SIZE,
         npcs: this.npcs, crystals: this.crystals, online: online.size,
         jobs: D.JOBS, jobQuests: D.JOB_QUESTS, job2Quests: D.JOB2_QUESTS, job2Level: D.JOB2_LEVEL, miniBosses: Object.fromEntries(Object.entries(D.MINI_BOSSES).map(([k, v]) => [k, { name: v.name, level: v.level }])), weaponTypes: D.WEAPON_TYPES, armorName: D.ARMOR_NAME, buffs: D.BUFFS,
-        spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritStages: SP.STAGE_NAME, spiritBreak: SP.BREAK, spiritBreakBy: Object.fromEntries(Object.keys(SP.SPIRITS).map((k) => [k, SP.breakFor(k)])), dungeon: { elements: Object.fromEntries(Object.entries(SD.ELEMENTS).map(([k, E]) => [k, { name: E.name, color: E.color, spirit: E.spirit, boss: E.boss.name, core: SD.coreId(k), pure: SD.pureId(k) }])), diffs: SD.DIFFS, ticket: SD.TICKET, ticketPrice: SD.TICKET_PRICE, waves: SD.WAVES, timeMin: SD.TIME_MS / 60000 }, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
+        spirits: SP.SPIRITS, spiritQuests: SP.SPIRIT_QUESTS, spiritStages: SP.STAGE_NAME, spiritBreak: SP.BREAK, spiritBreakBy: Object.fromEntries(Object.keys(SP.SPIRITS).map((k) => [k, SP.breakFor(k)])), dungeon: { elements: Object.fromEntries(Object.entries(SD.ELEMENTS).map(([k, E]) => [k, { name: E.name, color: E.color, spirit: E.spirit, boss: E.boss.name, core: SD.coreId(k), pure: SD.pureId(k) }])), diffs: SD.DIFFS, ticket: SD.TICKET, ticketPrice: SD.TICKET_PRICE, waves: SD.WAVES, timeMin: SD.TIME_MS / 60000 }, rift: { tiers: RF.tiers().map((t) => ({ i: t.i, name: t.name, req: t.req, lv: t.lv, price: t.price, gold: t.gold, season: t.season, mobs: t.kinds.slice(0, 4).map((k) => D.MONSTERS[k].name) })), timeMin: RF.TIME_MS / 60000, lives: RF.LIVES, need: RF.NEED(1), needPer: RF.NEED(2) - RF.NEED(1) }, spiritUpgrade: SP.UPGRADE, spiritMaxLv: SP.SPIRIT_MAX_LV, spiritRarMul: SP.RAR_MUL,
         jobChangeLevel: D.JOB_CHANGE_LEVEL, jobFreeLv: D.JOB_FREE_LV, wear: WEAR,
         mapMobs: [...new Set(this.def.spawns.map(([k]) => k))],
         portals: this.map.portals.map((pt) => ({ ...pt, toName: W.MAPS[pt.to].name, toLv: W.MAPS[pt.to].lv })),
@@ -466,6 +467,7 @@ class WorldRoom extends Room {
     this.onMessage("partyInvite", (client, m) => this.partyInvite(client, m || {}));
     // ---------- ดันเจี้ยนภูติ ----------
     this.onMessage("dungeonStart", (client, m) => this.dungeonStart(client, m || {}));
+    this.onMessage("riftStart", (client, m) => this.riftStart(client, m || {}));
     this.onMessage("dungeonJoin", (client, m) => this.dungeonJoin(client, m || {}));
     this.onMessage("dungeonLeave", (client) => { if (this.def.type === "dungeon") this.warpPlayer(client.sessionId, W.START_MAP, null); });
     this.onMessage("dungeonBuy", (client, m) => {
@@ -1239,9 +1241,14 @@ class WorldRoom extends Room {
 
   // ================= ทุก tick =================
   update(dt) {
+    if (process.env.TICK_PROF) { const t0 = process.hrtime.bigint(); this.update2(dt); const ms = Number(process.hrtime.bigint() - t0) / 1e6; const P = this._prof || (this._prof = { n: 0, sum: 0, max: 0, at: Date.now() }); P.n++; P.sum += ms; P.max = Math.max(P.max, ms); if (Date.now() - P.at > 5000) { console.log(`[prof] ${this.mapId} mobs=${this.state.monsters.size} avg=${(P.sum / P.n).toFixed(2)}ms max=${P.max.toFixed(1)}ms`); this._prof = null; } return; }
+    this.update2(dt);
+  }
+  update2(dt) {
     const t = now();
     this.state.players.forEach((p, id) => this.updatePlayer(p, this.pr.get(id), id, dt, t));
     this.state.monsters.forEach((m, id) => this.updateMob(m, this.mr.get(id), id, dt, t));
+    if (this.def.horde) this.rfSeparate();
     this.state.pets.forEach((pet, id) => this.updatePet(pet, id, dt, t));
     this.state.spirits.forEach((sp, id) => this.updateSpirit(sp, id, dt, t));
     this.state.players.forEach((p, id) => { const r = this.pr.get(id); if (r && r.summon) this.updateSummon(id, p, r, t); });
@@ -1671,14 +1678,14 @@ class WorldRoom extends Room {
     // มอนดุ: มองหาผู้เล่นใกล้ ๆ
     const danger = this.def.danger && !process.env.DANGER_OFF;
     if (!r.target && (r.def.aggressive || danger) && !r.returning) {
-      let best = null, bd = danger ? DANGER.aggro : AGGRO_RADIUS;
+      let best = null, bd = r.hunt ? 1e9 : danger ? DANGER.aggro : AGGRO_RADIUS;
       this.state.players.forEach((p, pid) => { if (!p.dead && !p.stealth && !this.inSafe(p)) { const d = dist(m, p); if (d < bd) { bd = d; best = pid; } } });
       if (best) { r.target = best; this.callPack(m, best); }
     }
 
     if (r.target) {
       const p = this.state.players.get(r.target);
-      if (!p || p.dead || p.stealth || dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1) || this.inSafe(p)) { r.target = null; r.returning = true; r.dash = null; }
+      if (!p || p.dead || p.stealth || (!r.hunt && dist(m, r.home) > LEASH * (r.mini ? 1.6 : 1)) || this.inSafe(p)) { r.target = null; r.returning = !r.hunt; r.dash = null; }
       else {
         const B = r.def, d = dist(m, p);
         // หนี: เลือดต่ำ → วิ่งหนี 3 วิ (ครั้งเดียวต่อชีวิต) แล้วกลับมาสู้
@@ -1716,7 +1723,9 @@ class WorldRoom extends Room {
           r.nextHeal = t + 1500;
         }
         const RG = B.ranged, range = RG ? RG.range : MOB_RANGE + ((m.scale || 1) - 1) * 24;
-        if (d > range) { if (!this.navTo(m, r, p, step * 1.25, t)) { r.target = null; r.returning = true; } }
+        // ฝูงรอยแยก: ตีพร้อมกันได้แค่ไม่กี่ตัว ที่เหลือล้อมรอจังหวะ
+        if (r.horde && !r.rfBoss && !r.canHit && d < range + 34) { m.moving = false; m.dir = dirOf(p.x - m.x, p.y - m.y); return; }
+        if (d > range) { if (!this.navTo(m, r, p, step * 1.25, t)) { r.target = null; r.returning = !r.hunt; } }
         else {
           m.moving = false; m.dir = dirOf(p.x - m.x, p.y - m.y);
           if (t >= r.atkReady) {
@@ -1726,7 +1735,7 @@ class WorldRoom extends Room {
               this.broadcast("atk", { id, dir: m.dir, mob: true, fx: RG.fx, tgt });
               this.clock.setTimeout(() => { if (!m.dead) this.hitPlayer(id, m, r, tgt); }, 200 + Math.min(450, 60 + d * 1.4));
             } else {
-              r.atkReady = t + MOB_ATK_MS;
+              r.atkReady = t + (r.atkMs || MOB_ATK_MS);
               this.broadcast("atk", { id, dir: m.dir, mob: true });
               this.hitPlayer(id, m, r, r.target);
             }
@@ -2056,7 +2065,8 @@ class WorldRoom extends Room {
     r.respawnAt = r.temp ? Infinity : r.mini ? now() + rand(...MINI_RESPAWN_MS) : now() + D.MONSTER_RESPAWN_MS;
     if (r.mini) this.broadcast("system", `🏆 ${m.name} ถูกปราบแล้ว! (จะกลับมาอีกในอีกประมาณ 10 นาที)`);
     // บอส/ลูกน้องบอส: ไม่เกิดใหม่ ลบออกจากแผนที่หลังเล่นท่าตาย
-    if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); if (r.boss) this.bossCleanup(); }, r.boss ? 15000 : 2500);
+    if (r.temp) this.clock.setTimeout(() => { this.state.monsters.delete(mid); this.mr.delete(mid); if (r.boss) this.bossCleanup(); }, r.boss ? 15000 : r.horde ? 900 : 2500);
+    if (r.horde && this.dgs) { if (r.rfBoss) this.dgs.bossDead = true; else this.dgs.kills = (this.dgs.kills || 0) + 1; }
     if (r.boss) WorldRoom.bossGone(r.bossKey);
     r.target = null;
     // แบ่ง EXP ตามสัดส่วนดาเมจที่ทำ
@@ -2107,7 +2117,7 @@ class WorldRoom extends Room {
       if (cl) cl.send("spq", q);
     });
     // เงินแบ่งตามดาเมจ, ของดรอปตกพื้น (คนที่ทำดาเมจมากสุดมีสิทธิ์เก็บก่อน)
-    const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1) * (r.rank === 2 ? 8 : r.rank === 1 ? 3 : 1);
+    const gold = I.goldDrop(m.level) * (r.boss ? r.boss.goldMul : 1) * (r.rank === 2 ? 8 : r.rank === 1 ? 3 : 1) * (r.goldMul || 1);
     let top = null, topDmg = -1;
     r.dmgBy.forEach((dmg, pid) => {
       if (dmg > topDmg) { topDmg = dmg; top = pid; }
@@ -2115,7 +2125,7 @@ class WorldRoom extends Room {
       if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { goldGain: g, at: { x: m.x, y: m.y } }); }
     });
     const tp = top && this.state.players.get(top), rankMul = r.rank === 2 ? 6 : r.rank === 1 ? 3 : 1;
-    const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul;
+    const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul * (r.dropMul || 1);
     // ชั้นยอด/มินิบอส: ของดีขึ้น (อุปกรณ์ระดับขั้นต่ำสูงขึ้น)
     // ระดับของอุปกรณ์ที่ดรอป: มอนธรรมดา = สูงสุดสีน้ำเงิน (หายาก) · ชั้นยอด = ดีขึ้นไป · มินิบอส = น้ำเงินขึ้นไป (ม่วง/ทองมีโอกาส)
     const gearOf = (id) => {
@@ -2146,7 +2156,7 @@ class WorldRoom extends Room {
       if (Q && Q.item) questWant.add(Q.item[0]);
       for (const sid of Object.keys((pp.bag && pp.bag.spq) || {})) { const SQ = SP.SPIRIT_QUESTS[sid]; if (SQ && SQ.item) questWant.add(SQ.item[0]); }
     });
-    for (const [id0, chance, lo, hi] of table) {
+    for (let roll = 0; roll < (r.lootRolls || 1); roll++) for (const [id0, chance, lo, hi] of table) { // ผู้คุมรอยแยก: ทอยตารางดรอปหลายรอบ
       if (!(Math.random() < chance * dropMul * (questWant.has(id0) ? 2 : 1))) continue;
       let id = id0;
       // ชุดอาชีพ: 1/3 ถูกสลับเป็นของอาชีพคนที่ตีมากสุด → รวมแล้ว ~40% เป็นของอาชีพตัวเอง
@@ -2214,7 +2224,7 @@ class WorldRoom extends Room {
       pr.target = null; pr.pending = null; pr.moveTarget = null; pr.dx = pr.dy = 0; pr.buffs = {}; pr.combo = 0;
       pr.deadUntil = now() + RESPAWN_PLAYER_MS; pr.respawnPick = null; pr.autoWas = wasAuto;
       const cl0 = this.clients.find((c) => c.sessionId === pid);
-      if (cl0 && this.mapId !== W.START_MAP) cl0.send("died", { wait: RESPAWN_PLAYER_MS, auto: RESPAWN_AUTO_MS, crystals: this.crystals.length });
+      if (cl0 && this.mapId !== W.START_MAP) cl0.send("died", { wait: RESPAWN_PLAYER_MS, auto: RESPAWN_AUTO_MS, crystals: this.crystals.length, ...this.rfDeathInfo(pid) });
       this.mr.forEach((mr) => { if (mr.target === pid) { mr.target = null; mr.returning = true; } });
       const loss = Math.min(p.exp, Math.floor(p.expNext * 0.01));
       p.exp -= loss;
@@ -2976,6 +2986,7 @@ class WorldRoom extends Room {
   respawnAt(id, p, r, where) {
     r.respawnPick = null;
     const cl = this.clients.find((c) => c.sessionId === id);
+    if (where === "crystal" && this.def.horde && this.rfRevive(id, p, r, cl)) return;
     if (where === "crystal" && this.crystals.length) {
       const c = this.crystals.reduce((a, b) => (dist(p, a) <= dist(p, b) ? a : b));
       p.x = c.x; p.y = this.canStand(c.x, c.y + 46) ? c.y + 46 : this.canStand(c.x, c.y + 26) ? c.y + 26 : c.y; p.dir = "down"; p.dead = false; r.poison = null;
@@ -3197,6 +3208,7 @@ class WorldRoom extends Room {
   dungeonTick() {
     const g = this.dgs, t = Date.now();
     if (!this.dg) { if (!this.dgClosed && t - (this.createdAt || (this.createdAt = t)) > 15000) this.dgClose(); return; }
+    if (this.def.horde) return this.rfTick(t);
     if (g.phase === "wait" && this.clients.length) { g.phase = "prep"; g.at = t + 8000; g.start = t; g.endAt = t + 8000 + SD.TIME_MS; }
     else if (g.phase === "prep" && t >= g.at) this.dgWave(1);
     else if (g.phase === "wave" || g.phase === "boss") {
@@ -3218,6 +3230,179 @@ class WorldRoom extends Room {
     const g = this.dgs, E = SD.ELEMENTS[this.def.el], Df = SD.DIFFS[this.dg.diff];
     this.broadcast("dungeon", { el: this.def.el, name: `ธาตุ${E.name} · ${Df.name}`, color: E.color, phase: g.phase, wave: g.wave, waves: SD.WAVES, left: g.left,
       timeLeft: g.endAt ? Math.max(0, g.endAt - t) : SD.TIME_MS, next: g.at ? Math.max(0, g.at - t) : 0, boss: E.boss.name });
+  }
+
+  // ================= รอยแยกมิติ (ดันฝูงมอน) =================
+  riftStart(client, m) {
+    const pid = client.sessionId, p = this.state.players.get(pid), r = this.pr.get(pid);
+    const T = RF.tiers()[Math.floor(Number(m.tier))];
+    if (!p || !r || !T) return;
+    if (!this.nearNpc(p, "spiritkeeper")) return client.send("toast", "เดินเข้าใกล้ลูน่า (ผู้ผนึกภูติ) ก่อน");
+    const pt = parties.get(partyOf.get(r.charId));
+    if (pt && pt.leader !== r.charId) return client.send("toast", "หัวหน้าปาร์ตี้เท่านั้นที่เปิดรอยแยกได้");
+    if (p.dead || p.warp) return client.send("toast", "ตอนนี้เข้ารอยแยกไม่ได้");
+    if (p.level < T.req) return client.send("toast", `ต้อง Lv.${T.req} ขึ้นไป`);
+    if (!p.bag || p.bag.gold < T.price) return client.send("toast", `gold ไม่พอ (ต้องใช้ ${T.price.toLocaleString()})`);
+    const inst = "rf" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const g = { inst, horde: true, tier: T.i, leader: r.charId, members: new Set([r.charId]), invited: new Set(), created: Date.now(), over: false, size: 1, lives: new Map() };
+    const pulled = [], skipped = [];
+    if (pt) for (const cid of pt.members) {
+      if (cid === r.charId || g.members.size >= RF.PARTY_MAX) continue;
+      const w = who(cid), c = clientOf(cid);
+      if (!w || !c) continue;
+      const why = w.o.room.def.type === "dungeon" ? "อยู่ในดันเจี้ยนอื่น" : w.p.dead ? "ตายอยู่" : w.p.warp ? "กำลังย้ายแผนที่" : w.p.level < T.req ? `เลเวลไม่ถึง ${T.req}` : null;
+      if (why) { skipped.push(`${w.p.name} (${why})`); c.send("toast", `เข้ารอยแยกกับปาร์ตี้ไม่ได้: ${why}`); continue; }
+      g.members.add(cid); pulled.push({ w, c });
+    }
+    g.size = g.members.size;
+    dungeons.set(inst, g);
+    p.bag.gold -= T.price; this.sendInv(pid); this.save(pid);
+    const map = RF.mapId(T.season);
+    for (const { w, c } of pulled) {
+      c.send("system", `🔥 ${p.name} (หัวหน้าปาร์ตี้) พาเข้ารอยแยกมิติ · ${T.name}`);
+      w.o.room.warpPlayer(w.o.sessionId, map, null, { inst });
+    }
+    if (skipped.length) client.send("system", `🔥 เพื่อนที่เข้ารอยแยกไม่ได้: ${skipped.join(", ")}`);
+    console.log(`[rift] ${p.name} เปิด ${T.name} (${inst}) ${g.size} คน`);
+    this.warpPlayer(pid, map, null, { inst });
+  }
+  rfTier() { return RF.tiers()[this.dg.tier]; }
+  rfDeathInfo(pid) {
+    if (!this.def.horde || !this.dg || this.dg.over) return {};
+    const r = this.pr.get(pid), left = RF.LIVES - ((r && this.dg.lives.get(r.charId)) || 0);
+    return left > 0 ? { crystals: 1, rift: left } : {};
+  }
+  // จุดเกิดฝูง: ห่างผู้เล่นทุกคนพอสมควร (วิ่งเข้ามาจากขอบจอ)
+  rfPackSpot() {
+    const ps = [...this.state.players.values()].filter((q) => !q.dead);
+    const c = ps.length ? ps[Math.floor(Math.random() * ps.length)] : this.map.spawn;
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random() * Math.PI * 2, d = rand(420, 640);
+      const x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d * 0.8;
+      if (!this.canStand(x, y)) continue;
+      if (ps.some((q) => dist(q, { x, y }) < 360)) continue;
+      return { x, y };
+    }
+    return this.mobSpot();
+  }
+  rfMob(kind, at, kindOf) {
+    const T = this.rfTier(), base = D.MONSTERS[kind], n = Math.max(1, this.dg.size || 1);
+    const boss = kindOf === "boss", lead = kindOf === "leader";
+    const strip = boss ? {} : { charge: undefined, healer: undefined, flee: 0 };
+    const def = { ...base, aggressive: true, ...strip, speed: (base.speed || 60) * (boss ? 1 : RF.MOB.speed),
+      ...(boss ? { name: "ผู้คุมรอยแยก · " + base.name, charge: base.charge || { every: 7000, mult: 1.8 }, flee: 0 } : {}) };
+    const id = "h" + this.mobSeq++, m = new Monster();
+    const lv = T.lv + (boss ? 3 : 0);
+    m.kind = kind; m.name = def.name; m.level = lv; m.sprite = base.sprite || kind;
+    m.tint = boss ? 0xff7ad0 : lead ? 0xffd27a : (base.tint || 0xffffff);
+    m.scale = (base.scale || 1) * (boss ? RF.BOSS.scale : lead ? RF.LEADER.scale : 1); m.rank = boss ? 2 : lead ? 1 : 0;
+    const st = D.monsterStats(lv), K = boss ? null : lead ? RF.LEADER : null, M = RF.MOB;
+    const stats = boss ? { maxHp: Math.round(st.maxHp * (RF.BOSS.hp + RF.BOSS.hpPer * (n - 1))), atk: Math.round(st.atk * RF.BOSS.atk), def: Math.round(st.def * 1.2), exp: Math.round(st.exp * RF.BOSS.exp) }
+      : { maxHp: Math.max(1, Math.round(st.maxHp * M.hp * (K ? K.hp : 1) * (1 + 0.12 * (n - 1)))), atk: Math.round(st.atk * (K ? K.atk : M.atk)), def: Math.round(st.def * 0.6), exp: Math.max(1, Math.round(st.exp * M.exp * (K ? K.exp : 1))) };
+    m.x = at.x; m.y = at.y; m.dir = "down"; m.moving = false; m.dead = false; m.maxHp = stats.maxHp; m.hp = m.maxHp;
+    this.state.monsters.set(id, m);
+    this.mr.set(id, { def, stats, base: stats, temp: true, horde: true, hunt: true, rfBoss: boss, rank: m.rank, home: { ...at },
+      atkMs: boss ? 0 : RF.MOB.atkMs, goldMul: boss ? 3 : RF.MOB.gold, dropMul: boss ? 1 : RF.MOB.drop, lootRolls: boss ? RF.BOSS.loot : 1,
+      target: null, wander: null, nextWander: 0, atkReady: Date.now() + 600, respawnAt: Infinity, dmgBy: new Map() });
+    return id;
+  }
+  rfPack() {
+    const T = this.rfTier(), at = this.rfPackSpot();
+    const kind = T.kinds[Math.floor(Math.random() * T.kinds.length)];
+    const n = rand(RF.PACK[0], RF.PACK[1] + 1) | 0;
+    let made = 0;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 46, pos = { x: at.x + Math.cos(a) * d, y: at.y + Math.sin(a) * d * 0.8 };
+      if (!this.canStand(pos.x, pos.y)) { pos.x = at.x; pos.y = at.y; }
+      this.rfMob(i === 0 && Math.random() < 0.35 ? T.kinds[Math.floor(Math.random() * T.kinds.length)] : kind, pos, i === 0 && Math.random() < 0.35 ? "leader" : "mob");
+      made++;
+    }
+    this.broadcast("riftPack", { x: at.x, y: at.y });
+    return made;
+  }
+  rfAlive() { let n = 0; this.mr.forEach((r, id) => { const m = this.state.monsters.get(id); if (r.horde && m && !m.dead) n++; }); return n; }
+  rfTick(t) {
+    const g = this.dgs, size = Math.max(1, this.dg.size || 1);
+    g.need = g.need || RF.NEED(size);
+    if (g.phase === "wait" && this.clients.length) { g.phase = "prep"; g.at = t + 6000; g.start = t; g.endAt = t + 6000 + RF.TIME_MS; g.kills = 0; }
+    else if (g.phase === "prep" && t >= g.at) { g.phase = "wave"; this.broadcast("announce", "🔥 รอยแยกเปิดแล้ว! ฝูงมอนกำลังทะลักออกมา"); }
+    else if (g.phase === "wave") {
+      if (g.kills >= g.need) {
+        g.phase = "boss"; g.bossDead = false;
+        const T = this.rfTier(), big = [...T.kinds].sort((a, b) => (D.MONSTERS[b].scale || 1) - (D.MONSTERS[a].scale || 1))[0];
+        this.rfMob(big, this.rfPackSpot(), "boss");
+        this.broadcast("announce", "⚠️ ผู้คุมรอยแยกปรากฏตัว!");
+      } else {
+        const cap = RF.ALIVE_CAP(size), alive = this.rfAlive();
+        // ทะลักเข้ามาเรื่อย ๆ: มอนน้อย → มาทีละ 2 ฝูง
+        if (alive < cap) { this.rfPack(); if (alive < cap * 0.5) this.rfPack(); }
+      }
+    } else if (g.phase === "boss" && g.bossDead) this.rfClear(t);
+    else if ((g.phase === "clear" || g.phase === "fail") && t >= g.at) this.dgClose();
+    if (["prep", "wave", "boss"].includes(g.phase) && t >= g.endAt) this.dgFail("หมดเวลา");
+    if (!this.clients.length) { g.empty = g.empty || t; if (t - g.empty > 60000) this.dgClose(); } else g.empty = 0;
+    this.rfSendState(t);
+  }
+  rfClear(t) {
+    const g = this.dgs, T = this.rfTier();
+    g.phase = "clear"; g.at = t + 25000; this.dg.over = true;
+    this.state.players.forEach((p, sid) => {
+      const r = this.pr.get(sid);
+      if (!p || !p.bag || !r || !this.dg.members.has(r.charId)) return;
+      p.bag.gold += T.gold; this.sendInv(sid); this.save(sid);
+      const c = this.clients.find((x) => x.sessionId === sid);
+      if (c) c.send("dungeonClear", { rift: true, items: [], gold: T.gold, kills: g.kills, name: `รอยแยกมิติ · ${T.name}`, leave: 25000 });
+    });
+    // มอนที่เหลือสลายไป
+    this.mr.forEach((r, id) => { const m = this.state.monsters.get(id); if (r.horde && m && !m.dead) { m.dead = true; this.clock.setTimeout(() => { this.state.monsters.delete(id); this.mr.delete(id); }, 900); } });
+    this.broadcast("announce", `🏆 ปิดรอยแยกสำเร็จ! เก็บของให้ทันใน 25 วินาที`);
+    console.log(`[rift] เคลียร์ ${T.name} (${this.inst}) ฆ่า ${g.kills} ตัว ${Math.round((t - g.start) / 1000)} วิ`);
+  }
+  rfSendState(t) {
+    const g = this.dgs, T = this.rfTier();
+    this.broadcast("dungeon", { rift: true, name: `รอยแยกมิติ · ${T.name}`, color: "#ff6a3d", phase: g.phase, kills: g.kills || 0, need: g.need,
+      left: this.rfAlive(), timeLeft: g.endAt ? Math.max(0, g.endAt - t) : RF.TIME_MS, next: g.at ? Math.max(0, g.at - t) : 0, boss: "ผู้คุมรอยแยก" });
+  }
+  // ตายในรอยแยก: เกิดใหม่กลางลานได้ RF.LIVES ครั้ง
+  rfRevive(id, p, r, cl) {
+    if (!this.dg || this.dg.over) return false;
+    const L = this.dg.lives, used = L.get(r.charId) || 0;
+    if (used >= RF.LIVES) { if (cl) cl.send("toast", "ใช้โอกาสเกิดใหม่ในรอยแยกครบแล้ว — กลับเมือง"); return false; }
+    L.set(r.charId, used + 1);
+    const s = this.townSpawn();
+    p.x = s.x; p.y = s.y; p.dir = "down"; p.dead = false; r.poison = null;
+    p.hp = Math.max(1, Math.floor(p.maxHp * 0.6)); p.sp = Math.max(p.sp, Math.floor(p.maxSp * 0.5));
+    r.safeUntil = now() + RESPAWN_SAFE_MS; r.nav = null; r.moveTarget = null; r.target = null; r.pick = null;
+    if (cl) { cl.send("respawned", { where: "crystal", x: p.x, y: p.y }); cl.send("toast", `เกิดใหม่ในรอยแยก (เหลือ ${RF.LIVES - used - 1} ครั้ง)`); }
+    this.broadcast("spawnFx", { id, x: p.x, y: p.y });
+    if (r.autoWas) { this.setAuto(id, true); r.autoWas = false; }
+    return true;
+  }
+  // มอนฝูงไม่ทับกันเป็นก้อนเดียว: ดันออกจากกันเล็กน้อย
+  rfSeparate() {
+    const list = [], byTgt = new Map();
+    this.mr.forEach((r, id) => {
+      const m = this.state.monsters.get(id);
+      if (!r.horde || !m || m.dead || r.rfBoss) return;
+      list.push(m);
+      if (r.target) { const p = this.state.players.get(r.target); if (p) { if (!byTgt.has(p)) byTgt.set(p, []); byTgt.get(p).push([dist(m, p), r]); } }
+      r.canHit = false;
+    });
+    // สิทธิ์ตี: ตัวที่ใกล้เป้าที่สุด ATTACKERS ตัว
+    byTgt.forEach((arr) => { arr.sort((a, b) => a[0] - b[0]); for (let i = 0; i < Math.min(RF.ATTACKERS, arr.length); i++) arr[i][1].canHit = true; });
+    const R = 22;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      for (let j = i + 1; j < list.length; j++) {
+        const b = list[j], dx = b.x - a.x, dy = b.y - a.y;
+        if (dx > R || dx < -R || dy > R || dy < -R) continue;
+        const d = Math.hypot(dx, dy) || 0.01;
+        if (d >= R) continue;
+        const k = ((R - d) / d) * 0.25, px = dx * k, py = dy * k;
+        if (this.canStand(a.x - px, a.y - py)) { a.x -= px; a.y -= py; }
+        if (this.canStand(b.x + px, b.y + py)) { b.x += px; b.y += py; }
+      }
+    }
   }
 
   // ================= วาร์ปข้ามแผนที่ =================

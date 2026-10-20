@@ -19,7 +19,7 @@ function renderSpirit() {
   if (!panel || panel.hidden || !gameData || !gameData.spirits) return;
   const me = myPlayer();
   if (!me) return;
-  if (typeof renderSpiritMode === "function" && renderSpiritMode()) return renderDungeon(); // แท็บดันเจี้ยนภูติ (dungeon-ui.js)
+  if (typeof renderSpiritMode === "function" && renderSpiritMode()) return spMode === "rift" ? renderRift() : renderDungeon(); // แท็บดันเจี้ยนภูติ (dungeon-ui.js)
   const S = gameData.spirits, Q = gameData.spiritQuests, spq = INV.spq || {};
   $("spiritTabs").innerHTML = SP_ORDER.map((id) => {
     const cls = ["sp-tab", id === spSel && "sel", spOwned(id) && "own", id in spq && "active", me.level < S[id].lv && "lock"].filter(Boolean).join(" ");

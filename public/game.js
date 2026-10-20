@@ -344,6 +344,7 @@ function bindRoom(room) {
     room.onMessage("dungeon", (d) => onDungeonState(d));
     room.onMessage("dungeonInvite", (d) => onDungeonInvite(d));
     room.onMessage("dungeonClear", (d) => onDungeonClear(d));
+    room.onMessage("riftPack", (d) => { if (scene && typeof riftFx === "function") riftFx(scene, d); });
     if (typeof hideDungeonHud === "function") hideDungeonHud();
     if (typeof cancelAim === "function") cancelAim();
     if (typeof closeSpirit === "function") closeSpirit(); // หน้าต่างลูน่าใช้ได้แค่ในเมือง // ห้องใหม่: ถ้าเป็นดัน เซิร์ฟเวอร์จะส่งสถานะมาเอง
@@ -793,7 +794,7 @@ class WorldScene extends Phaser.Scene {
     this.buildNpcs(map.npcs || []);
     this.buildPortals(map.portals || []);
     this.buildCrystals(map.crystals || []);
-    $("mapName").textContent = map.name + (map.lv ? ` Lv.${map.lv[0]}–${map.lv[1]}` : " · ปลอดภัย");
+    $("mapName").textContent = map.name + (map.lv ? ` Lv.${map.lv[0]}–${map.lv[1]}` : map.horde || /^(sd|rf)_/.test(room.mapId || "") ? "" : " · ปลอดภัย");
     if (map.online) $("online").textContent = map.online;
     buildMinimap(map);
     if (typeof setupAmbient === "function") setupAmbient(this, map);
@@ -2468,7 +2469,7 @@ function showDeath(d) {
   const hasC = deathInfo.crystals > 0;
   // สร้างปุ่มครั้งเดียว แล้วอัปเดตแค่ข้อความ/สถานะ (สร้างใหม่ทุกครั้งจะทำให้คลิกหลุด)
   el.innerHTML = `<b>คุณถูกล้ม</b><div class="death-sub" id="dsSub"></div>
-    <div class="death-acts">${hasC ? `<button type="button" class="btn-gold" id="rsCrystal" disabled>💎 เกิดที่คริสตัลใกล้สุด<small>HP/SP 50%</small></button>` : ""}
+    <div class="death-acts">${hasC ? `<button type="button" class="btn-gold" id="rsCrystal" disabled>${deathInfo.rift ? `🔥 เกิดใหม่ในรอยแยก<small>เหลือ ${deathInfo.rift} ครั้ง · HP 60%</small>` : "💎 เกิดที่คริสตัลใกล้สุด<small>HP/SP 50%</small>"}</button>` : ""}
     <button type="button" class="btn-ghost" id="rsTown" disabled>🏠 กลับเมือง<small>HP เต็ม</small></button></div>`;
   const pick = (where) => { if (!deathInfo || deathInfo.picked) return; room.send("respawn", { where }); deathInfo.picked = true; draw(); };
   if ($("rsCrystal")) $("rsCrystal").onclick = () => pick("crystal");
@@ -2476,7 +2477,7 @@ function showDeath(d) {
   const draw = () => {
     if (!deathInfo) return;
     const t = performance.now() - deathInfo.at, wait = Math.max(0, deathInfo.wait - t), auto = Math.max(0, deathInfo.auto - t), can = wait <= 0 && !deathInfo.picked;
-    $("dsSub").textContent = deathInfo.picked ? "กำลังเกิด…" : wait > 0 ? `รอ ${Math.ceil(wait / 1000)} วิ…` : `เลือกจุดเกิด · ไม่เลือกภายใน ${Math.ceil(auto / 1000)} วิ จะเกิดที่${hasC ? "คริสตัลใกล้สุด" : "เมือง"}`;
+    $("dsSub").textContent = deathInfo.picked ? "กำลังเกิด…" : wait > 0 ? `รอ ${Math.ceil(wait / 1000)} วิ…` : `เลือกจุดเกิด · ไม่เลือกภายใน ${Math.ceil(auto / 1000)} วิ จะเกิดที่${deathInfo.rift ? "กลางรอยแยก" : hasC ? "คริสตัลใกล้สุด" : "เมือง"}`;
     for (const id of ["rsCrystal", "rsTown"]) { const btn = $(id); if (btn && btn.disabled === can) btn.disabled = !can; }
   };
   draw();

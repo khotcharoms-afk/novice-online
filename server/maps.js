@@ -101,6 +101,8 @@ const MAPS = {
 };
 // ดันเจี้ยนภูติ (แผนที่ส่วนตัว ไม่มีทางเชื่อม · ดู server/sdungeon.js)
 Object.assign(MAPS, require("./sdungeon").maps());
+// รอยแยกมิติ (ดันฝูงมอน · ดู server/rift.js)
+Object.assign(MAPS, require("./rift").maps());
 const START_MAP = "town";
 const OPPOSITE = { N: "S", S: "N", E: "W", W: "E" };
 

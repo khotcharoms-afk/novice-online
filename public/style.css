@@ -937,3 +937,6 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 @media (max-width: 700px) { #aimHint { white-space: normal; width: calc(100vw - 32px); text-align: center; bottom: 120px; } }
 .sk-qc { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: #cfd6ee; cursor: pointer; }
 .amb-btn.off { opacity: .45; filter: grayscale(1); }
+.rf-tiers { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.rf-bar { height: 8px; border-radius: 6px; background: rgba(0,0,0,.45); overflow: hidden; margin: 6px 0 4px; border: 1px solid rgba(255,140,80,.35); }
+.rf-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff4a2a, #ffb04a); box-shadow: 0 0 8px #ff6a3d; transition: width .4s; }
