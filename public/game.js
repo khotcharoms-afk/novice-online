@@ -344,6 +344,7 @@ function bindRoom(room) {
     room.onMessage("dungeon", (d) => onDungeonState(d));
     room.onMessage("dungeonInvite", (d) => onDungeonInvite(d));
     room.onMessage("dungeonClear", (d) => onDungeonClear(d));
+    room.onMessage("status", (d) => { if (scene && typeof pfxStatus === "function") pfxStatus(scene, d); });
     room.onMessage("riftPack", (d) => { if (scene && typeof riftFx === "function") riftFx(scene, d); });
     if (typeof hideDungeonHud === "function") hideDungeonHud();
     if (typeof cancelAim === "function") cancelAim();
@@ -562,7 +563,7 @@ class WorldScene extends Phaser.Scene {
     $s(room.state).drops.onAdd((d, id) => this.addDrop(d, id));
     $s(room.state).drops.onRemove((_d, id) => {
       const o = this.dropViews.get(id);
-      if (o) { const g = o.getData("glow"); if (g) g.destroy(); o.destroy(); }
+      if (o) { const g = o.getData("glow"); if (g) g.destroy(); const bm = o.getData("beam"); if (bm && bm.stopFx) bm.stopFx(); o.destroy(); }
       this.dropViews.delete(id);
     });
     room.onMessage("inv", (v) => {
@@ -574,6 +575,7 @@ class WorldScene extends Phaser.Scene {
       const me = this.views.get(room.sessionId), it = gameData && gameData.items[item];
       const col = it && it.type === "equip" && r > 0 ? gameData.rarity[r].color : "#9fe3ff";
       if (me && it) this.floatText(me.root.x, me.root.y - 88, `+${it.name}${n > 1 ? " ×" + n : ""}`, col, 12, 1100);
+      if (me && it && it.type === "equip" && typeof pfxPickup === "function") pfxPickup(this, me);
     });
 
     // ---------- เหตุการณ์ต่อสู้ ----------
@@ -979,6 +981,7 @@ class WorldScene extends Phaser.Scene {
       this.tweens.add({ targets: glow, alpha: { from: 1, to: 0.4 }, duration: 700, yoyo: true, repeat: -1 });
       img.setData("glow", glow);
     }
+    if (rar && typeof pfxDrop === "function") pfxDrop(this, img, d.r || 0);
     img.on("pointerover", () => showTip(`${it ? it.name : d.item}${rar && d.r > 0 ? ` [${rar.name}]` : ""}${d.n > 1 ? " ×" + d.n : ""}`));
     img.on("pointerout", hideTip);
     this.tweens.add({ targets: img, y: { from: d.y - 18, to: d.y }, duration: 380, ease: "Bounce.easeOut" });
@@ -1001,7 +1004,7 @@ class WorldScene extends Phaser.Scene {
     const v = this.views.get(tgt);
     if (!v) return;
     if (poison) { // พิษ: ตัวเลขเขียวเล็ก ๆ เฉพาะคนที่โดน
-      if (tgt === room.sessionId) { this.floatText(v.root.x + Phaser.Math.Between(-8, 8), v.root.y - 64, String(dmg), "#7dff6a", 12, 700); v.sprite.setTint(0x9dff8a); this.time.delayedCall(200, () => v.sprite.clearTint()); }
+      if (tgt === room.sessionId) { this.floatText(v.root.x + Phaser.Math.Between(-8, 8), v.root.y - 64, String(dmg), "#7dff6a", 12, 700); v.sprite.setTint(0x9dff8a); this.time.delayedCall(200, () => v.sprite.clearTint()); if (typeof pfxStatus === "function") pfxStatus(this, { id: tgt, k: "poison", ms: 1600 }); }
       return;
     }
     const mine = src === room.sessionId, onMe = tgt === room.sessionId;
@@ -1012,6 +1015,7 @@ class WorldScene extends Phaser.Scene {
     if (miss) { this.floatText(x, y, "MISS", "#c7cbe0", 12); return; }
     const color = onMe ? "#ff5a5a" : crit ? "#ffb03a" : sp && mine ? "#9fe8ff" : mine ? "#ffffff" : "#c7cbe0";
     this.floatText(x, y, crit ? dmg + "!" : String(dmg), color, crit ? 20 : mine || onMe ? 16 : 12);
+    if (typeof pfxHit === "function") pfxHit(this, v, crit, mine);
     if (!v.dead) {
       v.sprite.setTintFill(0xffffff);
       this.time.delayedCall(70, () => v.sprite.clearTint());
@@ -1377,6 +1381,7 @@ class WorldScene extends Phaser.Scene {
     if (!this.__slow) return WorldScene.prototype.skillFx.call(slowFxScene(this), f, self);
     const v = this.views.get(f.id);
     if (!v) return;
+    if (typeof pfxSkill === "function") try { pfxSkill(this, f, v); } catch (e) { console.warn("pfx", f.skill, e); }
     const fx = f.fx || {};
     const wt = f.wt;
     if (typeof SKILL2_FX !== "undefined" && SKILL2_FX[f.skill]) { // อาชีพขั้น 2: ท่า + เอฟเฟกต์เฉพาะสกิล (skillfx2.js)
@@ -1524,12 +1529,14 @@ class WorldScene extends Phaser.Scene {
       this.tweens.add({ targets: ring, scaleX: 5, scaleY: 5, alpha: 0, duration: 1300, onComplete: () => ring.destroy() });
       this.sparkle(v.root.x, v.root.y - 24, 0xffffff); this.sparkle(v.root.x, v.root.y - 30, 0xc38bff);
       this.floatText(v.root.x, v.root.y - 100, "เปลี่ยนอาชีพ!", "#ffffff", 18, 2000);
+      if (typeof pfxPlay === "function") pfxPlay(this, "resurrection", v.root.x, v.root.y, { must: true });
       return;
     }
     const ring = this.add.ellipse(v.root.x, v.root.y - 2, 20, 8).setStrokeStyle(3, 0xffd36b).setDepth(-8000);
     this.tweens.add({ targets: ring, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 900, onComplete: () => ring.destroy() });
     this.sparkle(v.root.x, v.root.y - 24, 0xffd36b);
-    this.floatText(v.root.x, v.root.y - 100, "LEVEL UP!", "#ffd36b", 18, 1600);
+    if (typeof pfxLevelUp === "function" && PFX && pfxOn()) pfxLevelUp(this, v); // ภาพ LEVEL UP จาก pixelfx
+    else this.floatText(v.root.x, v.root.y - 100, "LEVEL UP!", "#ffd36b", 18, 1600);
   }
 
   showBubble(view, text) {
@@ -1727,7 +1734,7 @@ class WorldScene extends Phaser.Scene {
       // ชื่อมอนแสดงเฉพาะตอนชี้เมาส์ / เป็นเป้าหมาย / โดนตี (จอจะได้ไม่รก)
       if (v.isMob) v.label.setVisible(!v.dead && (v.e.boss || v.e.rank || v.hover || this.myTarget === v.id || v.e.hp < v.e.maxHp));
       if (v.dead) {
-        if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); }
+        if (!v.deadShown) { v.deadShown = true; v.sprite.play(`${v.key}:die`); this.tweens.add({ targets: r, alpha: 0.75, duration: 400 }); if (typeof pfxDeath === "function") pfxDeath(this, v); }
         return;
       }
       if (!v.isMob && gameData && (v.e.glow || "") !== v.glowStr && !(this.lazyPending && this.lazyPending.size) && time >= (v.glowRetry || 0)) { v.glowRetry = time + 500; this.buildGlow(v, v.e); }

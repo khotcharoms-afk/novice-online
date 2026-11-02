@@ -2046,10 +2046,10 @@ class WorldRoom extends Room {
       if (hl > 0) { p.hp += hl; if (hl >= 5) this.broadcast("heal", { id: pid, amount: hl }); }
     }
     // อาบยาพิษ: ทุกการโจมตีใส่พิษ (ไม่ซ้อน — ต่อเวลา)
-    if (md.poison && !opts.spirit && !opts.dot) { r.dots = r.dots || {}; r.dots[pid] = { dmg: Math.max(1, Math.round(p.atk * md.poison)), until: t0 + 5000 }; }
+    if (md.poison && !opts.spirit && !opts.dot) { r.dots = r.dots || {}; r.dots[pid] = { dmg: Math.max(1, Math.round(p.atk * md.poison)), until: t0 + 5000 }; this.broadcast("status", { id: mid, k: "poison", ms: 5000 }); }
     if (!r.target) { r.target = pid; r.returning = false; this.callPack(m, pid); }
-    if (opts.stun) r.stunUntil = now() + opts.stun;
-    if (opts.slow) r.slowUntil = now() + opts.slow;
+    if (opts.stun) { r.stunUntil = now() + opts.stun; this.broadcast("status", { id: mid, k: "stun", ms: opts.stun }); }
+    if (opts.slow) { r.slowUntil = now() + opts.slow; this.broadcast("status", { id: mid, k: "slow", ms: opts.slow }); }
     if (m.hp <= 0) this.killMob(mid, m, r);
     return res;
   }
