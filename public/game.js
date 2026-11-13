@@ -366,6 +366,8 @@ function bindRoom(room) {
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
     room.onMessage("bossBoard", (d) => onBossBoard(d));
     room.onMessage("daily", (d) => { if (typeof onDaily === "function") onDaily(d); });
+    room.onMessage("ach", (d) => { if (typeof onAch === "function") onAch(d); });
+    room.onMessage("achDone", (d) => { if (typeof onAchDone === "function") onAchDone(d); });
     room.onMessage("party", (d) => onParty(d));
     room.onMessage("storage", (d) => onStorage(d));
     room.onMessage("rebirthDone", (d) => onRebirthDone(d));
@@ -904,6 +906,11 @@ class WorldScene extends Phaser.Scene {
       v.label.setColor(v.isMe ? "#ffd36b" : typeof partyNames === "function" && partyNames().has(e.name) ? "#7dff9a" : "#ffffff");
       if (v.isMe && e.job !== v.lastJob) { v.lastJob = e.job; if (gameData) { buildSkillBar(); if (typeof renderQuestTrack === "function") renderQuestTrack(); } }
       v.label.setText(`${e.name}  Lv.${lv}`);
+      if ((e.title || "") !== (v.titleStr || "")) { // ฉายาเหนือชื่อ
+        v.titleStr = e.title || "";
+        if (!v.titleTxt) { v.titleTxt = this.add.text(0, v.label.y - 13, "", { fontFamily: "Mitr, sans-serif", fontSize: "10px", color: "#ffcf6a", stroke: "#2a1606", strokeThickness: 3, resolution: 2 }).setOrigin(0.5, 1); v.root.add(v.titleTxt); }
+        v.titleTxt.setText(v.titleStr ? `「${v.titleStr}」` : "").setVisible(!!v.titleStr);
+      }
       const st = !!e.stealth; // ล่องหน: ตัวเองเห็นจาง · คนอื่นแทบมองไม่เห็น
       if (v.stealthNow !== st) { v.stealthNow = st; v.root.setAlpha(st ? (v.isMe ? 0.45 : 0.12) : 1); }
       this.jobAura(v, e.job);

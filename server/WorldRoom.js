@@ -18,6 +18,7 @@ const SP = require("./spirits");
 const SD = require("./sdungeon");
 const RF = require("./rift");
 const DY = require("./daily");
+const AC = require("./achieve");
 // ดันเจี้ยนภูติที่เปิดอยู่: inst -> { inst, el, diff, leader, members: Set(charId), created, over }
 const dungeons = new Map();
 const CG = require("./classgear");
@@ -44,9 +45,17 @@ const AUTO_POTION_PCT = 35;    // ค่าเริ่มต้น: กิน�
 const AUTO_POTION_CD = 1200;   // AUTO กินยาได้ทุก 1.2 วินาที
 
 // ---------- ข้อมูลที่ซิงก์ไปให้ผู้เล่นทุกคน ----------
+// ข้อมูลมอนสำหรับสมุดบันทึก (อยู่แผนที่ไหน · ดรอปอะไร) — คำนวณครั้งเดียว
+let _mobInfo = null;
+const ACH_MOBINFO = () => _mobInfo || (_mobInfo = Object.fromEntries(Object.keys(D.MONSTERS).map((k) => {
+  const where = Object.entries(W.MAPS).filter(([, M]) => M.type === "field" && (M.spawns || []).some(([s]) => s === k)).map(([, M]) => M.name);
+  const drops = (I.DROPS[k] || []).filter(([id]) => I.ITEMS[id] && I.ITEMS[id].type !== "equip").slice(0, 6).map(([id, ch]) => [id, Math.round(ch * 1000) / 10]);
+  const eq = (I.DROPS[k] || []).filter(([id]) => I.ITEMS[id] && I.ITEMS[id].type === "equip").length;
+  return [k, { where, drops, eq }];
+})));
 class Player extends Schema {}
 defineTypes(Player, {
-  name: "string", look: "string", job: "string", jobName: "string",
+  name: "string", look: "string", job: "string", jobName: "string", title: "string", // title = ฉายาที่เลือกแสดง
   x: "number", y: "number", dir: "string", moving: "boolean", dead: "boolean", auto: "boolean", autoState: "string", autoX: "number", autoY: "number", autoR: "uint16",
   level: "uint16", exp: "uint32", expNext: "uint32",
   hp: "uint32", maxHp: "uint32", sp: "uint32", maxSp: "uint32",
@@ -546,6 +555,14 @@ class WorldRoom extends Room {
     this.onMessage("dailyGet", (client) => this.dailySend(client.sessionId));
     this.onMessage("dailyClaim", (client, m) => this.dailyClaim(client.sessionId, m || {}));
     this.onMessage("dailyBuy", (client, m) => this.dailyBuy(client.sessionId, m || {}));
+    this.onMessage("achGet", (client) => this.achSend(client.sessionId));
+    this.onMessage("setTitle", (client, m) => {
+      const p = this.state.players.get(client.sessionId);
+      if (!p) return;
+      const t = String((m && m.title) || "");
+      if (t && !AC.titles(p).includes(t)) return;
+      AC.ensure(p).title = t; p.title = t; this.saveSoon(client.sessionId); this.achSend(client.sessionId);
+    });
     this.onMessage("rebirth", (client, m) => this.rebirth(client, m || {}));
     this.onMessage("learnSkill", (client, m) => m && this.learnSkill(client, String(m.skill)));
     this.onMessage("chat", (client, text) => {
@@ -581,7 +598,7 @@ class WorldRoom extends Room {
     let sp2 = spot;
     if (SD.isDungeonMap(map) || RF.isRiftMap(map)) { map = W.START_MAP; sp2 = getMap(W.START_MAP).spawn; } // อยู่ในดันเจี้ยน = บันทึกเป็นที่เมือง (หลุด/รีสตาร์ท → กลับเมือง)
     return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp, map,
-      x: Math.round(sp2.x), y: Math.round(sp2.y), look: p.look, job: p.job, quest: p.quest || null, daily: p.daily || null, skills: { ...(p.skills || {}) },
+      x: Math.round(sp2.x), y: Math.round(sp2.y), look: p.look, job: p.job, quest: p.quest || null, daily: p.daily || null, ach: p.ach || null, skills: { ...(p.skills || {}) },
       stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])), ...Bag.saveBag(p.bag) };
   }
   save(pid) {
@@ -637,6 +654,8 @@ class WorldRoom extends Room {
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
     p.quest = c.quest && (D.JOB_QUESTS[c.quest.job] || D.JOB2_QUESTS[c.quest.job]) ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
     p.daily = DY.sanitize(c.daily);
+    p.ach = AC.sanitize(c.ach);
+    p.title = AC.titles(p).includes(p.ach.title) ? p.ach.title : "";
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = WHOLE_MAP;
     this.applyCharData(p, c);
@@ -663,6 +682,7 @@ class WorldRoom extends Room {
     this.clock.setTimeout(() => partyBack(c.id, c.party), 800);
     this.sendSkills(client.sessionId);
     this.dailyEvt(client.sessionId, { kind: "visit", map: this.mapId });
+    this.achGive(client.sessionId, AC.visit(p, this.mapId).concat(AC.check(p)));
     // (ไม่ประกาศ "เข้าสู่เกม" ให้ทุกคนแล้ว — เพื่อนในปาร์ตี้เห็นข้อความกลับเข้าเกมจากระบบปาร์ตี้)
     this.state.monsters.forEach((m) => { if (m.boss && !m.dead) client.send("system", `⚠️ World Boss ${m.name} อยู่ในแผนที่นี้! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`); });
   }
@@ -2036,6 +2056,7 @@ class WorldRoom extends Room {
     const sx = p.sx || {}, md = this.mods(pr), t0 = now();
     if (D.UNDEAD.includes(m.kind)) { if (opts.undead) mult *= opts.undead; if (sx.undeadDmg) mult *= 1 + sx.undeadDmg / 100; }
     if (r.doomUntil > t0) mult *= 1 + r.doomPct;                 // สาปเสื่อม: มอนโดนแรงขึ้น
+    mult *= AC.dmgMul(p, m.kind);                                 // สมุดมอน ★3
     let forceCrit = !!opts.crit;
     if (md.stealth && !opts.spirit) { forceCrit = true; if (opts.stealthMul) mult *= opts.stealthMul; this.breakStealth(pid); } // โจมตีจากเงา
     const res = this.calcDamage({ atk: p.atk * md.atk, lv: p.level, crit: forceCrit ? 1 : Math.min(0.9, p.crit + md.crit), hitBonus: p.hitBonus + (forceCrit ? 1 : 0),
@@ -2095,6 +2116,7 @@ class WorldRoom extends Room {
     });
     // ภารกิจรายวัน
     credit.forEach((pid) => this.dailyEvt(pid, { kind: "kill", mob: { kind: m.kind, level: m.level, rank: r.rank || 0 } }));
+    credit.forEach((pid) => this.achKill(pid, m, r));
     // เควสเปลี่ยนอาชีพ: นับตัวที่ฆ่า (ทุกคนที่ช่วยตี + เพื่อนปาร์ตี้ที่อยู่ใกล้)
     credit.forEach((pid) => {
       const pp = this.state.players.get(pid), q = pp && pp.quest, Q = q && D.JOB_QUESTS[q.job], Q2 = q && D.JOB2_QUESTS[q.job];
@@ -2133,7 +2155,7 @@ class WorldRoom extends Room {
       if (pp && pp.bag) { pp.bag.gold += g; this.sendInv(pid, { goldGain: g, at: { x: m.x, y: m.y } }); }
     });
     const tp = top && this.state.players.get(top), rankMul = r.rank === 2 ? 6 : r.rank === 1 ? 3 : 1;
-    const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul * (r.dropMul || 1);
+    const dropMul = (1 + ((tp && tp.sx && tp.sx.dropPct) || 0) / 100) * rankMul * (r.dropMul || 1) * (tp ? AC.dropMul(tp, m.kind) : 1); // สมุดมอน ★2
     // ชั้นยอด/มินิบอส: ของดีขึ้น (อุปกรณ์ระดับขั้นต่ำสูงขึ้น)
     // ระดับของอุปกรณ์ที่ดรอป: มอนธรรมดา = สูงสุดสีน้ำเงิน (หายาก) · ชั้นยอด = ดีขึ้นไป · มินิบอส = น้ำเงินขึ้นไป (ม่วง/ทองมีโอกาส)
     const gearOf = (id) => {
@@ -2260,6 +2282,7 @@ class WorldRoom extends Room {
       this.syncSkillPts(p);
     }
     if (p.level >= D.MAX_LEVEL) p.exp = 0;
+    if (leveled) this.achGive(pid, AC.check(p));
     if (leveled) {
       this.applyStats(p, true);
       this.sendSkills(pid);
@@ -3189,7 +3212,7 @@ class WorldRoom extends Room {
   dgClear() {
     const g = this.dgs, Df = SD.DIFFS[this.dg.diff], el = this.def.el, E = SD.ELEMENTS[el];
     g.phase = "clear"; g.at = Date.now() + 20000; this.dg.over = true;
-    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) this.dailyEvt(sid, { kind: "clear" }); });
+    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) { this.dailyEvt(sid, { kind: "clear" }); this.achGive(sid, AC.add(p, "sd")); } });
     const roll = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
     this.state.players.forEach((p, sid) => {
       const r = this.pr.get(sid);
@@ -3244,6 +3267,45 @@ class WorldRoom extends Room {
       timeLeft: g.endAt ? Math.max(0, g.endAt - t) : SD.TIME_MS, next: g.at ? Math.max(0, g.at - t) : 0, boss: E.boss.name });
   }
 
+  // ================= สมุดมอนสเตอร์ + ความสำเร็จ (server/achieve.js) =================
+  achSend(pid) {
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    if (!p || !cl) return;
+    cl.send("ach", { ...AC.view(p, ACH_MOBINFO()), titles: AC.titles(p) });
+  }
+  achKill(pid, m, r) {
+    const p = this.state.players.get(pid);
+    if (!p) return;
+    const res = AC.kill(p, { kind: m.kind, rank: r.rank || 0, boss: !!r.boss });
+    const cl = this.clients.find((c) => c.sessionId === pid);
+    if (res.first && cl) cl.send("toast", `📖 บันทึกมอนใหม่: ${m.name}`);
+    if (res.star) {
+      DY.ensure(p); p.daily.ap += AC.STAR_AP[res.star - 1];
+      if (cl) {
+        const bonus = res.star === 2 ? " · ดรอปจากมอนนี้ +10%" : res.star === 3 ? " · ดาเมจใส่มอนนี้ +5%" : "";
+        cl.send("system", `📖 สมุดมอน: ${m.name} ${"★".repeat(res.star)} — ได้เหรียญกิจกรรม ${AC.STAR_AP[res.star - 1]}${bonus}`);
+      }
+      this.saveSoon(pid);
+    }
+    this.achGive(pid, res.got);
+  }
+  // ให้รางวัลความสำเร็จที่เพิ่งปลดล็อก
+  achGive(pid, got) {
+    if (!got || !got.length) return;
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    if (!p || !p.bag) return;
+    DY.ensure(p);
+    for (const a of got) {
+      p.bag.gold += a.rw.gold || 0;
+      p.daily.ap += a.rw.ap || 0;
+      if (cl) {
+        cl.send("achDone", { name: a.name, rw: a.rw, title: a.title || null });
+        cl.send("system", `🏆 ความสำเร็จ: ${a.name} — ได้ ${(a.rw.gold || 0).toLocaleString()} gold · เหรียญกิจกรรม ${a.rw.ap}${a.title ? ` · ฉายา「${a.title}」` : ""}`);
+      }
+    }
+    this.sendInv(pid); this.saveSoon(pid);
+  }
+
   // ================= ภารกิจรายวัน (server/daily.js) =================
   dailySend(pid) {
     const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
@@ -3277,11 +3339,13 @@ class WorldRoom extends Room {
       if (d.bonus) return;
       if (!d.list.every((x) => x.claimed)) return cl.send("toast", "รับรางวัลทุกข้อก่อน แล้วค่อยรับโบนัส");
       d.bonus = true; rw = d.bonusRw;
+      this.achGive(pid, AC.add(p, "dailyAll"));
     } else {
       const x = d.list[m.i | 0];
       if (!x || x.claimed) return;
       if (x.have < x.need) return cl.send("toast", "ภารกิจนี้ยังไม่เสร็จ");
       x.claimed = true; rw = x.rw;
+      this.achGive(pid, AC.add(p, "daily"));
     }
     d.ap += rw.ap || 0;
     p.bag.gold += rw.gold || 0;
@@ -3418,7 +3482,7 @@ class WorldRoom extends Room {
   rfClear(t) {
     const g = this.dgs, T = this.rfTier();
     g.phase = "clear"; g.at = t + 25000; this.dg.over = true;
-    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) this.dailyEvt(sid, { kind: "clear" }); });
+    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) { this.dailyEvt(sid, { kind: "clear" }); this.achGive(sid, AC.add(p, "rift")); } });
     this.state.players.forEach((p, sid) => {
       const r = this.pr.get(sid);
       if (!p || !p.bag || !r || !this.dg.members.has(r.charId)) return;
