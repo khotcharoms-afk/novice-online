@@ -17,6 +17,7 @@ const Bag = require("./inventory");
 const SP = require("./spirits");
 const SD = require("./sdungeon");
 const RF = require("./rift");
+const DY = require("./daily");
 // ดันเจี้ยนภูติที่เปิดอยู่: inst -> { inst, el, diff, leader, members: Set(charId), created, over }
 const dungeons = new Map();
 const CG = require("./classgear");
@@ -542,6 +543,9 @@ class WorldRoom extends Room {
     this.onMessage("skill", (client, m) => this.useSkill(client, m));
     // ---------- เปลี่ยนอาชีพ ----------
     this.onMessage("jobQuest", (client, m) => this.jobQuest(client, m || {}));
+    this.onMessage("dailyGet", (client) => this.dailySend(client.sessionId));
+    this.onMessage("dailyClaim", (client, m) => this.dailyClaim(client.sessionId, m || {}));
+    this.onMessage("dailyBuy", (client, m) => this.dailyBuy(client.sessionId, m || {}));
     this.onMessage("rebirth", (client, m) => this.rebirth(client, m || {}));
     this.onMessage("learnSkill", (client, m) => m && this.learnSkill(client, String(m.skill)));
     this.onMessage("chat", (client, text) => {
@@ -575,9 +579,9 @@ class WorldRoom extends Room {
     const spot = p.warp || (deadOut ? getMap(W.START_MAP).spawn : dead ? this.townSpawn() : p);
     let map = p.warp ? p.warp.map : deadOut ? W.START_MAP : this.mapId;
     let sp2 = spot;
-    if (SD.isDungeonMap(map)) { map = W.START_MAP; sp2 = getMap(W.START_MAP).spawn; } // อยู่ในดันเจี้ยน = บันทึกเป็นที่เมือง (หลุด/รีสตาร์ท → กลับเมือง)
+    if (SD.isDungeonMap(map) || RF.isRiftMap(map)) { map = W.START_MAP; sp2 = getMap(W.START_MAP).spawn; } // อยู่ในดันเจี้ยน = บันทึกเป็นที่เมือง (หลุด/รีสตาร์ท → กลับเมือง)
     return { level: p.level, exp: p.exp, hp: dead ? p.maxHp : p.hp, sp: p.sp, map,
-      x: Math.round(sp2.x), y: Math.round(sp2.y), look: p.look, job: p.job, quest: p.quest || null, skills: { ...(p.skills || {}) },
+      x: Math.round(sp2.x), y: Math.round(sp2.y), look: p.look, job: p.job, quest: p.quest || null, daily: p.daily || null, skills: { ...(p.skills || {}) },
       stats: Object.fromEntries(D.STAT_KEYS.map((k) => [k, p[k]])), ...Bag.saveBag(p.bag) };
   }
   save(pid) {
@@ -632,6 +636,7 @@ class WorldRoom extends Room {
     p.look = D.sanitizeLook(c.look);
     p.job = D.JOB_NAME[c.job] ? c.job : "villager"; p.jobName = D.JOB_NAME[p.job];
     p.quest = c.quest && (D.JOB_QUESTS[c.quest.job] || D.JOB2_QUESTS[c.quest.job]) ? { job: c.quest.job, kills: Math.max(0, c.quest.kills | 0) } : null;
+    p.daily = DY.sanitize(c.daily);
     p.dir = "down"; p.moving = false; p.dead = false; p.auto = false; p.autoState = "";
     p.autoX = 0; p.autoY = 0; p.autoR = WHOLE_MAP;
     this.applyCharData(p, c);
@@ -657,6 +662,7 @@ class WorldRoom extends Room {
     client.send("quest", p.quest);
     this.clock.setTimeout(() => partyBack(c.id, c.party), 800);
     this.sendSkills(client.sessionId);
+    this.dailyEvt(client.sessionId, { kind: "visit", map: this.mapId });
     // (ไม่ประกาศ "เข้าสู่เกม" ให้ทุกคนแล้ว — เพื่อนในปาร์ตี้เห็นข้อความกลับเข้าเกมจากระบบปาร์ตี้)
     this.state.monsters.forEach((m) => { if (m.boss && !m.dead) client.send("system", `⚠️ World Boss ${m.name} อยู่ในแผนที่นี้! (${Math.floor(m.x / this.map.tile)}, ${Math.floor(m.y / this.map.tile)})`); });
   }
@@ -2087,6 +2093,8 @@ class WorldRoom extends Room {
       const each = Math.max(1, Math.round((sum * (1 + 0.1 * (near.length - 1))) / near.length));
       near.forEach((sid) => { credit.add(sid); this.gainExp(sid, each); });
     });
+    // ภารกิจรายวัน
+    credit.forEach((pid) => this.dailyEvt(pid, { kind: "kill", mob: { kind: m.kind, level: m.level, rank: r.rank || 0 } }));
     // เควสเปลี่ยนอาชีพ: นับตัวที่ฆ่า (ทุกคนที่ช่วยตี + เพื่อนปาร์ตี้ที่อยู่ใกล้)
     credit.forEach((pid) => {
       const pp = this.state.players.get(pid), q = pp && pp.quest, Q = q && D.JOB_QUESTS[q.job], Q2 = q && D.JOB2_QUESTS[q.job];
@@ -2430,6 +2438,7 @@ class WorldRoom extends Room {
   wantLoot(r, d) {
     const pk = (r.autoCfg && r.autoCfg.pick) || {}, it = I.ITEMS[d.item];
     if (!it) return false;
+    if ((d.r || 0) >= 3) return false; // มหากาพย์/ตำนาน: AUTO และสัตว์เลี้ยงไม่เก็บให้ ต้องเดินไปกดเก็บเอง
     if (it.type === "equip") return (pk.equip ?? 0) >= 0 && (d.r || 0) >= (pk.equip ?? 0);
     if (it.type === "use") return pk.use !== false;
     if (/^stone_/.test(d.item)) return pk.stone !== false;
@@ -2452,6 +2461,7 @@ class WorldRoom extends Room {
     const left = Bag.addItem(p.bag, d.item, d.n, this.dr.get(did).gear);
     if (left === d.n) { if (client) client.send("toast", "กระเป๋าเต็ม"); return true; }
     if (client) client.send("loot", { item: d.item, n: d.n - left, r: d.r });
+    if (I.ITEMS[d.item] && I.ITEMS[d.item].type === "material" && !/^stone_|^sd_ticket/.test(d.item)) this.dailyEvt(pid, { kind: "loot", n: d.n - left });
     if (d.r >= 2) this.saveSoon(pid);
     if (left > 0) d.n = left; else { this.state.drops.delete(did); this.dr.delete(did); }
     this.sendInv(pid);
@@ -2621,6 +2631,7 @@ class WorldRoom extends Room {
     const cd = Math.round(sk.cooldown * (1 - ((p.sx && p.sx.cdr) || 0) / 100));
     r.cds[key] = now() + cd;
     r.lastAct = now();
+    this.dailyEvt(pid, { kind: "skill" });
     const client = this.clients.find((c) => c.sessionId === pid);
     if (client) client.send("cd", { skill: key, until: cd });
     if (mob) p.dir = dirOf(mob.x - p.x, mob.y - p.y);
@@ -3178,6 +3189,7 @@ class WorldRoom extends Room {
   dgClear() {
     const g = this.dgs, Df = SD.DIFFS[this.dg.diff], el = this.def.el, E = SD.ELEMENTS[el];
     g.phase = "clear"; g.at = Date.now() + 20000; this.dg.over = true;
+    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) this.dailyEvt(sid, { kind: "clear" }); });
     const roll = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
     this.state.players.forEach((p, sid) => {
       const r = this.pr.get(sid);
@@ -3230,6 +3242,66 @@ class WorldRoom extends Room {
     const g = this.dgs, E = SD.ELEMENTS[this.def.el], Df = SD.DIFFS[this.dg.diff];
     this.broadcast("dungeon", { el: this.def.el, name: `ธาตุ${E.name} · ${Df.name}`, color: E.color, phase: g.phase, wave: g.wave, waves: SD.WAVES, left: g.left,
       timeLeft: g.endAt ? Math.max(0, g.endAt - t) : SD.TIME_MS, next: g.at ? Math.max(0, g.at - t) : 0, boss: E.boss.name });
+  }
+
+  // ================= ภารกิจรายวัน (server/daily.js) =================
+  dailySend(pid) {
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    if (!p || !cl) return;
+    cl.send("daily", { ...DY.view(p), shop: DY.SHOP });
+  }
+  dailyEvt(pid, ev) {
+    const p = this.state.players.get(pid);
+    if (!p || p.dead && ev.kind !== "clear") return;
+    const fresh = DY.ensure(p);
+    const done = DY.event(p, ev);
+    const cl = this.clients.find((c) => c.sessionId === pid);
+    if (!cl) return;
+    if (done.length) {
+      for (const m of done) cl.send("toast", `📜 ภารกิจรายวันสำเร็จ: ${m.text} — กดรับรางวัลได้เลย`);
+      this.saveSoon(pid);
+    }
+    if (done.length || fresh) this.dailySend(pid);
+    else if (ev.kind !== "skill") { // ความคืบหน้า (ไม่ส่งถี่เกิน 1 ครั้ง/วิ)
+      const r = this.pr.get(pid), t = now();
+      if (r && t - (r.dailyAt || 0) > 1000) { r.dailyAt = t; this.dailySend(pid); }
+    }
+  }
+  dailyClaim(pid, m) {
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    if (!p || !p.bag || !cl) return;
+    if (DY.ensure(p)) return this.dailySend(pid);
+    const d = p.daily;
+    let rw;
+    if (m.bonus) {
+      if (d.bonus) return;
+      if (!d.list.every((x) => x.claimed)) return cl.send("toast", "รับรางวัลทุกข้อก่อน แล้วค่อยรับโบนัส");
+      d.bonus = true; rw = d.bonusRw;
+    } else {
+      const x = d.list[m.i | 0];
+      if (!x || x.claimed) return;
+      if (x.have < x.need) return cl.send("toast", "ภารกิจนี้ยังไม่เสร็จ");
+      x.claimed = true; rw = x.rw;
+    }
+    d.ap += rw.ap || 0;
+    p.bag.gold += rw.gold || 0;
+    if (rw.exp) this.gainExp(pid, rw.exp);
+    this.sendInv(pid); this.save(pid);
+    cl.send("toast", `🎁 ได้ ${(rw.exp || 0).toLocaleString()} EXP · ${(rw.gold || 0).toLocaleString()} gold · เหรียญกิจกรรม ${rw.ap}`);
+    this.dailySend(pid);
+  }
+  dailyBuy(pid, m) {
+    const p = this.state.players.get(pid), cl = this.clients.find((c) => c.sessionId === pid);
+    const S = DY.SHOP.find((x) => x.k === m.k);
+    if (!p || !p.bag || !cl || !S) return;
+    DY.ensure(p);
+    if (p.daily.ap < S.cost) return cl.send("toast", "เหรียญกิจกรรมไม่พอ");
+    if (!Bag.canFit(p.bag, S.id, S.n)) return cl.send("toast", "กระเป๋าเต็ม");
+    p.daily.ap -= S.cost;
+    Bag.addItem(p.bag, S.id, S.n);
+    this.sendInv(pid); this.save(pid);
+    cl.send("toast", `แลก ${I.ITEMS[S.id].name} ×${S.n} แล้ว`);
+    this.dailySend(pid);
   }
 
   // ================= รอยแยกมิติ (ดันฝูงมอน) =================
@@ -3346,6 +3418,7 @@ class WorldRoom extends Room {
   rfClear(t) {
     const g = this.dgs, T = this.rfTier();
     g.phase = "clear"; g.at = t + 25000; this.dg.over = true;
+    this.state.players.forEach((p, sid) => { const r = this.pr.get(sid); if (r && this.dg.members.has(r.charId)) this.dailyEvt(sid, { kind: "clear" }); });
     this.state.players.forEach((p, sid) => {
       const r = this.pr.get(sid);
       if (!p || !p.bag || !r || !this.dg.members.has(r.charId)) return;

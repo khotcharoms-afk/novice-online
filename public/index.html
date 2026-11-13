@@ -85,6 +85,7 @@
         <button id="statBtn" class="stat-btn" type="button" title="ตัวละคร / สเตตัส / อุปกรณ์ (ปุ่ม C)">ตัวละคร <span id="statBadge" class="badge" hidden>0</span></button>
         <button id="invBtn" class="stat-btn" type="button" title="กระเป๋า (ปุ่ม I)">กระเป๋า</button>
         <button id="skillBtn" class="stat-btn" type="button" title="สกิล (ปุ่ม K)">สกิล <span id="skillBadge" class="badge" hidden>0</span></button>
+        <button id="dailyBtn" class="stat-btn" type="button" title="ภารกิจรายวัน (ปุ่ม J)">ภารกิจ <span id="dailyBadge" class="badge" hidden>0</span></button>
       </div>
       <div class="bar-row"><span>HP</span><div class="bar hp"><i id="hpFill"></i></div><em id="hpTxt">-</em></div>
       <div class="bar-row"><span>SP</span><div class="bar sp"><i id="spFill"></i></div><em id="spTxt">-</em></div>
@@ -214,6 +215,11 @@
       <p class="ap-note">บอสเกิดเองตามเวลา · ประกาศเตือนก่อนเกิด 5 นาที · เกิดแล้วไม่มีใครปราบภายใน 60 นาทีจะหายไป · ปราบได้รับของดีและ MVP (ดาเมจสูงสุด) ได้ของระดับมหากาพย์ขึ้นไป</p>
       <div id="bossList" class="boss-list"></div>
     </section>
+    <section id="dailyPanel" class="frame" hidden aria-label="ภารกิจรายวัน">
+      <div class="ap-head"><b>📜 ภารกิจรายวัน</b><span><span class="dy-apbox" title="เหรียญกิจกรรม">🪙 <b id="dyAp">0</b></span> <button id="dailyClose" type="button" aria-label="ปิด">✕</button></span></div>
+      <div class="dy-tabs"><button type="button" class="dy-tab sel" data-t="list">ภารกิจวันนี้</button><button type="button" class="dy-tab" data-t="shop">ร้านเหรียญกิจกรรม</button></div>
+      <div id="dailyBody"></div>
+    </section>
     <section id="storagePanel" class="frame" hidden aria-label="คลังเก็บของ">
       <div class="ap-head"><b>📦 คลังเก็บของ <span class="muted" id="stCount"></span></b><span><button id="stSort" type="button" class="btn-ghost sm">เรียง</button> <button id="stClose" type="button" aria-label="ปิด">✕</button></span></div>
       <p class="ap-note">ใช้ร่วมกันทุกตัวละครในไอดีนี้ · ดับเบิลคลิกของในกระเป๋า = ฝาก · ดับเบิลคลิกของในคลัง = ถอน</p>
@@ -288,6 +294,7 @@
   <script src="/spirit-ui.js"></script>
   <script src="/dungeon-ui.js"></script>
   <script src="/boss-ui.js"></script>
+  <script src="/daily-ui.js"></script>
   <script src="/party-ui.js"></script>
   <script src="/exchange-ui.js"></script>
   <script src="/rebirth-ui.js"></script>

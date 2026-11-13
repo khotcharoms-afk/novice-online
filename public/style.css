@@ -228,7 +228,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- สเตตัส ---------- */
 .status-actions { display: flex; margin: -2px 0 6px; }
-.stat-btn { font-size: 12.5px; padding: 3px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--brass-dim);
+.stat-btn { white-space: nowrap; font-size: 12.5px; padding: 3px 7px; border-radius: 6px; cursor: pointer; border: 1px solid var(--brass-dim);
   background: linear-gradient(180deg, #2a3466, #171d3d); color: var(--text); display: inline-flex; gap: 6px; align-items: center; }
 .stat-btn .badge { background: #e0464e; color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; line-height: 17px; }
 #statPanel { top: 210px; left: 10px; width: 300px; padding: 10px 12px 12px; }
@@ -940,3 +940,25 @@ body.sk-edit #skillBar .slot.over { opacity: 1; }
 .rf-tiers { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
 .rf-bar { height: 8px; border-radius: 6px; background: rgba(0,0,0,.45); overflow: hidden; margin: 6px 0 4px; border: 1px solid rgba(255,140,80,.35); }
 .rf-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff4a2a, #ffb04a); box-shadow: 0 0 8px #ff6a3d; transition: width .4s; }
+/* ---------- ภารกิจรายวัน ---------- */
+#dailyPanel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 16px)); z-index: 14; padding: 10px 12px 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#dailyPanel.dragged { transform: none; }
+.dy-apbox { font-size: 13px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 200, 80, .12); border: 1px solid rgba(255, 200, 80, .35); }
+.dy-tabs { display: flex; gap: 6px; margin: 6px 0 8px; }
+.dy-tab { flex: 1; padding: 6px; border-radius: 8px; border: 1px solid var(--brass-dim); background: rgba(0,0,0,.25); color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
+.dy-tab.sel { background: linear-gradient(180deg, rgba(255,210,110,.25), rgba(255,210,110,.08)); border-color: var(--brass, #d9b46a); }
+.dy-list { display: grid; gap: 6px; }
+.dy-row, .dy-bonus { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.08); }
+.dy-row.done { border-color: rgba(120, 255, 150, .5); box-shadow: 0 0 10px rgba(120,255,150,.15) inset; }
+.dy-row.claimed, .dy-bonus.claimed { opacity: .55; }
+.dy-ic { font-size: 22px; text-align: center; }
+.dy-main b { font-size: 13.5px; } .dy-main small { display: block; opacity: .7; font-size: 11.5px; }
+.dy-bar { position: relative; height: 12px; border-radius: 6px; background: rgba(0,0,0,.45); overflow: hidden; margin: 4px 0 3px; }
+.dy-bar i { display: block; height: 100%; background: linear-gradient(90deg, #4aa36a, #8ef0a0); }
+.dy-bar span { position: absolute; inset: 0; font-size: 10px; line-height: 12px; text-align: center; text-shadow: 0 1px 2px #000; }
+.dy-rw { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 11.5px; opacity: .9; } .dy-rw i { font-style: normal; opacity: .8; margin-right: 2px; }
+.dy-ok { font-size: 12px; color: #8ef0a0; white-space: nowrap; }
+.dy-bonus { grid-template-columns: 1fr auto; margin-top: 8px; background: linear-gradient(180deg, rgba(255,200,80,.12), rgba(0,0,0,.25)); border-color: rgba(255,200,80,.35); }
+.dy-shop { display: grid; gap: 6px; }
+.dy-item { display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: rgba(0,0,0,.25); }
+.dy-item img { width: 32px; height: 32px; image-rendering: pixelated; } .dy-item small { display: block; opacity: .65; font-size: 11px; }

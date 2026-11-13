@@ -365,6 +365,7 @@ function bindRoom(room) {
     room.onMessage("mobCharge", (c) => scene && scene.mobCharge(c));
     room.onMessage("mobFx", (c) => scene && scene.mobFx(c));
     room.onMessage("bossBoard", (d) => onBossBoard(d));
+    room.onMessage("daily", (d) => { if (typeof onDaily === "function") onDaily(d); });
     room.onMessage("party", (d) => onParty(d));
     room.onMessage("storage", (d) => onStorage(d));
     room.onMessage("rebirthDone", (d) => onRebirthDone(d));
